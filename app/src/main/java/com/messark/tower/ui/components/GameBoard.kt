@@ -40,8 +40,8 @@ fun GameBoard(
     val hexHeight = hexWidth * 91f / 101f
     
     // Vertical spacing multiplier for pointy-top hexes. 
-    // Reduced slightly from 0.75f to 0.74f to eliminate vertical gaps.
-    val rowSpacingFactor = 0.74f
+    // Reduced from 0.74f to 0.69f to reduce the vertical gap by approx 6 pixels.
+    val rowSpacingFactor = 0.69f
 
     val minR = hexes.keys.minOfOrNull { it.r } ?: 0
     val maxR = hexes.keys.maxOfOrNull { it.r } ?: 0

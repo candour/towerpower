@@ -39,7 +39,7 @@ object MapGenerator {
                     }
 
                     val floorVariant = if (type == TileType.FLOOR || type == TileType.GOAL_TABLE || type == TileType.START) {
-                        random.nextInt(8)
+                        getWeightedFloorVariant()
                     } else 0
                     hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
                 }
@@ -79,7 +79,7 @@ object MapGenerator {
                 // Place the tile based on character type
                 if (!hexes.containsKey(coord)) {
                     val floorVariant = if (type == TileType.FLOOR) {
-                        random.nextInt(8) // 0-7 variants
+                        getWeightedFloorVariant()
                     } else 0
                     hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
                 }
@@ -87,6 +87,14 @@ object MapGenerator {
         }
 
         return hexes
+    }
+
+    private fun getWeightedFloorVariant(): Int {
+        return if (random.nextFloat() < 0.80f) {
+            random.nextInt(2) // floor01 or floor02 (80% total)
+        } else {
+            2 + random.nextInt(6) // floor03 to floor10 (20% total)
+        }
     }
 
     private fun getNeighbors(coord: AxialCoordinate): List<AxialCoordinate> {
