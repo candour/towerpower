@@ -42,14 +42,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun initializeGame() {
-        val hexes = MapGenerator.generateMap(MapConstants.INITIAL_MAP)
-
-        // Find start and end positions
-        // In the new levelOneMap, the start position is the empty space in the last row
-        // Row 7: "EEEEE EEEEE" -> space at index 5.
-        // Axial q = q_offset - (r - (r and 1)) / 2 = 5 - (7 - 1) / 2 = 5 - 3 = 2.
-        val startPos = AxialCoordinate(2, 7)
-        val endPos = hexes.values.firstOrNull { it.type == TileType.GOAL_TABLE }?.coordinate ?: AxialCoordinate(0, 0)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
 
         _gameState.update { it.copy(
             hexes = hexes,

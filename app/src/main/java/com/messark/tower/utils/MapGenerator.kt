@@ -8,6 +8,55 @@ import java.util.Random
 object MapGenerator {
     private val random = Random()
 
+    fun generateRandomVerticalMap(width: Int = 8, height: Int = 16): Triple<Map<AxialCoordinate, HexTile>, AxialCoordinate, AxialCoordinate> {
+        while (true) {
+            val hexes = mutableMapOf<AxialCoordinate, HexTile>()
+            val startQOffset = random.nextInt(width)
+            val endQOffset = random.nextInt(width)
+
+            val startR = height - 1
+            val startQ = startQOffset - (startR - (startR and 1)) / 2
+            val startPos = AxialCoordinate(startQ, startR)
+
+            val endR = 0
+            val endQ = endQOffset - (endR - (endR and 1)) / 2
+            val endPos = AxialCoordinate(endQ, endR)
+
+            val allCoords = mutableSetOf<AxialCoordinate>()
+
+            for (r in 0 until height) {
+                for (q_offset in 0 until width) {
+                    val q = q_offset - (r - (r and 1)) / 2
+                    val coord = AxialCoordinate(q, r)
+                    allCoords.add(coord)
+
+                    val type = when (coord) {
+                        startPos -> TileType.FLOOR
+                        endPos -> TileType.GOAL_TABLE
+                        else -> {
+                            if (random.nextFloat() < 0.10f) TileType.PILLAR else TileType.FLOOR
+                        }
+                    }
+
+                    val floorVariant = if (type == TileType.FLOOR || type == TileType.GOAL_TABLE) {
+                        random.nextInt(8)
+                    } else 0
+                    hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
+                }
+            }
+
+            // Verify path exists
+            val blocked = hexes.values.filter {
+                it.type == TileType.PILLAR
+            }.map { it.coordinate }.toSet()
+
+            val path = Pathfinding.findPath(startPos, endPos, blocked, allCoords)
+            if (path != null) {
+                return Triple(hexes, startPos, endPos)
+            }
+        }
+    }
+
     fun generateMap(mapData: List<String>): Map<AxialCoordinate, HexTile> {
         val hexes = mutableMapOf<AxialCoordinate, HexTile>()
 

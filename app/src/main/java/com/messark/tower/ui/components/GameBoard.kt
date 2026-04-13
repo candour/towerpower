@@ -43,16 +43,38 @@ fun GameBoard(
     // Reduced slightly from 0.75f to 0.74f to eliminate vertical gaps.
     val rowSpacingFactor = 0.74f
 
+    val minR = hexes.keys.minOfOrNull { it.r } ?: 0
+    val maxR = hexes.keys.maxOfOrNull { it.r } ?: 0
+    val minQ = hexes.keys.minOfOrNull { it.q } ?: 0
+    val maxQ = hexes.keys.maxOfOrNull { it.q } ?: 0
+
+    // Calculate dimensions based on the grid
+    // For pointy-top:
+    // x = (q + r/2) * width
+    // y = r * height * 0.75
+
+    // We use the grid extents to calculate board size
+    // In an axial system for an offset-grid-like layout (which generateRandomVerticalMap creates),
+    // the max column offset is what determines the width.
+    val gridWidth = if (hexes.isEmpty()) 0 else {
+        hexes.keys.maxOf { it.q + (it.r / 2) } - hexes.keys.minOf { it.q + (it.r / 2) } + 1
+    }
+    val gridHeight = if (hexes.isEmpty()) 0 else (maxR - minR + 1)
+
+    val boardWidth = hexWidth * (gridWidth.toFloat() + 0.5f) + 40.dp // extra 0.5 for staggering, 40 for border
+    val boardHeight = hexHeight * (gridHeight.toFloat() * rowSpacingFactor + 0.25f) + 40.dp
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF1B5E20))
             .verticalScroll(rememberScrollState())
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(rememberScrollState()),
+        contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
         Canvas(
             modifier = Modifier
-                .size(2000.dp, 2000.dp)
+                .size(boardWidth, boardHeight)
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         val wPx = hexWidth.toPx()
