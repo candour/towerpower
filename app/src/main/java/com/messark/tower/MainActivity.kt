@@ -5,18 +5,28 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import com.messark.tower.ui.components.GameBoard
 import com.messark.tower.ui.components.GameControlPanel
 import com.messark.tower.ui.constants.LayoutConstants
 import com.messark.tower.ui.theme.TowerPowerTheme
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -29,6 +39,12 @@ class MainActivity : ComponentActivity() {
                 val gameState by viewModel.gameState.collectAsState()
                 val availableTowers by viewModel.availableTowers.collectAsState()
                 val haptic = LocalHapticFeedback.current
+                var showLoading by remember { mutableStateOf(true) }
+
+                LaunchedEffect(Unit) {
+                    delay(1000)
+                    showLoading = false
+                }
 
                 LaunchedEffect(Unit) {
                     viewModel.hapticEvents.collect {
@@ -63,6 +79,30 @@ class MainActivity : ComponentActivity() {
                             waveActive = gameState.waveActive,
                             modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
                         )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showLoading,
+                        exit = fadeOut(animationSpec = tween(durationMillis = 500))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {}
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.loading_screen),
+                                contentDescription = "Loading Screen",
+                                modifier = Modifier.fillMaxWidth(),
+                                contentScale = ContentScale.FillWidth
+                            )
+                        }
                     }
                 }
             }
