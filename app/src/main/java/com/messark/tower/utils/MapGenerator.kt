@@ -31,14 +31,14 @@ object MapGenerator {
                     allCoords.add(coord)
 
                     val type = when (coord) {
-                        startPos -> TileType.FLOOR
+                        startPos -> TileType.START
                         endPos -> TileType.GOAL_TABLE
                         else -> {
                             if (random.nextFloat() < 0.10f) TileType.PILLAR else TileType.FLOOR
                         }
                     }
 
-                    val floorVariant = if (type == TileType.FLOOR || type == TileType.GOAL_TABLE) {
+                    val floorVariant = if (type == TileType.FLOOR || type == TileType.GOAL_TABLE || type == TileType.START) {
                         random.nextInt(8)
                     } else 0
                     hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)

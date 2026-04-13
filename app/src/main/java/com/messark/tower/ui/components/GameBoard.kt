@@ -186,8 +186,23 @@ fun GameBoard(
                     ))
                 }
 
-                // 2. Tile Content (Edges, Pillars, Tables)
+                // 2. Tile Content (Edges, Pillars, Tables, Start Decoration)
                 if (tile.type != TileType.FLOOR) {
+                    if (tile.type == TileType.START) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 1,
+                            draw = {
+                                val hexPath = createHexPath(screenPos, wPx, hPx)
+                                drawPath(
+                                    path = hexPath,
+                                    color = Color.Green.copy(alpha = 0.3f)
+                                )
+                            }
+                        ))
+                    }
+
                     val srcRect = when (tile.type) {
                         TileType.PILLAR -> SpriteConstants.PILLAR_RECT
                         TileType.GOAL_TABLE -> SpriteConstants.GOAL_TABLE_RECT
@@ -196,7 +211,9 @@ fun GameBoard(
                         TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
                         TileType.EDGE_SE -> SpriteConstants.EDGE_SE_RECT
                         TileType.EDGE_TOP -> SpriteConstants.EDGE_TOP_RECT
-                        else -> null
+                        TileType.START -> null
+                        TileType.FLOOR -> null
+                        TileType.END -> null
                     }
 
                     srcRect?.let { rect ->

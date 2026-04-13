@@ -367,17 +367,44 @@ class MainViewModel @JvmOverloads constructor(
             val tile = currentState.hexes[coord]
             if (tile != null && tile.type == TileType.FLOOR && tile.tower == null) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
-                val path = Pathfinding.findPath(
-                    currentState.startPosition ?: return,
-                    currentState.endPosition ?: return,
-                    blocked,
-                    currentState.hexes.keys
+                val startPos = currentState.startPosition ?: return
+                val endPos = currentState.endPosition ?: return
+
+                // Check if path from START is still possible
+                val startPath = Pathfinding.findPath(
+                    startPos, endPos, blocked, currentState.hexes.keys
                 )
 
-                if (path != null) {
-                    val newHexes = currentState.hexes.toMutableMap()
-                    newHexes[coord] = tile.copy(tower = towerToPlace.copy(id = UUID.randomUUID().toString()))
-                    _gameState.update { it.copy(hexes = newHexes, gold = it.gold - towerToPlace.cost) }
+                if (startPath != null) {
+                    // Check if path for each active enemy is still possible
+                    val canRepathAll = currentState.enemies.all { enemy ->
+                        val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1) ?: endPos
+                        Pathfinding.findPath(
+                            currentTarget, endPos, blocked, currentState.hexes.keys
+                        ) != null
+                    }
+
+                    if (canRepathAll) {
+                        val newHexes = currentState.hexes.toMutableMap()
+                        newHexes[coord] = tile.copy(tower = towerToPlace.copy(id = UUID.randomUUID().toString()))
+
+                        _gameState.update { state ->
+                            val updatedEnemies = state.enemies.map { enemy ->
+                                val currentTargetIndex = enemy.currentPathIndex + 1
+                                if (currentTargetIndex >= enemy.path.size) return@map enemy
+
+                                val currentTarget = enemy.path[currentTargetIndex]
+                                val newPathToFollow = Pathfinding.findPath(
+                                    currentTarget, endPos, blocked, state.hexes.keys
+                                ) ?: listOf(currentTarget)
+
+                                // Construct the new full path: part already traveled + new path from current target
+                                val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
+                                enemy.copy(path = newPath)
+                            }
+                            state.copy(hexes = newHexes, gold = state.gold - towerToPlace.cost, enemies = updatedEnemies)
+                        }
+                    }
                 }
             }
         }
