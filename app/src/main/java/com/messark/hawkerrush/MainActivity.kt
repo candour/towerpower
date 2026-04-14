@@ -1,4 +1,4 @@
-package com.messark.tower
+package com.messark.hawkerrush
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,10 +22,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import com.messark.tower.ui.components.GameBoard
-import com.messark.tower.ui.components.GameControlPanel
-import com.messark.tower.ui.constants.LayoutConstants
-import com.messark.tower.ui.theme.TowerPowerTheme
+import com.messark.hawkerrush.ui.components.GameBoard
+import com.messark.hawkerrush.ui.components.GameControlPanel
+import com.messark.hawkerrush.ui.constants.LayoutConstants
+import com.messark.hawkerrush.ui.theme.HawkerRushTheme
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -35,9 +35,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            TowerPowerTheme {
+            HawkerRushTheme {
                 val gameState by viewModel.gameState.collectAsState()
-                val availableTowers by viewModel.availableTowers.collectAsState()
+                val availableStalls by viewModel.availableStalls.collectAsState()
                 val haptic = LocalHapticFeedback.current
                 var showLoading by remember { mutableStateOf(true) }
 
@@ -72,9 +72,9 @@ class MainActivity : ComponentActivity() {
                         GameControlPanel(
                             gold = gameState.gold,
                             health = gameState.health,
-                            availableTowers = availableTowers,
-                            selectedTower = gameState.selectedTowerType,
-                            onTowerSelected = { tower -> viewModel.selectTower(tower) },
+                            availableStalls = availableStalls,
+                            selectedStall = gameState.selectedStallType,
+                            onStallSelected = { stall -> viewModel.selectStall(stall) },
                             onStartWave = { viewModel.startWave() },
                             waveActive = gameState.waveActive,
                             modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)

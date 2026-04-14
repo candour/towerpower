@@ -1,4 +1,4 @@
-package com.messark.tower.ui.components
+package com.messark.hawkerrush.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,17 +21,17 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.messark.tower.R
-import com.messark.tower.model.Tower
-import com.messark.tower.ui.constants.SpriteConstants
+import com.messark.hawkerrush.R
+import com.messark.hawkerrush.model.Stall
+import com.messark.hawkerrush.ui.constants.SpriteConstants
 
 @Composable
 fun GameControlPanel(
     gold: Int,
     health: Int,
-    availableTowers: List<Tower>,
-    selectedTower: Tower?,
-    onTowerSelected: (Tower) -> Unit,
+    availableStalls: List<Stall>,
+    selectedStall: Stall?,
+    onStallSelected: (Stall) -> Unit,
     onStartWave: () -> Unit,
     waveActive: Boolean,
     modifier: Modifier = Modifier
@@ -63,8 +63,8 @@ fun GameControlPanel(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 2.dp)
         ) {
-            if (selectedTower != null) {
-                Text(text = selectedTower.description, color = Color.White, fontSize = 12.sp)
+            if (selectedStall != null) {
+                Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
             } else {
                 Text(text = "STALL SHOP", color = Color.White, fontSize = 12.sp)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -79,11 +79,11 @@ fun GameControlPanel(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             contentPadding = PaddingValues(2.dp)
         ) {
-            items(availableTowers) { tower ->
-                TowerSlot(
-                    tower = tower,
-                    isSelected = selectedTower?.id == tower.id,
-                    onClick = { onTowerSelected(tower) },
+            items(availableStalls) { stall ->
+                StallSlot(
+                    stall = stall,
+                    isSelected = selectedStall?.id == stall.id,
+                    onClick = { onStallSelected(stall) },
                     spriteSheet = spriteSheet
                 )
             }
@@ -104,13 +104,13 @@ fun GameControlPanel(
 }
 
 @Composable
-fun TowerSlot(
-    tower: Tower,
+fun StallSlot(
+    stall: Stall,
     isSelected: Boolean,
     onClick: () -> Unit,
     spriteSheet: ImageBitmap
 ) {
-    val spriteRect = SpriteConstants.STALL_RECTS[tower.stallType] ?: SpriteConstants.STALL_RECTS.values.first()
+    val spriteRect = SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS.values.first()
 
     Box(
         modifier = Modifier
@@ -135,13 +135,13 @@ fun TowerSlot(
                 )
             }
             Text(
-                text = tower.name,
+                text = stall.name,
                 color = Color.White,
                 fontSize = 8.sp,
                 maxLines = 1
             )
             Text(
-                text = "$${tower.cost}",
+                text = "$${stall.cost}",
                 color = Color.Yellow,
                 fontSize = 9.sp,
                 maxLines = 1

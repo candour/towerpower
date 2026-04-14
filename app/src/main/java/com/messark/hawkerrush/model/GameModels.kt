@@ -1,4 +1,4 @@
-package com.messark.tower.model
+package com.messark.hawkerrush.model
 
 import androidx.compose.ui.graphics.Color
 
@@ -22,7 +22,7 @@ enum class TileType {
 data class HexTile(
     val coordinate: AxialCoordinate,
     val type: TileType = TileType.FLOOR,
-    val tower: Tower? = null,
+    val stall: Stall? = null,
     val floorVariant: Int = 0
 )
 
@@ -30,7 +30,7 @@ enum class StallType {
     TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG
 }
 
-data class Tower(
+data class Stall(
     val id: String,
     val name: String,
     val cost: Int,
@@ -88,7 +88,7 @@ data class GameState(
     val hexes: Map<AxialCoordinate, HexTile> = emptyMap(),
     val health: Int = 10, // 10 tables
     val gold: Int = 500,
-    val selectedTowerType: Tower? = null,
+    val selectedStallType: Stall? = null,
     val enemies: List<Enemy> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
     val puddles: List<StickyPuddle> = emptyList(),

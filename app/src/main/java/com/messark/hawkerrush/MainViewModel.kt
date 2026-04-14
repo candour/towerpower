@@ -1,13 +1,13 @@
-package com.messark.tower
+package com.messark.hawkerrush
 
 import android.app.Application
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.messark.tower.model.*
-import com.messark.tower.utils.MapGenerator
-import com.messark.tower.utils.Pathfinding
-import com.messark.tower.utils.SettingsRepository
+import com.messark.hawkerrush.model.*
+import com.messark.hawkerrush.utils.MapGenerator
+import com.messark.hawkerrush.utils.Pathfinding
+import com.messark.hawkerrush.utils.SettingsRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.util.*
@@ -19,16 +19,16 @@ class MainViewModel @JvmOverloads constructor(
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
-    private val _availableTowers = MutableStateFlow(
+    private val _availableStalls = MutableStateFlow(
         listOf(
-            Tower("t1", "Teh Tarik", 150, Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
-            Tower("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 5, fireRateMs = 500, description = "Fast area damage"),
-            Tower("t3", "Chicken Rice", 100, Color.Yellow, stallType = StallType.CHICKEN_RICE, range = 4f, damage = 15, fireRateMs = 700, description = "High single-target damage"),
-            Tower("t4", "Durian", 300, Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 25, fireRateMs = 2000, description = "Massive damage, slow fire"),
-            Tower("t5", "Ice Kachang", 250, Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, description = "Freezes enemies in place")
+            Stall("t1", "Teh Tarik", 150, Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
+            Stall("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 5, fireRateMs = 500, description = "Fast area damage"),
+            Stall("t3", "Chicken Rice", 100, Color.Yellow, stallType = StallType.CHICKEN_RICE, range = 4f, damage = 15, fireRateMs = 700, description = "High single-target damage"),
+            Stall("t4", "Durian", 300, Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 25, fireRateMs = 2000, description = "Massive damage, slow fire"),
+            Stall("t5", "Ice Kachang", 250, Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, description = "Freezes enemies in place")
         )
     )
-    val availableTowers: StateFlow<List<Tower>> = _availableTowers.asStateFlow()
+    val availableStalls: StateFlow<List<Stall>> = _availableStalls.asStateFlow()
 
     private var gameJob: Job? = null
     private var lastHapticTimeMs = 0L
@@ -48,12 +48,12 @@ class MainViewModel @JvmOverloads constructor(
             hexes = hexes,
             startPosition = startPos,
             endPosition = endPos,
-            gold = 500 // Start with some gold to place towers
+            gold = 500 // Start with some gold to place stalls
         ) }
     }
 
-    fun selectTower(tower: Tower) {
-        _gameState.update { it.copy(selectedTowerType = tower) }
+    fun selectStall(stall: Stall) {
+        _gameState.update { it.copy(selectedStallType = stall) }
     }
 
     fun startWave() {
@@ -212,29 +212,29 @@ class MainViewModel @JvmOverloads constructor(
             }
             newState = newState.copy(enemies = updatedEnemies)
 
-            // 3. Tower Firing
+            // 3. Stall Firing
             val newProjectiles = newState.projectiles.toMutableList()
             val newPuddles = newState.puddles.toMutableList()
             val updatedHexes = newState.hexes.toMutableMap()
 
             newState.hexes.forEach { (coord, tile) ->
-                val tower = tile.tower
-                if (tower != null && currentTimeMs - tower.lastFiredMs >= tower.fireRateMs) {
+                val stall = tile.stall
+                if (stall != null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                     val target = newState.enemies.firstOrNull { enemy ->
-                        axialDistance(enemy.position, PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())) <= tower.range
+                        axialDistance(enemy.position, PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())) <= stall.range
                     }
 
                     if (target != null) {
-                        var updatedTower = tower.copy(lastFiredMs = currentTimeMs)
-                        when (tower.stallType) {
+                        var updatedStall = stall.copy(lastFiredMs = currentTimeMs)
+                        when (stall.stallType) {
                             StallType.CHICKEN_RICE -> {
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
                                     position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
-                                    damage = tower.damage,
-                                    color = tower.color
+                                    damage = stall.damage,
+                                    color = stall.color
                                 ))
                             }
                             StallType.TEH_TARIK -> {
@@ -248,14 +248,14 @@ class MainViewModel @JvmOverloads constructor(
                                 val dq = target.position.q - coord.q
                                 val dr = target.position.r - coord.r
                                 val angle = Math.atan2(dr.toDouble(), dq.toDouble()).toFloat()
-                                updatedTower = updatedTower.copy(rotation = angle)
+                                updatedStall = updatedStall.copy(rotation = angle)
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
                                     position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
                                     targetEnemyId = null,
                                     targetPosition = target.position,
-                                    damage = tower.damage,
-                                    color = tower.color,
+                                    damage = stall.damage,
+                                    color = stall.color,
                                     speed = 0.5f
                                 ))
                             }
@@ -265,8 +265,8 @@ class MainViewModel @JvmOverloads constructor(
                                     position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
-                                    damage = tower.damage,
-                                    color = tower.color,
+                                    damage = stall.damage,
+                                    color = stall.color,
                                     isFreeze = true
                                 ))
                             }
@@ -277,12 +277,12 @@ class MainViewModel @JvmOverloads constructor(
                                     position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
-                                    damage = tower.damage,
-                                    color = tower.color
+                                    damage = stall.damage,
+                                    color = stall.color
                                 ))
                             }
                         }
-                        updatedHexes[coord] = tile.copy(tower = updatedTower)
+                        updatedHexes[coord] = tile.copy(stall = updatedStall)
                     }
                 }
             }
@@ -361,11 +361,11 @@ class MainViewModel @JvmOverloads constructor(
 
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
-        val towerToPlace = currentState.selectedTowerType
+        val stallToPlace = currentState.selectedStallType
 
-        if (towerToPlace != null && currentState.gold >= towerToPlace.cost) {
+        if (stallToPlace != null && currentState.gold >= stallToPlace.cost) {
             val tile = currentState.hexes[coord]
-            if (tile != null && tile.type == TileType.FLOOR && tile.tower == null) {
+            if (tile != null && tile.type == TileType.FLOOR && tile.stall == null) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
@@ -386,7 +386,7 @@ class MainViewModel @JvmOverloads constructor(
 
                     if (canRepathAll) {
                         val newHexes = currentState.hexes.toMutableMap()
-                        newHexes[coord] = tile.copy(tower = towerToPlace.copy(id = UUID.randomUUID().toString()))
+                        newHexes[coord] = tile.copy(stall = stallToPlace.copy(id = UUID.randomUUID().toString()))
 
                         _gameState.update { state ->
                             val updatedEnemies = state.enemies.map { enemy ->
@@ -402,7 +402,7 @@ class MainViewModel @JvmOverloads constructor(
                                 val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
                                 enemy.copy(path = newPath)
                             }
-                            state.copy(hexes = newHexes, gold = state.gold - towerToPlace.cost, enemies = updatedEnemies)
+                            state.copy(hexes = newHexes, gold = state.gold - stallToPlace.cost, enemies = updatedEnemies)
                         }
                     }
                 }
@@ -412,7 +412,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun getBlockedCoordinates(hexes: Map<AxialCoordinate, HexTile>): Set<AxialCoordinate> {
         return hexes.values.filter {
-            it.tower != null || it.type == TileType.PILLAR || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
+            it.stall != null || it.type == TileType.PILLAR || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
         }.map { it.coordinate }.toSet()
     }
 }

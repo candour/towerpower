@@ -1,4 +1,4 @@
-package com.messark.tower.ui.components
+package com.messark.hawkerrush.ui.components
 
 import android.graphics.Rect
 import android.graphics.RectF
@@ -20,9 +20,9 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.dp
-import com.messark.tower.R
-import com.messark.tower.model.*
-import com.messark.tower.ui.constants.SpriteConstants
+import com.messark.hawkerrush.R
+import com.messark.hawkerrush.model.*
+import com.messark.hawkerrush.ui.constants.SpriteConstants
 import java.util.Comparator
 
 @Composable
@@ -242,9 +242,9 @@ fun GameBoard(
                     }
                 }
 
-                // 3. Towers
-                tile.tower?.let { tower ->
-                    val towerSrcRect = SpriteConstants.STALL_RECTS[tower.stallType] ?: SpriteConstants.STALL_RECTS[StallType.CHICKEN_RICE]!!
+                // 3. Stalls
+                tile.stall?.let { stall ->
+                    val stallSrcRect = SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS[StallType.CHICKEN_RICE]!!
                     drawables.add(DrawableEntity(
                         q = coord.q.toFloat(),
                         r = coord.r.toFloat(),
@@ -253,7 +253,7 @@ fun GameBoard(
                             val scale = wPx / 101f
                             val size = 65f * scale
                             drawSprite(
-                                srcRect = towerSrcRect,
+                                srcRect = stallSrcRect,
                                 destCenter = screenPos,
                                 destSize = Size(size, size)
                             )

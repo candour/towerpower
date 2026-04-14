@@ -1,4 +1,4 @@
-package com.messark.tower.utils
+package com.messark.hawkerrush.utils
 
 import android.content.Context
 import androidx.datastore.core.CorruptionException
@@ -6,7 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import com.google.gson.Gson
-import com.messark.tower.model.Settings
+import com.messark.hawkerrush.model.Settings
 import kotlinx.coroutines.flow.Flow
 import java.io.InputStream
 import java.io.OutputStream

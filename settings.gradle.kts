@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Tower Power"
+rootProject.name = "Hawker Rush"
 include(":app")

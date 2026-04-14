@@ -33,11 +33,11 @@ fun getGitVersionName(): String {
 }
 
 android {
-    namespace = "com.messark.tower"
+    namespace = "com.messark.hawkerrush"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.messark.tower"
+        applicationId = "com.messark.hawkerrush"
         minSdk = 26
         targetSdk = 35
         versionCode = getGitCommitCount()

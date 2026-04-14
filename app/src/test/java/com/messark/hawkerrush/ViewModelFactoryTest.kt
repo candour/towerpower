@@ -1,4 +1,4 @@
-package com.messark.tower
+package com.messark.hawkerrush
 
 import android.app.Application
 import io.mockk.mockk

@@ -1,7 +1,7 @@
-package com.messark.tower.ui.constants
+package com.messark.hawkerrush.ui.constants
 
 import androidx.compose.ui.unit.IntRect
-import com.messark.tower.model.StallType
+import com.messark.hawkerrush.model.StallType
 
 object SpriteConstants {
     val FLOOR_RECTS = listOf(

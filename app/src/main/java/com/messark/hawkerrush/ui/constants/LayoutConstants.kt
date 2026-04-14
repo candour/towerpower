@@ -1,4 +1,4 @@
-package com.messark.tower.ui.constants
+package com.messark.hawkerrush.ui.constants
 
 import androidx.compose.ui.unit.dp
 

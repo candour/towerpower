@@ -1,4 +1,4 @@
-package com.messark.tower.model
+package com.messark.hawkerrush.model
 
 object MapConstants {
     val INITIAL_MAP = listOf(
