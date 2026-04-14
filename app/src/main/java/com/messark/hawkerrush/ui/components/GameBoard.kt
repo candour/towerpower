@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -252,14 +253,40 @@ fun GameBoard(
                                     path = hexPath,
                                     color = Color.White.copy(alpha = 0.3f)
                                 )
-                                drawCircle(
-                                    color = Color.White.copy(alpha = 0.15f),
-                                    radius = stall.range * wPx,
-                                    center = screenPos
-                                )
                             }
                         }
                     ))
+
+                    if (selectedBoardStall == coord) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 10,
+                            draw = {
+                                val radius = stall.range * wPx
+                                // 1. Filled area
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.15f),
+                                    radius = radius,
+                                    center = screenPos
+                                )
+                                // 2. Yellow border (wider stroke)
+                                drawCircle(
+                                    color = Color.Yellow,
+                                    radius = radius,
+                                    center = screenPos,
+                                    style = Stroke(width = 4.dp.toPx())
+                                )
+                                // 3. Red outline (thinner stroke on top)
+                                drawCircle(
+                                    color = Color.Red,
+                                    radius = radius,
+                                    center = screenPos,
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+                            }
+                        ))
+                    }
                 }
             }
 
@@ -344,8 +371,18 @@ fun GameBoard(
 
             val sortedDrawables = drawables.sortedWith(object : Comparator<DrawableEntity> {
                 override fun compare(a: DrawableEntity, b: DrawableEntity): Int {
-                    val aGroup = if (a.zOrder == 0) 0 else if (a.zOrder == 1) 1 else 2
-                    val bGroup = if (b.zOrder == 0) 0 else if (b.zOrder == 1) 1 else 2
+                    val aGroup = when {
+                        a.zOrder == 0 -> 0
+                        a.zOrder == 1 -> 1
+                        a.zOrder >= 10 -> 3
+                        else -> 2
+                    }
+                    val bGroup = when {
+                        b.zOrder == 0 -> 0
+                        b.zOrder == 1 -> 1
+                        b.zOrder >= 10 -> 3
+                        else -> 2
+                    }
                     
                     if (aGroup != bGroup) return aGroup.compareTo(bGroup)
                     if (aGroup == 2) {
