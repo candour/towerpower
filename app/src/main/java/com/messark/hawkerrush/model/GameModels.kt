@@ -116,5 +116,6 @@ data class GameState(
     val waveActive: Boolean = false,
     val currentWave: Int = 0,
     val enemiesToSpawn: Int = 0,
-    val lastSpawnTimeMs: Long = 0L
+    val lastSpawnTimeMs: Long = 0L,
+    val score: Int = 0
 )

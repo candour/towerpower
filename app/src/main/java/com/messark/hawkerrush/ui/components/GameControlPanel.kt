@@ -30,6 +30,7 @@ import com.messark.hawkerrush.ui.constants.SpriteConstants
 fun GameControlPanel(
     gold: Int,
     health: Int,
+    score: Int,
     availableStalls: List<Stall>,
     selectedStall: Stall?,
     selectedBoardStall: Stall?,
@@ -82,6 +83,8 @@ fun GameControlPanel(
             ) {
                 if (selectedStall != null) {
                     Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
+                } else if (score > 0) {
+                    Text(text = "SCORE: $score", color = Color.White, fontSize = 12.sp)
                 } else {
                     Text(text = "STALL SHOP", color = Color.White, fontSize = 12.sp)
                     Spacer(modifier = Modifier.width(8.dp))

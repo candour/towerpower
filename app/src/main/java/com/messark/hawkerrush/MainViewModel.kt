@@ -5,16 +5,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.messark.hawkerrush.model.*
+import com.messark.hawkerrush.utils.GameStateRepository
 import com.messark.hawkerrush.utils.MapGenerator
 import com.messark.hawkerrush.utils.Pathfinding
 import com.messark.hawkerrush.utils.SettingsRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 class MainViewModel @JvmOverloads constructor(
     application: Application,
-    private val settingsRepository: SettingsRepository = SettingsRepository(application)
+    private val settingsRepository: SettingsRepository = SettingsRepository(application),
+    private val gameStateRepository: GameStateRepository = GameStateRepository(application)
 ) : AndroidViewModel(application) {
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
@@ -64,7 +68,17 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(currentScreen = screen) }
     }
 
+    fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
+
+    fun resumeGame() {
+        val savedState = gameStateRepository.loadGameState()
+        if (savedState != null) {
+            _gameState.value = savedState
+        }
+    }
+
     fun resetGame() {
+        gameStateRepository.deleteGameState()
         val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
         _gameState.update {
             GameState(
@@ -72,7 +86,8 @@ class MainViewModel @JvmOverloads constructor(
                 hexes = hexes,
                 startPosition = startPos,
                 endPosition = endPos,
-                gold = 500
+                gold = 500,
+                score = 0
             )
         }
     }
@@ -388,7 +403,10 @@ class MainViewModel @JvmOverloads constructor(
                         updatedEnemy = updatedEnemy.copy(freezeDurationMs = frozenDurations.getOrDefault(enemy.id, 0L))
                     }
                     if (newHealth <= 0) {
-                        newState = newState.copy(gold = newState.gold + enemy.reward)
+                        newState = newState.copy(
+                            gold = newState.gold + enemy.reward,
+                            score = newState.score + enemy.reward
+                        )
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastHapticTimeMs >= 1000) {
                             viewModelScope.launch {
@@ -405,9 +423,31 @@ class MainViewModel @JvmOverloads constructor(
 
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
                 newState = newState.copy(waveActive = false)
+                gameStateRepository.saveGameState(newState)
+            }
+
+            if (newState.health <= 0 && state.health > 0) {
+                handleGameOver(newState)
             }
 
             newState
+        }
+    }
+
+    private fun handleGameOver(state: GameState) {
+        val finalScore = state.score
+        val finalWave = state.currentWave
+        val date = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+        val newHighScore = HighScore(finalScore, finalWave, date)
+
+        viewModelScope.launch {
+            settingsRepository.updateSettings { currentSettings ->
+                val updatedScores = (currentSettings.highScores + newHighScore)
+                    .sortedByDescending { it.score }
+                    .take(5)
+                currentSettings.copy(highScores = updatedScores)
+            }
+            gameStateRepository.deleteGameState()
         }
     }
 

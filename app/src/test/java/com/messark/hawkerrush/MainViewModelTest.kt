@@ -2,6 +2,7 @@ package com.messark.hawkerrush
 
 import android.app.Application
 import com.messark.hawkerrush.model.AppScreen
+import com.messark.hawkerrush.utils.GameStateRepository
 import com.messark.hawkerrush.utils.SettingsRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -30,9 +31,10 @@ class MainViewModelTest {
     fun `gameState is initialized correctly`() = runBlocking {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
         val state = viewModel.gameState.first()
 
         assertTrue(state.hexes.isNotEmpty())
@@ -47,9 +49,10 @@ class MainViewModelTest {
     fun `navigateTo changes currentScreen`() = runBlocking {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
         viewModel.navigateTo(AppScreen.MAIN_MENU)
 
         val state = viewModel.gameState.first()
@@ -60,9 +63,10 @@ class MainViewModelTest {
     fun `resetGame reinitializes state and sets screen to GAME`() = runBlocking {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
         viewModel.resetGame()
 
         val state = viewModel.gameState.first()
@@ -75,9 +79,10 @@ class MainViewModelTest {
     fun `availableStalls have correct descriptions`() = runBlocking {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
         val stalls = viewModel.availableStalls.value
 
         assertEquals(5, stalls.size)

@@ -27,9 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import com.messark.hawkerrush.model.AppScreen
+import com.messark.hawkerrush.model.HighScore
 import com.messark.hawkerrush.ui.components.GameBoard
 import com.messark.hawkerrush.ui.components.GameControlPanel
 import com.messark.hawkerrush.ui.constants.LayoutConstants
+import com.messark.hawkerrush.utils.SettingsRepository
 import com.messark.hawkerrush.ui.theme.HawkerRushTheme
 import kotlinx.coroutines.delay
 
@@ -42,6 +44,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             HawkerRushTheme {
                 val gameState by viewModel.gameState.collectAsState()
+                val settingsRepository = remember { SettingsRepository(application) }
+                val settings by settingsRepository.settingsFlow.collectAsState(initial = com.messark.hawkerrush.model.Settings())
                 val availableStalls by viewModel.availableStalls.collectAsState()
                 val haptic = LocalHapticFeedback.current
 
@@ -74,7 +78,10 @@ class MainActivity : ComponentActivity() {
                             AppScreen.LOADING, AppScreen.MAIN_MENU -> {
                                 MainMenu(
                                     isMainMenu = screen == AppScreen.MAIN_MENU,
-                                    onNewGame = { viewModel.resetGame() }
+                                    onNewGame = { viewModel.resetGame() },
+                                    onResumeGame = { viewModel.resumeGame() },
+                                    hasSavedGame = viewModel.hasSavedGame(),
+                                    highScores = settings.highScores
                                 )
                             }
                             AppScreen.GAME -> {
@@ -95,8 +102,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainMenu(
     isMainMenu: Boolean,
-    onNewGame: () -> Unit
+    onNewGame: () -> Unit,
+    onResumeGame: () -> Unit,
+    hasSavedGame: Boolean,
+    highScores: List<HighScore>
 ) {
+    var showOverwriteWarning by remember { mutableStateOf(false) }
+
     val logoBias by animateFloatAsState(
         targetValue = if (isMainMenu) -0.7f else 0f,
         animationSpec = tween(durationMillis = 1000),
@@ -133,15 +145,32 @@ fun MainMenu(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(top = 100.dp)
+                modifier = Modifier.padding(top = 120.dp)
             ) {
+                if (hasSavedGame) {
+                    Button(
+                        onClick = onResumeGame,
+                        modifier = Modifier.width(200.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                    ) {
+                        Text("Resume Game", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+
                 Button(
-                    onClick = onNewGame,
+                    onClick = {
+                        if (hasSavedGame) {
+                            showOverwriteWarning = true
+                        } else {
+                            onNewGame()
+                        }
+                    },
                     modifier = Modifier.width(200.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
                     Text("New Game", color = Color.White, style = MaterialTheme.typography.headlineSmall)
                 }
+
                 Button(
                     onClick = { /* Nothing for now */ },
                     modifier = Modifier.width(200.dp),
@@ -149,8 +178,44 @@ fun MainMenu(
                 ) {
                     Text("Options", color = Color.White, style = MaterialTheme.typography.headlineSmall)
                 }
+
+                if (highScores.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text("Top 5 High Scores", color = Color.Yellow, style = MaterialTheme.typography.titleLarge)
+                    highScores.forEach { entry ->
+                        Row(
+                            modifier = Modifier.width(300.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Wave ${entry.wave}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                            Text(text = "${entry.score}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                            Text(text = entry.date.split("T")[0], color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    if (showOverwriteWarning) {
+        AlertDialog(
+            onDismissRequest = { showOverwriteWarning = false },
+            title = { Text("Overwrite Save?") },
+            text = { Text("Starting a new game will overwrite your current progress. Continue?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showOverwriteWarning = false
+                    onNewGame()
+                }) {
+                    Text("Overwrite")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverwriteWarning = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -183,6 +248,7 @@ fun GameScreen(
                 GameControlPanel(
                     gold = gameState.gold,
                     health = gameState.health,
+                    score = gameState.score,
                     availableStalls = availableStalls,
                     selectedStall = gameState.selectedStallType,
                     selectedBoardStall = gameState.selectedBoardStall?.let { gameState.hexes[it]?.stall },
