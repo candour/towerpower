@@ -321,6 +321,7 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 } else {
                     finalProjectiles.add(proj.copy(
+                        lastPosition = proj.position,
                         position = PreciseAxialCoordinate(
                             proj.position.q + (dq / dist) * proj.speed,
                             proj.position.r + (dr / dist) * proj.speed

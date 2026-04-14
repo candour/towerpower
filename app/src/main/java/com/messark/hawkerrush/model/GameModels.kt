@@ -69,6 +69,7 @@ data class Enemy(
 data class Projectile(
     val id: String,
     val position: PreciseAxialCoordinate,
+    val lastPosition: PreciseAxialCoordinate? = null,
     val targetEnemyId: String?,
     val targetPosition: PreciseAxialCoordinate,
     val damage: Int,

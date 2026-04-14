@@ -81,14 +81,9 @@ fun GameBoard(
                         val hPx = hexHeight.toPx()
                         val borderPx = 20.dp.toPx()
 
-                        val adjustedY = offset.y - borderPx - hPx / 2f
-                        val r = Math.round(adjustedY / (hPx * rowSpacingFactor)).toInt()
+                        val r = Math.round((offset.y - borderPx - hPx / 2f) / (hPx * rowSpacingFactor)).toInt()
+                        val q = Math.round((offset.x - borderPx - wPx / 2f) / wPx - r / 2f).toInt()
 
-                        val rowOffset = if (r % 2 != 0) wPx / 2f else 0f
-                        val adjustedX = offset.x - borderPx - wPx / 2f - rowOffset
-                        val q_offset = Math.round(adjustedX / wPx).toInt()
-
-                        val q = q_offset - (r - (r and 1)) / 2
                         onCellClick(AxialCoordinate(q, r))
                     }
                 }
@@ -97,21 +92,13 @@ fun GameBoard(
             val hPx = hexHeight.toPx()
             val borderPx = 20.dp.toPx()
 
-            fun toScreen(q: Int, r: Int): Offset {
-                val q_offset = q + (r - (r and 1)) / 2
-                val rowOffset = if (r % 2 != 0) wPx / 2f else 0f
-                val x = q_offset * wPx + rowOffset + borderPx + wPx / 2f
+            fun toScreenPrecise(q: Float, r: Float): Offset {
+                val x = (q + r / 2f) * wPx + borderPx + wPx / 2f
                 val y = r * (hPx * rowSpacingFactor) + borderPx + hPx / 2f
                 return Offset(x, y)
             }
 
-            fun toScreenPrecise(q: Float, r: Float): Offset {
-                val q_offset = q + (r.toInt() - (r.toInt() and 1)) / 2f
-                val rowOffset = if (r.toInt() % 2 != 0) wPx / 2f else 0f
-                val x = q_offset * wPx + rowOffset + borderPx + wPx / 2f
-                val y = r * (hPx * rowSpacingFactor) + borderPx + hPx / 2f
-                return Offset(x, y)
-            }
+            fun toScreen(q: Int, r: Int): Offset = toScreenPrecise(q.toFloat(), r.toFloat())
 
             fun createHexPath(center: Offset, width: Float, height: Float): Path {
                 // Increased bleed to cover overlaps correctly and hide the green background
@@ -312,13 +299,31 @@ fun GameBoard(
             }
 
             projectiles.forEach { projectile ->
-                val screenPos = toScreenPrecise(projectile.position.q, projectile.position.r)
+                val currentScreenPos = toScreenPrecise(projectile.position.q, projectile.position.r)
+                val lastScreenPos = projectile.lastPosition?.let {
+                    toScreenPrecise(it.q, it.r)
+                } ?: currentScreenPos
+
                 drawables.add(DrawableEntity(
                     q = projectile.position.q,
                     r = projectile.position.r,
                     zOrder = 5,
                     draw = {
-                        drawCircle(color = projectile.color, radius = 4.dp.toPx(), center = screenPos)
+                        val radius = 4.dp.toPx()
+                        // Draw 4 sub-frames between last position and current position for smoothness
+                        val steps = 4
+                        for (i in 0..steps) {
+                            val fraction = i.toFloat() / steps
+                            val lerpPos = Offset(
+                                x = lastScreenPos.x + (currentScreenPos.x - lastScreenPos.x) * fraction,
+                                y = lastScreenPos.y + (currentScreenPos.y - lastScreenPos.y) * fraction
+                            )
+                            drawCircle(
+                                color = projectile.color.copy(alpha = 0.4f + 0.6f * fraction),
+                                radius = radius * (0.6f + 0.4f * fraction),
+                                center = lerpPos
+                            )
+                        }
                     }
                 ))
             }
