@@ -6,6 +6,10 @@ data class AxialCoordinate(val q: Int, val r: Int)
 
 data class PreciseAxialCoordinate(val q: Float, val r: Float)
 
+enum class AppScreen {
+    LOADING, MAIN_MENU, GAME
+}
+
 enum class TileType {
     FLOOR,
     EDGE_NW,
@@ -98,6 +102,7 @@ data class StickyPuddle(
 )
 
 data class GameState(
+    val currentScreen: AppScreen = AppScreen.LOADING,
     val hexes: Map<AxialCoordinate, HexTile> = emptyMap(),
     val health: Int = 10, // 10 tables
     val gold: Int = 500,

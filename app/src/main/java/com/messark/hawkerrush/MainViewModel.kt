@@ -55,8 +55,26 @@ class MainViewModel @JvmOverloads constructor(
             hexes = hexes,
             startPosition = startPos,
             endPosition = endPos,
-            gold = 500 // Start with some gold to place stalls
+            gold = 500, // Start with some gold to place stalls
+            currentScreen = AppScreen.LOADING
         ) }
+    }
+
+    fun navigateTo(screen: AppScreen) {
+        _gameState.update { it.copy(currentScreen = screen) }
+    }
+
+    fun resetGame() {
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
+        _gameState.update {
+            GameState(
+                currentScreen = AppScreen.GAME,
+                hexes = hexes,
+                startPosition = startPos,
+                endPosition = endPos,
+                gold = 500
+            )
+        }
     }
 
     fun selectStall(stall: Stall) {

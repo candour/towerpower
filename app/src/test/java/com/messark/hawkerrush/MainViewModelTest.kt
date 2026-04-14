@@ -1,6 +1,7 @@
 package com.messark.hawkerrush
 
 import android.app.Application
+import com.messark.hawkerrush.model.AppScreen
 import com.messark.hawkerrush.utils.SettingsRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -39,6 +40,35 @@ class MainViewModelTest {
         assertEquals(500, state.gold)
         assertNotNull(state.startPosition)
         assertNotNull(state.endPosition)
+        assertEquals(AppScreen.LOADING, state.currentScreen)
+    }
+
+    @Test
+    fun `navigateTo changes currentScreen`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository)
+        viewModel.navigateTo(AppScreen.MAIN_MENU)
+
+        val state = viewModel.gameState.first()
+        assertEquals(AppScreen.MAIN_MENU, state.currentScreen)
+    }
+
+    @Test
+    fun `resetGame reinitializes state and sets screen to GAME`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository)
+        viewModel.resetGame()
+
+        val state = viewModel.gameState.first()
+        assertEquals(AppScreen.GAME, state.currentScreen)
+        assertTrue(state.hexes.isNotEmpty())
+        assertEquals(500, state.gold)
     }
 
     @Test
