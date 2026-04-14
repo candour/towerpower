@@ -31,6 +31,7 @@ fun GameBoard(
     enemies: List<Enemy>,
     projectiles: List<Projectile>,
     puddles: List<StickyPuddle>,
+    selectedBoardStall: AxialCoordinate?,
     onCellClick: (AxialCoordinate) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -244,6 +245,19 @@ fun GameBoard(
                                 destCenter = screenPos,
                                 destSize = Size(size, size)
                             )
+
+                            if (selectedBoardStall == coord) {
+                                val hexPath = createHexPath(screenPos, wPx, hPx)
+                                drawPath(
+                                    path = hexPath,
+                                    color = Color.White.copy(alpha = 0.3f)
+                                )
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.15f),
+                                    radius = stall.range * wPx,
+                                    center = screenPos
+                                )
+                            }
                         }
                     ))
                 }

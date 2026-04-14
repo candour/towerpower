@@ -224,8 +224,16 @@ class MainViewModel @JvmOverloads constructor(
             newState.hexes.forEach { (coord, tile) ->
                 val stall = tile.stall
                 if (stall != null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
-                    val target = newState.enemies.firstOrNull { enemy ->
-                        axialDistance(enemy.position, PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())) <= stall.range
+                    val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+                    val potentialTargets = newState.enemies.filter { enemy ->
+                        axialDistance(enemy.position, stallPos) <= stall.range
+                    }
+
+                    val target = when (stall.targetMode) {
+                        TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
+                        TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
+                        TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
+                        TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
                     }
 
                     if (target != null) {
@@ -234,7 +242,7 @@ class MainViewModel @JvmOverloads constructor(
                             StallType.CHICKEN_RICE -> {
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
-                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    position = stallPos,
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
                                     damage = stall.damage,
@@ -245,7 +253,8 @@ class MainViewModel @JvmOverloads constructor(
                                 newPuddles.add(StickyPuddle(
                                     id = UUID.randomUUID().toString(),
                                     position = target.position,
-                                    spawnTimeMs = currentTimeMs
+                                    spawnTimeMs = currentTimeMs,
+                                    durationMs = stall.effectDurationMs
                                 ))
                             }
                             StallType.SATAY -> {
@@ -255,34 +264,36 @@ class MainViewModel @JvmOverloads constructor(
                                 updatedStall = updatedStall.copy(rotation = angle)
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
-                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    position = stallPos,
                                     targetEnemyId = null,
                                     targetPosition = target.position,
                                     damage = stall.damage,
                                     color = stall.color,
-                                    speed = 0.5f
+                                    speed = 0.5f,
+                                    aoeRadius = stall.aoeRadius
                                 ))
                             }
                             StallType.ICE_KACHANG -> {
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
-                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    position = stallPos,
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
                                     damage = stall.damage,
                                     color = stall.color,
-                                    isFreeze = true
+                                    isFreeze = true,
+                                    freezeDurationMs = stall.freezeDurationMs
                                 ))
                             }
                             StallType.DURIAN -> {
-                                // Placeholder for Durian: high damage single target
                                 newProjectiles.add(Projectile(
                                     id = UUID.randomUUID().toString(),
-                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    position = stallPos,
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
                                     damage = stall.damage,
-                                    color = stall.color
+                                    color = stall.color,
+                                    aoeRadius = stall.aoeRadius
                                 ))
                             }
                         }
@@ -296,6 +307,7 @@ class MainViewModel @JvmOverloads constructor(
             val finalProjectiles = mutableListOf<Projectile>()
             val hitEnemies = mutableMapOf<String, Int>()
             val frozenEnemies = mutableSetOf<String>()
+            val frozenDurations = mutableMapOf<String, Long>()
 
             newState.projectiles.forEach { proj ->
                 val targetPos = if (proj.targetEnemyId != null) {
@@ -310,12 +322,31 @@ class MainViewModel @JvmOverloads constructor(
 
                 if (dist < proj.speed) {
                     if (proj.targetEnemyId != null) {
-                        hitEnemies[proj.targetEnemyId] = hitEnemies.getOrDefault(proj.targetEnemyId, 0) + proj.damage
-                        if (proj.isFreeze) frozenEnemies.add(proj.targetEnemyId)
+                        if (proj.aoeRadius > 0) {
+                            newState.enemies.forEach { enemy ->
+                                if (axialDistance(enemy.position, targetPos) <= proj.aoeRadius) {
+                                    hitEnemies[enemy.id] = hitEnemies.getOrDefault(enemy.id, 0) + proj.damage
+                                    if (proj.isFreeze) {
+                                        frozenEnemies.add(enemy.id)
+                                        frozenDurations[enemy.id] = Math.max(frozenDurations.getOrDefault(enemy.id, 0L), proj.freezeDurationMs)
+                                    }
+                                }
+                            }
+                        } else {
+                            hitEnemies[proj.targetEnemyId] = hitEnemies.getOrDefault(proj.targetEnemyId, 0) + proj.damage
+                            if (proj.isFreeze) {
+                                frozenEnemies.add(proj.targetEnemyId)
+                                frozenDurations[proj.targetEnemyId] = Math.max(frozenDurations.getOrDefault(proj.targetEnemyId, 0L), proj.freezeDurationMs)
+                            }
+                        }
                     } else {
                         newState.enemies.forEach { enemy ->
-                            if (axialDistance(enemy.position, proj.targetPosition) <= 1.0) {
+                            if (axialDistance(enemy.position, proj.targetPosition) <= proj.aoeRadius) {
                                 hitEnemies[enemy.id] = hitEnemies.getOrDefault(enemy.id, 0) + proj.damage
+                                if (proj.isFreeze) {
+                                    frozenEnemies.add(enemy.id)
+                                    frozenDurations[enemy.id] = Math.max(frozenDurations.getOrDefault(enemy.id, 0L), proj.freezeDurationMs)
+                                }
                             }
                         }
                     }
@@ -335,7 +366,9 @@ class MainViewModel @JvmOverloads constructor(
                 if (damageTaken > 0 || frozenEnemies.contains(enemy.id)) {
                     val newHealth = Math.max(0, enemy.health - damageTaken)
                     var updatedEnemy = enemy.copy(health = newHealth)
-                    if (frozenEnemies.contains(enemy.id)) updatedEnemy = updatedEnemy.copy(freezeDurationMs = 1500L)
+                    if (frozenEnemies.contains(enemy.id)) {
+                        updatedEnemy = updatedEnemy.copy(freezeDurationMs = frozenDurations.getOrDefault(enemy.id, 0L))
+                    }
                     if (newHealth <= 0) {
                         newState = newState.copy(gold = newState.gold + enemy.reward)
                         val currentTime = System.currentTimeMillis()
@@ -366,27 +399,25 @@ class MainViewModel @JvmOverloads constructor(
 
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
-        val stallToPlace = currentState.selectedStallType
+        val tile = currentState.hexes[coord] ?: return
 
-        if (stallToPlace != null && currentState.gold >= stallToPlace.cost) {
-            val tile = currentState.hexes[coord]
-            if (tile != null && tile.type == TileType.FLOOR && tile.stall == null) {
+        if (tile.stall != null) {
+            // Select existing stall
+            _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null) }
+        } else if (currentState.selectedStallType != null) {
+            // Place new stall
+            val stallToPlace = currentState.selectedStallType
+            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR && tile.stall == null) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
 
-                // Check if path from START is still possible
-                val startPath = Pathfinding.findPath(
-                    startPos, endPos, blocked, currentState.hexes.keys
-                )
+                val startPath = Pathfinding.findPath(startPos, endPos, blocked, currentState.hexes.keys)
 
                 if (startPath != null) {
-                    // Check if path for each active enemy is still possible
                     val canRepathAll = currentState.enemies.all { enemy ->
                         val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1) ?: endPos
-                        Pathfinding.findPath(
-                            currentTarget, endPos, blocked, currentState.hexes.keys
-                        ) != null
+                        Pathfinding.findPath(currentTarget, endPos, blocked, currentState.hexes.keys) != null
                     }
 
                     if (canRepathAll) {
@@ -403,7 +434,6 @@ class MainViewModel @JvmOverloads constructor(
                                     currentTarget, endPos, blocked, state.hexes.keys
                                 ) ?: listOf(currentTarget)
 
-                                // Construct the new full path: part already traveled + new path from current target
                                 val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
                                 enemy.copy(path = newPath)
                             }
@@ -412,7 +442,110 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
             }
+        } else {
+            // Deselect
+            _gameState.update { it.copy(selectedBoardStall = null, selectedStallType = null) }
         }
+    }
+
+    fun sellStall() {
+        val currentState = _gameState.value
+        val coord = currentState.selectedBoardStall ?: return
+        val tile = currentState.hexes[coord] ?: return
+        val stall = tile.stall ?: return
+
+        val refund = (stall.totalInvestment * 0.5f).toInt()
+        val newHexes = currentState.hexes.toMutableMap()
+        newHexes[coord] = tile.copy(stall = null)
+
+        val endPos = currentState.endPosition ?: return
+        val blocked = getBlockedCoordinates(newHexes)
+
+        _gameState.update { state ->
+            val updatedEnemies = state.enemies.map { enemy ->
+                val currentTargetIndex = enemy.currentPathIndex + 1
+                if (currentTargetIndex >= enemy.path.size) return@map enemy
+
+                val currentTarget = enemy.path[currentTargetIndex]
+                val newPathToFollow = Pathfinding.findPath(
+                    currentTarget, endPos, blocked, state.hexes.keys
+                ) ?: listOf(currentTarget)
+
+                val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
+                enemy.copy(path = newPath)
+            }
+            state.copy(
+                hexes = newHexes,
+                gold = state.gold + refund,
+                enemies = updatedEnemies,
+                selectedBoardStall = null
+            )
+        }
+    }
+
+    fun upgradeStall() {
+        val currentState = _gameState.value
+        val coord = currentState.selectedBoardStall ?: return
+        val tile = currentState.hexes[coord] ?: return
+        val stall = tile.stall ?: return
+
+        // Cost of upgrade is the same as the base cost of the tower
+        val upgradeCost = _availableStalls.value.find { it.stallType == stall.stallType }?.cost ?: stall.cost
+
+        if (currentState.gold >= upgradeCost) {
+            val upgradeType = Random().nextInt(3) // 0: Damage/Range, 1: FireRate, 2: Special (AOE/Duration)
+            var updatedStall = stall.copy(
+                upgradeCount = stall.upgradeCount + 1,
+                totalInvestment = stall.totalInvestment + upgradeCost
+            )
+
+            when (upgradeType) {
+                0 -> {
+                    if (Random().nextBoolean()) {
+                        updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.2f).toInt() + 1)
+                    } else {
+                        updatedStall = updatedStall.copy(range = updatedStall.range + 0.5f)
+                    }
+                }
+                1 -> {
+                    updatedStall = updatedStall.copy(fireRateMs = (updatedStall.fireRateMs * 0.9f).toLong())
+                }
+                2 -> {
+                    when (stall.stallType) {
+                        StallType.SATAY, StallType.DURIAN -> {
+                            updatedStall = updatedStall.copy(aoeRadius = updatedStall.aoeRadius + 0.2f)
+                        }
+                        StallType.TEH_TARIK -> {
+                            updatedStall = updatedStall.copy(effectDurationMs = updatedStall.effectDurationMs + 500L)
+                        }
+                        StallType.ICE_KACHANG -> {
+                            updatedStall = updatedStall.copy(freezeDurationMs = updatedStall.freezeDurationMs + 300L)
+                        }
+                        StallType.CHICKEN_RICE -> {
+                            updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.3f).toInt() + 2)
+                        }
+                    }
+                }
+            }
+
+            val newHexes = currentState.hexes.toMutableMap()
+            newHexes[coord] = tile.copy(stall = updatedStall)
+            _gameState.update { it.copy(hexes = newHexes, gold = it.gold - upgradeCost) }
+        }
+    }
+
+    fun cycleTargetMode() {
+        val currentState = _gameState.value
+        val coord = currentState.selectedBoardStall ?: return
+        val tile = currentState.hexes[coord] ?: return
+        val stall = tile.stall ?: return
+
+        val modes = TargetMode.values()
+        val nextMode = modes[(stall.targetMode.ordinal + 1) % modes.size]
+
+        val newHexes = currentState.hexes.toMutableMap()
+        newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
+        _gameState.update { it.copy(hexes = newHexes) }
     }
 
     private fun getBlockedCoordinates(hexes: Map<AxialCoordinate, HexTile>): Set<AxialCoordinate> {

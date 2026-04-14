@@ -31,7 +31,11 @@ fun GameControlPanel(
     health: Int,
     availableStalls: List<Stall>,
     selectedStall: Stall?,
+    selectedBoardStall: Stall?,
     onStallSelected: (Stall) -> Unit,
+    onSellStall: () -> Unit,
+    onUpgradeStall: () -> Unit,
+    onCycleTargetMode: () -> Unit,
     onStartWave: () -> Unit,
     waveActive: Boolean,
     modifier: Modifier = Modifier
@@ -59,33 +63,45 @@ fun GameControlPanel(
             Text(text = "💰 Budget: $gold", color = Color.Yellow, fontSize = 16.sp)
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 2.dp)
-        ) {
-            if (selectedStall != null) {
-                Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
-            } else {
-                Text(text = "STALL SHOP", color = Color.White, fontSize = 12.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "v$versionName", color = Color.Gray, fontSize = 10.sp)
+        if (selectedBoardStall != null) {
+            StallConsole(
+                stall = selectedBoardStall,
+                onSell = onSellStall,
+                onUpgrade = onUpgradeStall,
+                onCycleTarget = onCycleTargetMode,
+                canAffordUpgrade = gold >= (availableStalls.find { it.stallType == selectedBoardStall.stallType }?.cost ?: selectedBoardStall.cost),
+                upgradeCost = availableStalls.find { it.stallType == selectedBoardStall.stallType }?.cost ?: selectedBoardStall.cost,
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            )
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 2.dp)
+            ) {
+                if (selectedStall != null) {
+                    Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
+                } else {
+                    Text(text = "STALL SHOP", color = Color.White, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "v$versionName", color = Color.Gray, fontSize = 10.sp)
+                }
             }
-        }
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
-            modifier = Modifier.weight(1f).fillMaxWidth(0.95f),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            contentPadding = PaddingValues(2.dp)
-        ) {
-            items(availableStalls) { stall ->
-                StallSlot(
-                    stall = stall,
-                    isSelected = selectedStall?.id == stall.id,
-                    onClick = { onStallSelected(stall) },
-                    spriteSheet = spriteSheet
-                )
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(5),
+                modifier = Modifier.weight(1f).fillMaxWidth(0.95f),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                items(availableStalls) { stall ->
+                    StallSlot(
+                        stall = stall,
+                        isSelected = selectedStall?.id == stall.id,
+                        onClick = { onStallSelected(stall) },
+                        spriteSheet = spriteSheet
+                    )
+                }
             }
         }
 
@@ -99,6 +115,65 @@ fun GameControlPanel(
                 text = if (waveActive) "LUNCH RUSH..." else "START LUNCH RUSH",
                 fontSize = 14.sp
             )
+        }
+    }
+}
+
+@Composable
+fun StallConsole(
+    stall: Stall,
+    onSell: () -> Unit,
+    onUpgrade: () -> Unit,
+    onCycleTarget: () -> Unit,
+    canAffordUpgrade: Boolean,
+    upgradeCost: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(text = stall.name.uppercase(), color = Color.White, fontSize = 14.sp)
+                Text(text = "Upgrades: ${stall.upgradeCount}", color = Color.Gray, fontSize = 10.sp)
+            }
+            Text(text = "Target: ${stall.targetMode.name}", color = Color.Cyan, fontSize = 12.sp, modifier = Modifier.clickable { onCycleTarget() })
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Button(
+                onClick = onSell,
+                modifier = Modifier.weight(1f).height(36.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(text = "SELL $${(stall.totalInvestment * 0.5f).toInt()}", fontSize = 10.sp)
+            }
+            Button(
+                onClick = onUpgrade,
+                modifier = Modifier.weight(1f).height(36.dp),
+                enabled = canAffordUpgrade,
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(text = "UPGRADE $$upgradeCost", fontSize = 10.sp)
+            }
+            Button(
+                onClick = onCycleTarget,
+                modifier = Modifier.weight(1f).height(36.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(text = "TARGET", fontSize = 10.sp)
+            }
         }
     }
 }

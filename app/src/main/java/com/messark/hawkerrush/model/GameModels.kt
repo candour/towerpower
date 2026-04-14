@@ -30,6 +30,10 @@ enum class StallType {
     TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG
 }
 
+enum class TargetMode {
+    FIRST, CLOSEST, STRONGEST, WEAKEST
+}
+
 data class Stall(
     val id: String,
     val name: String,
@@ -41,7 +45,13 @@ data class Stall(
     val lastFiredMs: Long = 0L,
     val stallType: StallType = StallType.CHICKEN_RICE,
     val rotation: Float = 0f, // For Satay cone direction
-    val description: String = ""
+    val description: String = "",
+    val upgradeCount: Int = 0,
+    val totalInvestment: Int = cost,
+    val targetMode: TargetMode = TargetMode.FIRST,
+    val aoeRadius: Float = 1.0f,
+    val effectDurationMs: Long = 3000L,
+    val freezeDurationMs: Long = 1500L
 )
 
 enum class EnemyType {
@@ -75,7 +85,9 @@ data class Projectile(
     val damage: Int,
     val speed: Float = 0.2f,
     val color: Color,
-    val isFreeze: Boolean = false
+    val isFreeze: Boolean = false,
+    val aoeRadius: Float = 0f,
+    val freezeDurationMs: Long = 0L
 )
 
 data class StickyPuddle(
@@ -90,6 +102,7 @@ data class GameState(
     val health: Int = 10, // 10 tables
     val gold: Int = 500,
     val selectedStallType: Stall? = null,
+    val selectedBoardStall: AxialCoordinate? = null,
     val enemies: List<Enemy> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
     val puddles: List<StickyPuddle> = emptyList(),

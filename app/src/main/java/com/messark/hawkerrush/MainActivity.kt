@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                             enemies = gameState.enemies,
                             projectiles = gameState.projectiles,
                             puddles = gameState.puddles,
+                            selectedBoardStall = gameState.selectedBoardStall,
                             onCellClick = { coord -> viewModel.onCellClick(coord) },
                             modifier = Modifier.weight(LayoutConstants.BOARD_HEIGHT_FRACTION)
                         )
@@ -74,7 +75,11 @@ class MainActivity : ComponentActivity() {
                             health = gameState.health,
                             availableStalls = availableStalls,
                             selectedStall = gameState.selectedStallType,
+                            selectedBoardStall = gameState.selectedBoardStall?.let { gameState.hexes[it]?.stall },
                             onStallSelected = { stall -> viewModel.selectStall(stall) },
+                            onSellStall = { viewModel.sellStall() },
+                            onUpgradeStall = { viewModel.upgradeStall() },
+                            onCycleTargetMode = { viewModel.cycleTargetMode() },
                             onStartWave = { viewModel.startWave() },
                             waveActive = gameState.waveActive,
                             modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
