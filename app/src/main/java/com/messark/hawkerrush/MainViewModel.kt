@@ -19,6 +19,13 @@ class MainViewModel @JvmOverloads constructor(
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
+    private val enemyTiers = listOf(
+        EnemyType.SALARYMAN,
+        EnemyType.TOURIST,
+        EnemyType.AUNTIE,
+        EnemyType.DELIVERY_RIDER
+    )
+
     private val _availableStalls = MutableStateFlow(
         listOf(
             Stall("t1", "Teh Tarik", 150, Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
@@ -99,12 +106,9 @@ class MainViewModel @JvmOverloads constructor(
                     startPos, endPos, getBlockedCoordinates(state.hexes), state.hexes.keys
                 ) ?: emptyList()
 
-                val type = when {
-                    state.enemiesToSpawn == 1 && state.currentWave % 5 == 0 -> EnemyType.DELIVERY_RIDER
-                    Random().nextFloat() < 0.2f -> EnemyType.AUNTIE
-                    Random().nextFloat() < 0.4f -> EnemyType.TOURIST
-                    else -> EnemyType.SALARYMAN
-                }
+                val maxTierIndex = minOf((state.currentWave - 1) / 2, enemyTiers.size - 1)
+                val allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
+                val type = allowedTiers[Random().nextInt(allowedTiers.size)]
 
                 val enemyHealth = when (type) {
                     EnemyType.SALARYMAN -> 50 + (state.currentWave - 1) * 10
