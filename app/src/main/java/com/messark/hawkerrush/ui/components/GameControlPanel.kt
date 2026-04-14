@@ -41,6 +41,7 @@ fun GameControlPanel(
     modifier: Modifier = Modifier
 ) {
     val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
+    val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
     val context = LocalContext.current
     val versionName = try {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
@@ -99,7 +100,8 @@ fun GameControlPanel(
                         stall = stall,
                         isSelected = selectedStall?.id == stall.id,
                         onClick = { onStallSelected(stall) },
-                        spriteSheet = spriteSheet
+                        spriteSheet = spriteSheet,
+                        stallsSheet = stallsSheet
                     )
                 }
             }
@@ -183,13 +185,16 @@ fun StallSlot(
     stall: Stall,
     isSelected: Boolean,
     onClick: () -> Unit,
-    spriteSheet: ImageBitmap
+    spriteSheet: ImageBitmap,
+    stallsSheet: ImageBitmap
 ) {
-    val spriteRect = SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS.values.first()
+    val newStallRect = SpriteConstants.NEW_STALL_RECTS[stall.stallType]
+    val spriteRect = newStallRect ?: SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS.values.first()
+    val isNewStall = newStallRect != null
 
     Box(
         modifier = Modifier
-            .aspectRatio(0.8f) // Slightly taller to accommodate text below
+            .aspectRatio(0.7f) // Slightly taller to accommodate text below
             .background(if (isSelected) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f))
             .border(1.dp, if (isSelected) Color.White else Color.Gray)
             .clickable { onClick() }
@@ -202,7 +207,7 @@ fun StallSlot(
         ) {
             Canvas(modifier = Modifier.size(32.dp)) {
                 drawImage(
-                    image = spriteSheet,
+                    image = if (isNewStall) stallsSheet else spriteSheet,
                     srcOffset = spriteRect.topLeft,
                     srcSize = spriteRect.size,
                     dstOffset = IntOffset.Zero,

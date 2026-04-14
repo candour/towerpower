@@ -30,6 +30,13 @@ object SpriteConstants {
         StallType.ICE_KACHANG to IntRect(382, 678, 447, 743)
     )
 
+    val NEW_STALL_RECTS = mapOf(
+        StallType.TEH_TARIK to IntRect(22, 41, 330, 451),
+        StallType.SATAY to IntRect(358, 41, 666, 451),
+        StallType.CHICKEN_RICE to IntRect(22, 500, 330, 930),
+        StallType.ICE_KACHANG to IntRect(358, 500, 666, 930)
+    )
+
     val ENEMY_SALARYMAN_RECT = IntRect(615, 638, 665, 742)
     val ENEMY_TOURIST_RECT = IntRect(679, 638, 729, 742)
     val ENEMY_AUNTIE_RECT = IntRect(745, 638, 795, 742)

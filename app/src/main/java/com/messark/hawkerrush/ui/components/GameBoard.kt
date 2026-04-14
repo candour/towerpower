@@ -37,6 +37,7 @@ fun GameBoard(
     modifier: Modifier = Modifier
 ) {
     val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
+    val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
 
     val hexWidth = 47.dp // Reduced from 48.dp to bring hexes closer
     val hexHeight = hexWidth * 91f / 101f
@@ -123,7 +124,8 @@ fun GameBoard(
                 destCenter: Offset,
                 destSize: Size,
                 anchor: Offset = Offset(0.5f, 0.5f),
-                clipHex: Boolean = false
+                clipHex: Boolean = false,
+                bitmap: ImageBitmap = spriteSheet
             ) {
                 val topLeft = Offset(
                     destCenter.x - destSize.width * anchor.x,
@@ -138,7 +140,7 @@ fun GameBoard(
                         }
                         val androidSrc = Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
                         val androidDst = RectF(topLeft.x, topLeft.y, topLeft.x + destSize.width, topLeft.y + destSize.height)
-                        canvas.nativeCanvas.drawBitmap(spriteSheet.asAndroidBitmap(), androidSrc, androidDst, paint)
+                        canvas.nativeCanvas.drawBitmap(bitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
                     }
                 }
 
@@ -233,19 +235,35 @@ fun GameBoard(
 
                 // 3. Stalls
                 tile.stall?.let { stall ->
-                    val stallSrcRect = SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS[StallType.CHICKEN_RICE]!!
+                    val newStallRect = SpriteConstants.NEW_STALL_RECTS[stall.stallType]
+                    val stallSrcRect = newStallRect ?: SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS[StallType.CHICKEN_RICE]!!
+                    val isNewStall = newStallRect != null
+
                     drawables.add(DrawableEntity(
                         q = coord.q.toFloat(),
                         r = coord.r.toFloat(),
                         zOrder = 3,
                         draw = {
-                            val scale = wPx / 101f
-                            val size = 65f * scale
-                            drawSprite(
-                                srcRect = stallSrcRect,
-                                destCenter = screenPos,
-                                destSize = Size(size, size)
-                            )
+                            if (isNewStall) {
+                                val targetWidth = wPx * 0.8f
+                                val scale = targetWidth / stallSrcRect.width
+                                val targetHeight = stallSrcRect.height * scale
+                                drawSprite(
+                                    srcRect = stallSrcRect,
+                                    destCenter = screenPos,
+                                    destSize = Size(targetWidth, targetHeight),
+                                    anchor = Offset(0.5f, 0.8f), // Anchor similar to pillars
+                                    bitmap = stallsSheet
+                                )
+                            } else {
+                                val scale = wPx / 101f
+                                val size = 65f * scale
+                                drawSprite(
+                                    srcRect = stallSrcRect,
+                                    destCenter = screenPos,
+                                    destSize = Size(size, size)
+                                )
+                            }
 
                             if (selectedBoardStall == coord) {
                                 val hexPath = createHexPath(screenPos, wPx, hPx)
