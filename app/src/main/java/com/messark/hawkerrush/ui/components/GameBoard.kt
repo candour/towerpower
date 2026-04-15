@@ -32,6 +32,7 @@ fun GameBoard(
     enemies: List<Enemy>,
     projectiles: List<Projectile>,
     puddles: List<StickyPuddle>,
+    visualEffects: List<VisualEffect>,
     selectedBoardStall: AxialCoordinate?,
     onCellClick: (AxialCoordinate) -> Unit,
     modifier: Modifier = Modifier
@@ -294,6 +295,28 @@ fun GameBoard(
                         ))
                     }
                 }
+            }
+
+            visualEffects.forEach { effect ->
+                val screenPos = toScreenPrecise(effect.position.q, effect.position.r)
+                drawables.add(DrawableEntity(
+                    q = effect.position.q,
+                    r = effect.position.r,
+                    zOrder = 1,
+                    draw = {
+                        val currentTimeMs = System.currentTimeMillis()
+                        val elapsed = currentTimeMs - effect.startTimeMs
+                        val fraction = 1.0f - (elapsed.toFloat() / effect.durationMs).coerceIn(0f, 1f)
+
+                        // We use a default radius if not specified in VisualEffect,
+                        // but let's assume it correlates with typical AoE (approx 1 hex)
+                        drawCircle(
+                            color = effect.color.copy(alpha = effect.color.alpha * fraction),
+                            radius = wPx * 1.2f, // Slightly larger than a hex
+                            center = screenPos
+                        )
+                    }
+                ))
             }
 
             puddles.forEach { puddle ->

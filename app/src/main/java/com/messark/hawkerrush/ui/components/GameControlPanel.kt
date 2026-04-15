@@ -148,7 +148,12 @@ fun StallConsole(
         ) {
             Column {
                 Text(text = stall.name.uppercase(), color = Color.White, fontSize = 14.sp)
-                Text(text = "Upgrades: ${stall.upgradeCount}", color = Color.Gray, fontSize = 10.sp)
+                if (stall.upgrades.isEmpty()) {
+                    Text(text = "No upgrades", color = Color.Gray, fontSize = 10.sp)
+                } else {
+                    val upgradeText = stall.upgrades.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+                    Text(text = upgradeText, color = Color.Gray, fontSize = 10.sp)
+                }
             }
             Text(text = "Target: ${stall.targetMode.name}", color = Color.Cyan, fontSize = 12.sp, modifier = Modifier.clickable { onCycleTarget() })
         }

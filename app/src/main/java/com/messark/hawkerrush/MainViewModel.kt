@@ -127,9 +127,10 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { state ->
             var newState = state
 
-            // 0. Update Puddles
+            // 0. Update Puddles and Visual Effects
             val updatedPuddles = state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
-            newState = newState.copy(puddles = updatedPuddles)
+            val updatedVisualEffects = state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
+            newState = newState.copy(puddles = updatedPuddles, visualEffects = updatedVisualEffects)
 
             // 1. Spawning
             if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty()) {
@@ -342,6 +343,7 @@ class MainViewModel @JvmOverloads constructor(
             val frozenEnemies = mutableSetOf<String>()
             val frozenDurations = mutableMapOf<String, Long>()
 
+            val newVisualEffects = newState.visualEffects.toMutableList()
             newState.projectiles.forEach { proj ->
                 val targetPos = if (proj.targetEnemyId != null) {
                     newState.enemies.find { it.id == proj.targetEnemyId }?.position ?: proj.targetPosition
@@ -354,6 +356,21 @@ class MainViewModel @JvmOverloads constructor(
                 val dist = axialDistance(proj.position, targetPos)
 
                 if (dist < proj.speed) {
+                    if (proj.aoeRadius > 0) {
+                        val effectColor = when {
+                            proj.color == Color.Red -> Color.Red.copy(alpha = 0.5f) // Satay
+                            proj.color == Color(0xFF4CAF50) -> Color(0xFFCDDC39).copy(alpha = 0.5f) // Durian (greeny-yellow)
+                            else -> proj.color.copy(alpha = 0.5f)
+                        }
+                        newVisualEffects.add(VisualEffect(
+                            id = UUID.randomUUID().toString(),
+                            position = targetPos,
+                            color = effectColor,
+                            startTimeMs = currentTimeMs,
+                            durationMs = 150L
+                        ))
+                    }
+
                     if (proj.targetEnemyId != null) {
                         if (proj.aoeRadius > 0) {
                             newState.enemies.forEach { enemy ->
@@ -419,7 +436,7 @@ class MainViewModel @JvmOverloads constructor(
                 } else enemy
             }.filter { !it.isDead }
 
-            newState = newState.copy(enemies = finalEnemies, projectiles = finalProjectiles)
+            newState = newState.copy(enemies = finalEnemies, projectiles = finalProjectiles, visualEffects = newVisualEffects)
 
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
                 newState = newState.copy(waveActive = false)
@@ -551,41 +568,50 @@ class MainViewModel @JvmOverloads constructor(
         val upgradeCost = _availableStalls.value.find { it.stallType == stall.stallType }?.cost ?: stall.cost
 
         if (currentState.gold >= upgradeCost) {
-            val upgradeType = Random().nextInt(3) // 0: Damage/Range, 1: FireRate, 2: Special (AOE/Duration)
+            val upgradeTypeIndex = Random().nextInt(3) // 0: Damage/Range, 1: Rate, 2: Special (Radius/Duration)
             var updatedStall = stall.copy(
                 upgradeCount = stall.upgradeCount + 1,
                 totalInvestment = stall.totalInvestment + upgradeCost
             )
+            val mutableUpgrades = updatedStall.upgrades.toMutableMap()
 
-            when (upgradeType) {
+            when (upgradeTypeIndex) {
                 0 -> {
                     if (Random().nextBoolean()) {
                         updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.2f).toInt() + 1)
+                        mutableUpgrades["Damage"] = mutableUpgrades.getOrDefault("Damage", 0) + 1
                     } else {
                         updatedStall = updatedStall.copy(range = updatedStall.range + 0.5f)
+                        mutableUpgrades["Range"] = mutableUpgrades.getOrDefault("Range", 0) + 1
                     }
                 }
                 1 -> {
                     updatedStall = updatedStall.copy(fireRateMs = (updatedStall.fireRateMs * 0.9f).toLong())
+                    mutableUpgrades["Rate"] = mutableUpgrades.getOrDefault("Rate", 0) + 1
                 }
                 2 -> {
                     when (stall.stallType) {
                         StallType.SATAY, StallType.DURIAN -> {
                             updatedStall = updatedStall.copy(aoeRadius = updatedStall.aoeRadius + 0.2f)
+                            mutableUpgrades["Radius"] = mutableUpgrades.getOrDefault("Radius", 0) + 1
                         }
                         StallType.TEH_TARIK -> {
                             updatedStall = updatedStall.copy(effectDurationMs = updatedStall.effectDurationMs + 500L)
+                            mutableUpgrades["Duration"] = mutableUpgrades.getOrDefault("Duration", 0) + 1
                         }
                         StallType.ICE_KACHANG -> {
                             updatedStall = updatedStall.copy(freezeDurationMs = updatedStall.freezeDurationMs + 300L)
+                            mutableUpgrades["Effect"] = mutableUpgrades.getOrDefault("Effect", 0) + 1
                         }
                         StallType.CHICKEN_RICE -> {
                             updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.3f).toInt() + 2)
+                            mutableUpgrades["Damage"] = mutableUpgrades.getOrDefault("Damage", 0) + 1
                         }
                     }
                 }
             }
 
+            updatedStall = updatedStall.copy(upgrades = mutableUpgrades)
             val newHexes = currentState.hexes.toMutableMap()
             newHexes[coord] = tile.copy(stall = updatedStall)
             _gameState.update { it.copy(hexes = newHexes, gold = it.gold - upgradeCost) }

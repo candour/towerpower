@@ -220,6 +220,68 @@ fun MainMenu(
 }
 
 @Composable
+fun GameOverOverlay(
+    score: Int,
+    wave: Int,
+    onNewGame: () -> Unit,
+    onMainMenu: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            .clickable(enabled = true, onClick = {}), // Prevent clicks through to board
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color.DarkGray,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            modifier = Modifier.padding(32.dp).widthIn(max = 400.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "GAME OVER",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.headlineLarge
+                )
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Final Score", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "$score", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Wave Reached", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "$wave", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onNewGame,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("New Game", color = Color.White)
+                }
+
+                Button(
+                    onClick = onMainMenu,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                ) {
+                    Text("Main Menu", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun GameScreen(
     gameState: com.messark.hawkerrush.model.GameState,
     availableStalls: List<com.messark.hawkerrush.model.Stall>,
@@ -241,6 +303,7 @@ fun GameScreen(
                     enemies = gameState.enemies,
                     projectiles = gameState.projectiles,
                     puddles = gameState.puddles,
+                    visualEffects = gameState.visualEffects,
                     selectedBoardStall = gameState.selectedBoardStall,
                     onCellClick = { coord -> viewModel.onCellClick(coord) },
                     modifier = Modifier.weight(LayoutConstants.BOARD_HEIGHT_FRACTION)
@@ -259,6 +322,15 @@ fun GameScreen(
                     onStartWave = { viewModel.startWave() },
                     waveActive = gameState.waveActive,
                     modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
+                )
+            }
+
+            if (gameState.health <= 0) {
+                GameOverOverlay(
+                    score = gameState.score,
+                    wave = gameState.currentWave,
+                    onNewGame = { viewModel.resetGame() },
+                    onMainMenu = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
                 )
             }
 

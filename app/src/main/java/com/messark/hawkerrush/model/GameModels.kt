@@ -51,6 +51,7 @@ data class Stall(
     val rotation: Float = 0f, // For Satay cone direction
     val description: String = "",
     val upgradeCount: Int = 0,
+    val upgrades: Map<String, Int> = emptyMap(),
     val totalInvestment: Int = cost,
     val targetMode: TargetMode = TargetMode.FIRST,
     val aoeRadius: Float = 1.0f,
@@ -101,6 +102,14 @@ data class StickyPuddle(
     val durationMs: Long = 3000L
 )
 
+data class VisualEffect(
+    val id: String,
+    val position: PreciseAxialCoordinate,
+    val color: Color,
+    val startTimeMs: Long,
+    val durationMs: Long = 150L
+)
+
 data class GameState(
     val currentScreen: AppScreen = AppScreen.LOADING,
     val hexes: Map<AxialCoordinate, HexTile> = emptyMap(),
@@ -111,6 +120,7 @@ data class GameState(
     val enemies: List<Enemy> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
     val puddles: List<StickyPuddle> = emptyList(),
+    val visualEffects: List<VisualEffect> = emptyList(),
     val startPosition: AxialCoordinate? = null,
     val endPosition: AxialCoordinate? = null,
     val waveActive: Boolean = false,
