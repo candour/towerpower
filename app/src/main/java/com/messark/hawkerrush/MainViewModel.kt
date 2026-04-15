@@ -102,7 +102,7 @@ class MainViewModel @JvmOverloads constructor(
 
         val newWave = currentState.currentWave + 1
         val enemyList = generateEnemyList(newWave)
-        val isBossWave = enemyList.contains(EnemyType.DELIVERY_RIDER)
+        val isBossWave = newWave % 10 == 0
         val currentTime = System.currentTimeMillis()
 
         _gameState.update {
@@ -136,14 +136,25 @@ class MainViewModel @JvmOverloads constructor(
         // Calculate budget iteratively for consistency
         var budget = 883.0 // Base budget for Wave 6: (4*80 + 2*161 + 1*241)
         for (i in 7..wave) {
-            budget *= 1.2
+            if (i % 10 == 0) {
+                budget *= 1.44 // Boss wave budget jump (1.2 * 1.2)
+            } else if ((i - 1) % 10 == 0) {
+                budget *= 1.0 // Plateau after boss wave
+            } else {
+                budget *= 1.2
+            }
         }
 
         val enemyList = mutableListOf<EnemyType>()
         var remainingBudget = budget
 
         val maxTierIndex = minOf((wave - 1) / 2, enemyTiers.size - 1)
-        val allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
+        var allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
+
+        // Only allow Delivery Riders in boss waves until level 30
+        if (wave <= 30 && wave % 10 != 0) {
+            allowedTiers = allowedTiers.filter { it != EnemyType.DELIVERY_RIDER }
+        }
 
         val random = Random()
         var attempts = 0
