@@ -114,10 +114,35 @@ fun MainMenu(
 ) {
     var showOverwriteWarning by remember { mutableStateOf(false) }
 
-    val logoBias by animateFloatAsState(
-        targetValue = if (isMainMenu) -0.7f else 0f,
+    var targetBias by remember { mutableStateOf(BiasAlignment(0f, 0f)) }
+
+    LaunchedEffect(isMainMenu) {
+        if (isMainMenu) {
+            val directions = listOf(
+                BiasAlignment(-3f, 0f),  // Left
+                BiasAlignment(3f, 0f),   // Right
+                BiasAlignment(0f, -3f),  // Top
+                BiasAlignment(0f, 3f),   // Bottom
+                BiasAlignment(-3f, -3f), // Top-Left
+                BiasAlignment(3f, -3f),  // Top-Right
+                BiasAlignment(-3f, 3f),  // Bottom-Left
+                BiasAlignment(3f, 3f)    // Bottom-Right
+            )
+            targetBias = directions.random()
+        } else {
+            targetBias = BiasAlignment(0f, 0f)
+        }
+    }
+
+    val logoHorizontalBias by animateFloatAsState(
+        targetValue = targetBias.horizontalBias,
         animationSpec = tween(durationMillis = 1000),
-        label = "LogoAnimation"
+        label = "LogoHorizontalAnimation"
+    )
+    val logoVerticalBias by animateFloatAsState(
+        targetValue = targetBias.verticalBias,
+        animationSpec = tween(durationMillis = 1000),
+        label = "LogoVerticalAnimation"
     )
 
     Box(
@@ -126,12 +151,34 @@ fun MainMenu(
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
+        // Background Image
+        Image(
+            painter = painterResource(id = R.drawable.hawkersepia),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+        )
+
+        // Top Image (hawkercolour)
+        AnimatedVisibility(
+            visible = isMainMenu,
+            enter = fadeIn(animationSpec = tween(1000)),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.hawkercolour),
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth(0.9f),
+                contentScale = ContentScale.FillWidth
+            )
+        }
+
         // Logo
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp),
-            contentAlignment = BiasAlignment(0f, logoBias)
+            contentAlignment = BiasAlignment(logoHorizontalBias, logoVerticalBias)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.loading_screen),
