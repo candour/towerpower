@@ -101,14 +101,79 @@ class MainViewModel @JvmOverloads constructor(
         if (currentState.waveActive) return
 
         val newWave = currentState.currentWave + 1
+        val enemyList = generateEnemyList(newWave)
+        val isBossWave = enemyList.contains(EnemyType.DELIVERY_RIDER)
+        val currentTime = System.currentTimeMillis()
+
         _gameState.update {
             it.copy(
                 waveActive = true,
                 currentWave = newWave,
-                enemiesToSpawn = 5,
-                lastSpawnTimeMs = System.currentTimeMillis()
+                enemiesToSpawn = enemyList.size,
+                enemiesToSpawnList = enemyList,
+                isBossWave = isBossWave,
+                bossWaveTriggerTimeMs = if (isBossWave) currentTime else 0L,
+                lastSpawnTimeMs = currentTime
             )
         }
+    }
+
+    private fun generateEnemyList(wave: Int): List<EnemyType> {
+        if (wave <= 6) {
+            val list = when (wave) {
+                1 -> List(5) { EnemyType.SALARYMAN }
+                2 -> List(6) { EnemyType.SALARYMAN }
+                3 -> List(5) { EnemyType.SALARYMAN } + List(1) { EnemyType.TOURIST }
+                4 -> List(6) { EnemyType.SALARYMAN } + List(1) { EnemyType.TOURIST }
+                5 -> List(5) { EnemyType.SALARYMAN } + List(2) { EnemyType.TOURIST }
+                6 -> List(4) { EnemyType.SALARYMAN } + List(2) { EnemyType.TOURIST } + List(1) { EnemyType.AUNTIE }
+                else -> emptyList()
+            }
+            return list.shuffled()
+        }
+
+        // Algorithmic for Wave 7+
+        // Calculate budget iteratively for consistency
+        var budget = 883.0 // Base budget for Wave 6: (4*80 + 2*161 + 1*241)
+        for (i in 7..wave) {
+            budget *= 1.2
+        }
+
+        val enemyList = mutableListOf<EnemyType>()
+        var remainingBudget = budget
+
+        val maxTierIndex = minOf((wave - 1) / 2, enemyTiers.size - 1)
+        val allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
+
+        val random = Random()
+        var attempts = 0
+        while (remainingBudget > 0 && attempts < 100) {
+            val type = allowedTiers[random.nextInt(allowedTiers.size)]
+            val hp = getEnemyHP(type, wave)
+            if (hp <= remainingBudget) {
+                enemyList.add(type)
+                remainingBudget -= hp
+            } else if (allowedTiers.all { getEnemyHP(it, wave) > remainingBudget }) {
+                break
+            }
+            attempts++
+        }
+
+        if (enemyList.isEmpty()) {
+            enemyList.add(EnemyType.SALARYMAN)
+        }
+
+        return enemyList.shuffled()
+    }
+
+    private fun getEnemyHP(type: EnemyType, wave: Int): Int {
+        val baseHp = when (type) {
+            EnemyType.SALARYMAN -> 50
+            EnemyType.TOURIST -> 100
+            EnemyType.AUNTIE -> 150
+            EnemyType.DELIVERY_RIDER -> 500
+        }
+        return (baseHp * Math.pow(1.1, (wave - 1).toDouble())).toInt()
     }
 
     private fun startGameLoop() {
@@ -133,23 +198,17 @@ class MainViewModel @JvmOverloads constructor(
             newState = newState.copy(puddles = updatedPuddles, visualEffects = updatedVisualEffects)
 
             // 1. Spawning
-            if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty()) {
+            if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
                 val startPos = state.startPosition ?: return@update state
                 val endPos = state.endPosition ?: return@update state
                 val path = Pathfinding.findPath(
                     startPos, endPos, getBlockedCoordinates(state.hexes), state.hexes.keys
                 ) ?: emptyList()
 
-                val maxTierIndex = minOf((state.currentWave - 1) / 2, enemyTiers.size - 1)
-                val allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
-                val type = allowedTiers[Random().nextInt(allowedTiers.size)]
+                val type = state.enemiesToSpawnList.first()
+                val remainingSpawnList = state.enemiesToSpawnList.drop(1)
 
-                val enemyHealth = when (type) {
-                    EnemyType.SALARYMAN -> 50 + (state.currentWave - 1) * 10
-                    EnemyType.TOURIST -> 100 + (state.currentWave - 1) * 20
-                    EnemyType.AUNTIE -> 150 + (state.currentWave - 1) * 30
-                    EnemyType.DELIVERY_RIDER -> 500 + (state.currentWave - 1) * 100
-                }
+                val enemyHealth = getEnemyHP(type, state.currentWave)
 
                 val speed = when (type) {
                     EnemyType.SALARYMAN -> 0.08f
@@ -173,6 +232,7 @@ class MainViewModel @JvmOverloads constructor(
                 newState = newState.copy(
                     enemies = newState.enemies + newEnemy,
                     enemiesToSpawn = newState.enemiesToSpawn - 1,
+                    enemiesToSpawnList = remainingSpawnList,
                     lastSpawnTimeMs = currentTimeMs
                 )
             }
@@ -439,7 +499,7 @@ class MainViewModel @JvmOverloads constructor(
             newState = newState.copy(enemies = finalEnemies, projectiles = finalProjectiles, visualEffects = newVisualEffects)
 
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
-                newState = newState.copy(waveActive = false)
+                newState = newState.copy(waveActive = false, isBossWave = false)
                 gameStateRepository.saveGameState(newState)
             }
 

@@ -6,8 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,8 +21,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import android.view.animation.OvershootInterpolator
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import com.messark.hawkerrush.model.AppScreen
@@ -282,6 +287,58 @@ fun GameOverOverlay(
 }
 
 @Composable
+fun BossWaveOverlay(show: Boolean) {
+    AnimatedVisibility(
+        visible = show,
+        enter = fadeIn(animationSpec = tween(300)) + scaleIn(animationSpec = tween(300, easing = OvershootInterpolator().let { { t: Float -> it.getInterpolation(t) } })),
+        exit = fadeOut(animationSpec = tween(500)),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "BossWavePulsing")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.2f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "Scale"
+            )
+            val color by infiniteTransition.animateColor(
+                initialValue = Color.Red,
+                targetValue = Color.Yellow,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(500, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "Color"
+            )
+
+            Surface(
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(4.dp, color),
+                modifier = Modifier
+                    .padding(32.dp)
+                    .scale(scale)
+            ) {
+                Text(
+                    text = "BOSS WAVE",
+                    color = color,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 48.sp,
+                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun GameScreen(
     gameState: com.messark.hawkerrush.model.GameState,
     availableStalls: List<com.messark.hawkerrush.model.Stall>,
@@ -324,6 +381,9 @@ fun GameScreen(
                     modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
                 )
             }
+
+            val showBossWave = gameState.isBossWave && (System.currentTimeMillis() - gameState.bossWaveTriggerTimeMs < 2000)
+            BossWaveOverlay(show = showBossWave)
 
             if (gameState.health <= 0) {
                 GameOverOverlay(
