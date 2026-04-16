@@ -87,7 +87,7 @@ class MainViewModelTest {
 
         assertEquals(5, stalls.size)
         assertEquals("Creates slowing puddles", stalls.find { it.name == "Teh Tarik" }?.description)
-        assertEquals("Fast area damage", stalls.find { it.name == "Satay" }?.description)
+        assertEquals("Area chili sauce damage", stalls.find { it.name == "Satay" }?.description)
         assertEquals("High single-target damage", stalls.find { it.name == "Chicken Rice" }?.description)
         assertEquals("Massive damage, slow fire", stalls.find { it.name == "Durian" }?.description)
         assertEquals("Freezes enemies in place", stalls.find { it.name == "Ice Kachang" }?.description)

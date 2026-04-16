@@ -92,8 +92,14 @@ data class Projectile(
     val color: Color,
     val isFreeze: Boolean = false,
     val aoeRadius: Float = 0f,
-    val freezeDurationMs: Long = 0L
+    val freezeDurationMs: Long = 0L,
+    val isArc: Boolean = false,
+    val startPosition: PreciseAxialCoordinate? = null
 )
+
+enum class VisualEffectType {
+    EXPANDING_CIRCLE, GAS_CLOUD
+}
 
 data class StickyPuddle(
     val id: String,
@@ -107,7 +113,8 @@ data class VisualEffect(
     val position: PreciseAxialCoordinate,
     val color: Color,
     val startTimeMs: Long,
-    val durationMs: Long = 150L
+    val durationMs: Long = 150L,
+    val type: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE
 )
 
 data class GameState(

@@ -36,7 +36,7 @@ class MainViewModel @JvmOverloads constructor(
     private val _availableStalls = MutableStateFlow(
         listOf(
             Stall("t1", "Teh Tarik", 150, Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
-            Stall("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 5, fireRateMs = 500, description = "Fast area damage"),
+            Stall("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 30, fireRateMs = 1500, description = "Area chili sauce damage"),
             Stall("t3", "Chicken Rice", 100, Color.Yellow, stallType = StallType.CHICKEN_RICE, range = 4f, damage = 15, fireRateMs = 700, description = "High single-target damage"),
             Stall("t4", "Durian", 300, Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 25, fireRateMs = 2000, description = "Massive damage, slow fire"),
             Stall("t5", "Ice Kachang", 250, Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, description = "Freezes enemies in place")
@@ -394,9 +394,11 @@ class MainViewModel @JvmOverloads constructor(
                                     targetEnemyId = null,
                                     targetPosition = target.position,
                                     damage = stall.damage,
-                                    color = stall.color,
-                                    speed = 0.5f,
-                                    aoeRadius = stall.aoeRadius
+                                    color = Color.White,
+                                    speed = 0.3f,
+                                    aoeRadius = stall.aoeRadius,
+                                    isArc = true,
+                                    startPosition = stallPos
                                 ))
                             }
                             StallType.ICE_KACHANG -> {
@@ -449,17 +451,18 @@ class MainViewModel @JvmOverloads constructor(
 
                 if (dist < proj.speed) {
                     if (proj.aoeRadius > 0) {
-                        val effectColor = when {
-                            proj.color == Color.Red -> Color.Red.copy(alpha = 0.5f) // Satay
-                            proj.color == Color(0xFF4CAF50) -> Color(0xFFCDDC39).copy(alpha = 0.5f) // Durian (greeny-yellow)
-                            else -> proj.color.copy(alpha = 0.5f)
+                        val (effectColor, effectType, duration) = when {
+                            proj.isArc -> Triple(Color.Red.copy(alpha = 0.3f), VisualEffectType.GAS_CLOUD, 500L) // Satay
+                            proj.color == Color(0xFF4CAF50) -> Triple(Color(0xFFCDDC39).copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L) // Durian (greeny-yellow)
+                            else -> Triple(proj.color.copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L)
                         }
                         newVisualEffects.add(VisualEffect(
                             id = UUID.randomUUID().toString(),
                             position = targetPos,
                             color = effectColor,
                             startTimeMs = currentTimeMs,
-                            durationMs = 150L
+                            durationMs = duration,
+                            type = effectType
                         ))
                     }
 

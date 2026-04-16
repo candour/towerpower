@@ -306,15 +306,33 @@ fun GameBoard(
                     draw = {
                         val currentTimeMs = System.currentTimeMillis()
                         val elapsed = currentTimeMs - effect.startTimeMs
-                        val fraction = 1.0f - (elapsed.toFloat() / effect.durationMs).coerceIn(0f, 1f)
+                        val progress = (elapsed.toFloat() / effect.durationMs).coerceIn(0f, 1f)
+                        val fraction = 1.0f - progress
 
-                        // We use a default radius if not specified in VisualEffect,
-                        // but let's assume it correlates with typical AoE (approx 1 hex)
-                        drawCircle(
-                            color = effect.color.copy(alpha = effect.color.alpha * fraction),
-                            radius = wPx * 1.2f, // Slightly larger than a hex
-                            center = screenPos
-                        )
+                        if (effect.type == VisualEffectType.GAS_CLOUD) {
+                            // Pseudo-random patchy gas effect seeded by effect ID
+                            val random = java.util.Random(effect.id.hashCode().toLong())
+                            val baseRadius = wPx * 0.4f
+                            for (i in 0 until 8) {
+                                val offsetX = (random.nextFloat() - 0.5f) * wPx * 1.5f
+                                val offsetY = (random.nextFloat() - 0.5f) * wPx * 1.5f
+                                val individualScale = 0.8f + random.nextFloat() * 0.4f
+                                val driftX = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
+                                val driftY = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
+
+                                drawCircle(
+                                    color = effect.color.copy(alpha = effect.color.alpha * fraction),
+                                    radius = baseRadius * individualScale * (1f + progress * 0.5f),
+                                    center = Offset(screenPos.x + offsetX + driftX, screenPos.y + offsetY + driftY)
+                                )
+                            }
+                        } else {
+                            drawCircle(
+                                color = effect.color.copy(alpha = effect.color.alpha * fraction),
+                                radius = wPx * 1.2f, // Slightly larger than a hex
+                                center = screenPos
+                            )
+                        }
                     }
                 ))
             }
@@ -374,24 +392,42 @@ fun GameBoard(
                     toScreenPrecise(it.q, it.r)
                 } ?: currentScreenPos
 
+                val startScreenPos = projectile.startPosition?.let { toScreenPrecise(it.q, it.r) } ?: lastScreenPos
+                val targetScreenPos = toScreenPrecise(projectile.targetPosition.q, projectile.targetPosition.r)
+
                 drawables.add(DrawableEntity(
                     q = projectile.position.q,
                     r = projectile.position.r,
                     zOrder = 5,
                     draw = {
-                        val radius = 4.dp.toPx()
+                        val radius = if (projectile.isArc) 6.dp.toPx() else 4.dp.toPx()
                         // Draw 4 sub-frames between last position and current position for smoothness
                         val steps = 4
                         for (i in 0..steps) {
-                            val fraction = i.toFloat() / steps
-                            val lerpPos = Offset(
-                                x = lastScreenPos.x + (currentScreenPos.x - lastScreenPos.x) * fraction,
-                                y = lastScreenPos.y + (currentScreenPos.y - lastScreenPos.y) * fraction
-                            )
+                            val subFrameFraction = i.toFloat() / steps
+
+                            val lerpX = lastScreenPos.x + (currentScreenPos.x - lastScreenPos.x) * subFrameFraction
+                            val lerpY = lastScreenPos.y + (currentScreenPos.y - lastScreenPos.y) * subFrameFraction
+
+                            var finalPos = Offset(lerpX, lerpY)
+
+                            if (projectile.isArc) {
+                                // Calculate total distance and progress for arc height
+                                val totalDist = Math.sqrt(Math.pow((targetScreenPos.x - startScreenPos.x).toDouble(), 2.0) + Math.pow((targetScreenPos.y - startScreenPos.y).toDouble(), 2.0)).toFloat()
+                                if (totalDist > 0) {
+                                    val currentDist = Math.sqrt(Math.pow((lerpX - startScreenPos.x).toDouble(), 2.0) + Math.pow((lerpY - startScreenPos.y).toDouble(), 2.0)).toFloat()
+                                    val progress = (currentDist / totalDist).coerceIn(0f, 1f)
+                                    // Parabola: y = -4 * h * x * (x - 1)
+                                    val arcHeight = wPx * 1.5f
+                                    val verticalOffset = -4 * arcHeight * progress * (progress - 1)
+                                    finalPos = Offset(lerpX, lerpY - verticalOffset)
+                                }
+                            }
+
                             drawCircle(
-                                color = projectile.color.copy(alpha = 0.4f + 0.6f * fraction),
-                                radius = radius * (0.6f + 0.4f * fraction),
-                                center = lerpPos
+                                color = projectile.color.copy(alpha = 0.4f + 0.6f * subFrameFraction),
+                                radius = radius * (0.6f + 0.4f * subFrameFraction),
+                                center = finalPos
                             )
                         }
                     }
