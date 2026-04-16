@@ -75,6 +75,20 @@ class MainViewModel @JvmOverloads constructor(
         _logoVisible.value = false
     }
 
+    fun triggerHaptic() {
+        viewModelScope.launch {
+            if (settingsRepository.settingsFlow.first().hapticEnabled) {
+                _hapticEvents.emit(Unit)
+            }
+        }
+    }
+
+    fun updateHapticSetting(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSettings { it.copy(hapticEnabled = enabled) }
+        }
+    }
+
     fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
 
     fun resumeGame() {

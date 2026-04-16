@@ -29,16 +29,64 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import android.graphics.BitmapFactory
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import com.messark.hawkerrush.model.AppScreen
 import com.messark.hawkerrush.model.HighScore
+import com.messark.hawkerrush.model.Settings
 import com.messark.hawkerrush.ui.components.GameBoard
 import com.messark.hawkerrush.ui.components.GameControlPanel
 import com.messark.hawkerrush.ui.constants.LayoutConstants
+import com.messark.hawkerrush.ui.constants.SpriteConstants
 import com.messark.hawkerrush.utils.SettingsRepository
 import com.messark.hawkerrush.ui.theme.HawkerRushTheme
 import kotlinx.coroutines.delay
+
+@Composable
+fun SpriteButton(
+    normalRect: androidx.compose.ui.unit.IntRect,
+    pressedRect: androidx.compose.ui.unit.IntRect? = null,
+    onClick: () -> Unit,
+    onTriggerHaptic: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val context = LocalContext.current
+    val bitmap = remember {
+        BitmapFactory.decodeResource(context.resources, R.drawable.board).asImageBitmap()
+    }
+
+    val currentRect = if (isPressed && pressedRect != null) pressedRect else normalRect
+
+    Box(
+        modifier = modifier
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    onTriggerHaptic()
+                    onClick()
+                }
+            )
+    ) {
+        // Using a Canvas to draw the specific part of the bitmap
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            drawImage(
+                image = bitmap,
+                srcOffset = IntOffset(currentRect.left, currentRect.top),
+                srcSize = IntSize(currentRect.width, currentRect.height),
+                dstSize = IntSize(size.width.toInt(), size.height.toInt())
+            )
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -71,31 +119,43 @@ class MainActivity : ComponentActivity() {
                     val screenGroup = if (currentScreen == AppScreen.GAME) "GAME" else "MENU"
 
                     AnimatedContent(
-                        targetState = screenGroup,
+                        targetState = currentScreen,
                         transitionSpec = {
-                            if (targetState == "GAME") {
+                            if (targetState == AppScreen.GAME) {
                                 slideInVertically { it } + fadeIn() togetherWith
                                         slideOutVertically { -it } + fadeOut()
-                            } else {
+                            } else if (initialState == AppScreen.GAME) {
                                 slideInVertically { -it } + fadeIn() togetherWith
                                         slideOutVertically { it } + fadeOut()
+                            } else {
+                                fadeIn() togetherWith fadeOut()
                             }
                         },
                         label = "ScreenTransition"
-                    ) { group ->
-                        when (group) {
-                            "MENU" -> {
+                    ) { screen ->
+                        when (screen) {
+                            AppScreen.LOADING, AppScreen.MAIN_MENU -> {
                                 MainMenu(
-                                    isMainMenu = currentScreen == AppScreen.MAIN_MENU,
+                                    isMainMenu = screen == AppScreen.MAIN_MENU,
                                     logoVisible = logoVisible,
                                     onLogoAnimationFinished = { viewModel.hideLogo() },
                                     onNewGame = { viewModel.resetGame() },
                                     onResumeGame = { viewModel.resumeGame() },
+                                    onOptions = { viewModel.navigateTo(AppScreen.OPTIONS) },
+                                    onTriggerHaptic = { viewModel.triggerHaptic() },
                                     hasSavedGame = viewModel.hasSavedGame(),
                                     highScores = settings.highScores
                                 )
                             }
-                            "GAME" -> {
+                            AppScreen.OPTIONS -> {
+                                OptionsScreen(
+                                    hapticEnabled = settings.hapticEnabled,
+                                    onHapticToggle = { viewModel.updateHapticSetting(it) },
+                                    onSave = { viewModel.navigateTo(AppScreen.MAIN_MENU) },
+                                    onTriggerHaptic = { viewModel.triggerHaptic() }
+                                )
+                            }
+                            AppScreen.GAME -> {
                                 GameScreen(
                                     gameState = gameState,
                                     availableStalls = availableStalls,
@@ -111,12 +171,85 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun OptionsScreen(
+    hapticEnabled: Boolean,
+    onHapticToggle: (Boolean) -> Unit,
+    onSave: () -> Unit,
+    onTriggerHaptic: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        // Background Image
+        Image(
+            painter = painterResource(id = R.drawable.hawkersepia),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+        )
+
+        Surface(
+            color = Color.Black.copy(alpha = 0.7f),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.padding(32.dp).widthIn(max = 400.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Text(
+                    text = "OPTIONS",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.headlineLarge
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Haptic Feedback",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Switch(
+                        checked = hapticEnabled,
+                        onCheckedChange = {
+                            onHapticToggle(it)
+                            onTriggerHaptic()
+                        }
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        onTriggerHaptic()
+                        onSave()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("Save Options", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun MainMenu(
     isMainMenu: Boolean,
     logoVisible: Boolean,
     onLogoAnimationFinished: () -> Unit,
     onNewGame: () -> Unit,
     onResumeGame: () -> Unit,
+    onOptions: () -> Unit,
+    onTriggerHaptic: () -> Unit,
     hasSavedGame: Boolean,
     highScores: List<HighScore>
 ) {
@@ -211,16 +344,18 @@ fun MainMenu(
                 modifier = Modifier.padding(top = 120.dp)
             ) {
                 if (hasSavedGame) {
-                    Button(
+                    SpriteButton(
+                        normalRect = SpriteConstants.BTN_RESUME_RECT,
+                        pressedRect = SpriteConstants.BTN_RESUME_CLICK_RECT,
                         onClick = onResumeGame,
-                        modifier = Modifier.width(200.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
-                    ) {
-                        Text("Resume Game", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-                    }
+                        onTriggerHaptic = onTriggerHaptic,
+                        modifier = Modifier.width(200.dp).height(52.dp)
+                    )
                 }
 
-                Button(
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_NEWGAME_RECT,
+                    pressedRect = null, // No newgame_click
                     onClick = {
                         if (hasSavedGame) {
                             showOverwriteWarning = true
@@ -228,19 +363,17 @@ fun MainMenu(
                             onNewGame()
                         }
                     },
-                    modifier = Modifier.width(200.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text("New Game", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-                }
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.width(200.dp).height(52.dp)
+                )
 
-                Button(
-                    onClick = { /* Nothing for now */ },
-                    modifier = Modifier.width(200.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-                ) {
-                    Text("Options", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-                }
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_OPTIONS_RECT,
+                    pressedRect = SpriteConstants.BTN_OPTIONS_CLICK_RECT,
+                    onClick = onOptions,
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.width(200.dp).height(52.dp)
+                )
 
                 if (highScores.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -287,7 +420,8 @@ fun GameOverOverlay(
     score: Int,
     wave: Int,
     onNewGame: () -> Unit,
-    onMainMenu: () -> Unit
+    onMainMenu: () -> Unit,
+    onTriggerHaptic: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -324,16 +458,21 @@ fun GameOverOverlay(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_NEWGAME_RECT,
+                    pressedRect = null,
                     onClick = onNewGame,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text("New Game", color = Color.White)
-                }
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
-                    onClick = onMainMenu,
+                    onClick = {
+                        onTriggerHaptic()
+                        onMainMenu()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
                 ) {
@@ -448,7 +587,8 @@ fun GameScreen(
                     score = gameState.score,
                     wave = gameState.currentWave,
                     onNewGame = { viewModel.resetGame() },
-                    onMainMenu = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
+                    onMainMenu = { viewModel.navigateTo(AppScreen.MAIN_MENU) },
+                    onTriggerHaptic = { viewModel.triggerHaptic() }
                 )
             }
 

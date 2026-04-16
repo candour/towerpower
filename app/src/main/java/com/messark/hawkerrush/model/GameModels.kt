@@ -7,7 +7,7 @@ data class AxialCoordinate(val q: Int, val r: Int)
 data class PreciseAxialCoordinate(val q: Float, val r: Float)
 
 enum class AppScreen {
-    LOADING, MAIN_MENU, GAME
+    LOADING, MAIN_MENU, GAME, OPTIONS
 }
 
 enum class TileType {
