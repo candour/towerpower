@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             HawkerRushTheme {
                 val gameState by viewModel.gameState.collectAsState()
+                val logoVisible by viewModel.logoVisible.collectAsState()
                 val settingsRepository = remember { SettingsRepository(application) }
                 val settings by settingsRepository.settingsFlow.collectAsState(initial = com.messark.hawkerrush.model.Settings())
                 val availableStalls by viewModel.availableStalls.collectAsState()
@@ -66,30 +67,35 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
+                    val currentScreen = gameState.currentScreen
+                    val screenGroup = if (currentScreen == AppScreen.GAME) "GAME" else "MENU"
+
                     AnimatedContent(
-                        targetState = gameState.currentScreen,
+                        targetState = screenGroup,
                         transitionSpec = {
-                            if (targetState == AppScreen.GAME) {
+                            if (targetState == "GAME") {
                                 slideInVertically { it } + fadeIn() togetherWith
                                         slideOutVertically { -it } + fadeOut()
                             } else {
-                                fadeIn(animationSpec = tween(500)) togetherWith
-                                        fadeOut(animationSpec = tween(500))
+                                slideInVertically { -it } + fadeIn() togetherWith
+                                        slideOutVertically { it } + fadeOut()
                             }
                         },
                         label = "ScreenTransition"
-                    ) { screen ->
-                        when (screen) {
-                            AppScreen.LOADING, AppScreen.MAIN_MENU -> {
+                    ) { group ->
+                        when (group) {
+                            "MENU" -> {
                                 MainMenu(
-                                    isMainMenu = screen == AppScreen.MAIN_MENU,
+                                    isMainMenu = currentScreen == AppScreen.MAIN_MENU,
+                                    logoVisible = logoVisible,
+                                    onLogoAnimationFinished = { viewModel.hideLogo() },
                                     onNewGame = { viewModel.resetGame() },
                                     onResumeGame = { viewModel.resumeGame() },
                                     hasSavedGame = viewModel.hasSavedGame(),
                                     highScores = settings.highScores
                                 )
                             }
-                            AppScreen.GAME -> {
+                            "GAME" -> {
                                 GameScreen(
                                     gameState = gameState,
                                     availableStalls = availableStalls,
@@ -107,6 +113,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainMenu(
     isMainMenu: Boolean,
+    logoVisible: Boolean,
+    onLogoAnimationFinished: () -> Unit,
     onNewGame: () -> Unit,
     onResumeGame: () -> Unit,
     hasSavedGame: Boolean,
@@ -137,7 +145,8 @@ fun MainMenu(
     val logoHorizontalBias by animateFloatAsState(
         targetValue = targetBias.horizontalBias,
         animationSpec = tween(durationMillis = 1000),
-        label = "LogoHorizontalAnimation"
+        label = "LogoHorizontalAnimation",
+        finishedListener = { if (isMainMenu) onLogoAnimationFinished() }
     )
     val logoVerticalBias by animateFloatAsState(
         targetValue = targetBias.verticalBias,
@@ -174,18 +183,20 @@ fun MainMenu(
         }
 
         // Logo
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            contentAlignment = BiasAlignment(logoHorizontalBias, logoVerticalBias)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.loading_screen),
-                contentDescription = "Hawker Rush Logo",
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.FillWidth
-            )
+        if (logoVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                contentAlignment = BiasAlignment(logoHorizontalBias, logoVerticalBias)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.loading_screen),
+                    contentDescription = "Hawker Rush Logo",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.FillWidth
+                )
+            }
         }
 
         // Buttons

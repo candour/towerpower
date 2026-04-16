@@ -23,6 +23,9 @@ class MainViewModel @JvmOverloads constructor(
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
+    private val _logoVisible = MutableStateFlow(true)
+    val logoVisible: StateFlow<Boolean> = _logoVisible.asStateFlow()
+
     private val enemyTiers = listOf(
         EnemyType.SALARYMAN,
         EnemyType.TOURIST,
@@ -66,6 +69,10 @@ class MainViewModel @JvmOverloads constructor(
 
     fun navigateTo(screen: AppScreen) {
         _gameState.update { it.copy(currentScreen = screen) }
+    }
+
+    fun hideLogo() {
+        _logoVisible.value = false
     }
 
     fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
