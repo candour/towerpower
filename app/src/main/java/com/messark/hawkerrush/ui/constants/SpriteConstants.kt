@@ -36,7 +36,7 @@ object SpriteConstants {
     val ENEMY_RIDER_RECT = IntRect(990, 677, 1044, 744)
     val FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
 
-    // Main Menu Buttons (from board.png)
+    // Main Menu Buttons (from drawable-nodpi/board.png)
     val BTN_RESUME_RECT = IntRect(170, 403, 517, 494)
     val BTN_RESUME_CLICK_RECT = IntRect(170, 505, 517, 596)
     val BTN_NEWGAME_RECT = IntRect(170, 635, 517, 726)
