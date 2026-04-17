@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import com.messark.hawkerrush.R
 import com.messark.hawkerrush.model.*
@@ -39,6 +40,7 @@ fun GameBoard(
 ) {
     val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
     val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
+    val enemiesSheet = ImageBitmap.imageResource(id = R.drawable.enemies)
 
     val hexWidth = 47.dp // Reduced from 48.dp to bring hexes closer
     val hexHeight = hexWidth * 91f / 101f
@@ -126,7 +128,8 @@ fun GameBoard(
                 destSize: Size,
                 anchor: Offset = Offset(0.5f, 0.5f),
                 clipHex: Boolean = false,
-                bitmap: ImageBitmap = spriteSheet
+                bitmap: ImageBitmap = spriteSheet,
+                flipHorizontal: Boolean = false
             ) {
                 val topLeft = Offset(
                     destCenter.x - destSize.width * anchor.x,
@@ -141,7 +144,15 @@ fun GameBoard(
                         }
                         val androidSrc = Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
                         val androidDst = RectF(topLeft.x, topLeft.y, topLeft.x + destSize.width, topLeft.y + destSize.height)
+
+                        if (flipHorizontal) {
+                            canvas.save()
+                            canvas.scale(-1f, 1f, destCenter.x, destCenter.y)
+                        }
                         canvas.nativeCanvas.drawBitmap(bitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
+                        if (flipHorizontal) {
+                            canvas.restore()
+                        }
                     }
                 }
 
@@ -357,24 +368,30 @@ fun GameBoard(
 
             enemies.forEach { enemy ->
                 val screenPos = toScreenPrecise(enemy.position.q, enemy.position.r)
-                val enemySrcRect = when (enemy.type) {
-                    EnemyType.SALARYMAN -> SpriteConstants.ENEMY_SALARYMAN_RECT
-                    EnemyType.TOURIST -> SpriteConstants.ENEMY_TOURIST_RECT
-                    EnemyType.AUNTIE -> SpriteConstants.ENEMY_AUNTIE_RECT
-                    EnemyType.DELIVERY_RIDER -> SpriteConstants.ENEMY_RIDER_RECT
-                }
+
+                val rowIndex = SpriteConstants.ENEMY_ROW_INDICES[enemy.type] ?: 0
+                val frameIndex = ((enemy.animationTimeMs / 500) % SpriteConstants.ENEMY_SPRITE_FRAMES).toInt()
+
+                val srcRect = IntRect(
+                    left = frameIndex * SpriteConstants.ENEMY_SPRITE_WIDTH,
+                    top = rowIndex * SpriteConstants.ENEMY_SPRITE_HEIGHT,
+                    right = (frameIndex + 1) * SpriteConstants.ENEMY_SPRITE_WIDTH,
+                    bottom = (rowIndex + 1) * SpriteConstants.ENEMY_SPRITE_HEIGHT
+                )
+
                 drawables.add(DrawableEntity(
                     q = enemy.position.q,
                     r = enemy.position.r,
                     zOrder = 4,
                     draw = {
-                        val scale = wPx / 101f
-                        val dSize = Size(enemySrcRect.width * scale, enemySrcRect.height * scale)
+                        val dSize = Size(SpriteConstants.ENEMY_SPRITE_WIDTH.toFloat(), SpriteConstants.ENEMY_SPRITE_HEIGHT.toFloat())
                         drawSprite(
-                            srcRect = enemySrcRect,
+                            srcRect = srcRect,
                             destCenter = screenPos,
                             destSize = dSize,
-                            anchor = Offset(0.5f, 1.0f) // Anchor feet to hex center
+                            anchor = Offset(0.5f, 1.0f), // Anchor feet to hex center
+                            bitmap = enemiesSheet,
+                            flipHorizontal = enemy.isFacingLeft
                         )
 
                         val barWidth = wPx * 0.8f

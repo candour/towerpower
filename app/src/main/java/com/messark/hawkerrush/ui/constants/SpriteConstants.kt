@@ -30,10 +30,18 @@ object SpriteConstants {
         StallType.DURIAN to IntRect(33, 961, 341, 1318)
     )
 
-    val ENEMY_SALARYMAN_RECT = IntRect(615, 638, 665, 742)
-    val ENEMY_TOURIST_RECT = IntRect(679, 638, 729, 742)
-    val ENEMY_AUNTIE_RECT = IntRect(745, 638, 795, 742)
-    val ENEMY_RIDER_RECT = IntRect(990, 677, 1044, 744)
+    // Enemies (from drawable-nodpi/enemies.png)
+    const val ENEMY_SPRITE_WIDTH = 100
+    const val ENEMY_SPRITE_HEIGHT = 125
+    const val ENEMY_SPRITE_FRAMES = 3
+
+    val ENEMY_ROW_INDICES = mapOf(
+        com.messark.hawkerrush.model.EnemyType.AUNTIE to 0,
+        com.messark.hawkerrush.model.EnemyType.TOURIST to 1,
+        com.messark.hawkerrush.model.EnemyType.SALARYMAN to 2,
+        com.messark.hawkerrush.model.EnemyType.DELIVERY_RIDER to 3
+    )
+
     val FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
 
     // Buttons (from drawable-nodpi/buttons.png)

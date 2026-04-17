@@ -78,7 +78,9 @@ data class Enemy(
     val freezeDurationMs: Long = 0L,
     val lastStopMs: Long = 0L,
     val isStopped: Boolean = false,
-    val stopDurationMs: Long = 0L
+    val stopDurationMs: Long = 0L,
+    val animationTimeMs: Long = 0L,
+    val isFacingLeft: Boolean = false
 )
 
 data class Projectile(

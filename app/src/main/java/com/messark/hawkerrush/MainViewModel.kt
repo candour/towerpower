@@ -249,6 +249,9 @@ class MainViewModel @JvmOverloads constructor(
                     EnemyType.DELIVERY_RIDER -> 0.06f
                 }
 
+                val firstTarget = path.getOrNull(1) ?: startPos
+                val isFacingLeft = firstTarget.q + firstTarget.r / 2f < startPos.q + startPos.r / 2f
+
                 val newEnemy = Enemy(
                     id = UUID.randomUUID().toString(),
                     type = type,
@@ -259,7 +262,8 @@ class MainViewModel @JvmOverloads constructor(
                     currentSpeed = speed,
                     path = path,
                     currentPathIndex = 0,
-                    reward = if (type == EnemyType.DELIVERY_RIDER) 100 else 20
+                    reward = if (type == EnemyType.DELIVERY_RIDER) 100 else 20,
+                    isFacingLeft = isFacingLeft
                 )
                 newState = newState.copy(
                     enemies = newState.enemies + newEnemy,
@@ -294,7 +298,7 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
 
-                if (isStopped) {
+                if (isStopped || enemy.freezeDurationMs > 0) {
                     return@mapNotNull enemy.copy(isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs)
                 }
 
@@ -318,6 +322,12 @@ class MainViewModel @JvmOverloads constructor(
                 val dr = target.r - enemy.position.r
                 val dist = axialDistance(enemy.position, PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()))
 
+                val newIsFacingLeft = if (target.q + target.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                    target.q + target.r / 2f < enemy.position.q + enemy.position.r / 2f
+                } else {
+                    enemy.isFacingLeft
+                }
+
                 if (dist < effectiveSpeed) {
                     enemy.copy(
                         position = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()),
@@ -325,7 +335,9 @@ class MainViewModel @JvmOverloads constructor(
                         currentSpeed = effectiveSpeed,
                         isStopped = isStopped,
                         stopDurationMs = stopDurationMs,
-                        lastStopMs = lastStopMs
+                        lastStopMs = lastStopMs,
+                        animationTimeMs = enemy.animationTimeMs + 32,
+                        isFacingLeft = newIsFacingLeft
                     )
                 } else {
                     enemy.copy(
@@ -336,7 +348,9 @@ class MainViewModel @JvmOverloads constructor(
                         currentSpeed = effectiveSpeed,
                         isStopped = isStopped,
                         stopDurationMs = stopDurationMs,
-                        lastStopMs = lastStopMs
+                        lastStopMs = lastStopMs,
+                        animationTimeMs = enemy.animationTimeMs + 32,
+                        isFacingLeft = newIsFacingLeft
                     )
                 }
             }
@@ -605,7 +619,15 @@ class MainViewModel @JvmOverloads constructor(
                                 ) ?: listOf(currentTarget)
 
                                 val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
-                                enemy.copy(path = newPath)
+
+                                val nextTarget = newPath.getOrNull(currentTargetIndex + 1) ?: currentTarget
+                                val newIsFacingLeft = if (nextTarget.q + nextTarget.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                                    nextTarget.q + nextTarget.r / 2f < enemy.position.q + enemy.position.r / 2f
+                                } else {
+                                    enemy.isFacingLeft
+                                }
+
+                                enemy.copy(path = newPath, isFacingLeft = newIsFacingLeft)
                             }
                             state.copy(hexes = newHexes, gold = state.gold - stallToPlace.cost, enemies = updatedEnemies)
                         }
@@ -642,7 +664,15 @@ class MainViewModel @JvmOverloads constructor(
                 ) ?: listOf(currentTarget)
 
                 val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
-                enemy.copy(path = newPath)
+
+                val nextTarget = newPath.getOrNull(currentTargetIndex + 1) ?: currentTarget
+                val newIsFacingLeft = if (nextTarget.q + nextTarget.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                    nextTarget.q + nextTarget.r / 2f < enemy.position.q + enemy.position.r / 2f
+                } else {
+                    enemy.isFacingLeft
+                }
+
+                enemy.copy(path = newPath, isFacingLeft = newIsFacingLeft)
             }
             state.copy(
                 hexes = newHexes,
