@@ -60,7 +60,7 @@ fun SpriteButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val context = LocalContext.current
     val bitmap = remember {
-        BitmapFactory.decodeResource(context.resources, R.drawable.board).asImageBitmap()
+        BitmapFactory.decodeResource(context.resources, R.drawable.buttons).asImageBitmap()
     }
 
     val currentRect = if (isPressed && pressedRect != null) pressedRect else normalRect
@@ -226,16 +226,18 @@ fun OptionsScreen(
                     )
                 }
 
-                Button(
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_SAVE_RECT,
+                    pressedRect = null,
                     onClick = {
                         onTriggerHaptic()
                         onSave()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text("Save Options", color = Color.White)
-                }
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier
+                        .width(210.dp)
+                        .height(57.dp)
+                )
             }
         }
     }
@@ -349,13 +351,13 @@ fun MainMenu(
                         pressedRect = SpriteConstants.BTN_RESUME_CLICK_RECT,
                         onClick = onResumeGame,
                         onTriggerHaptic = onTriggerHaptic,
-                        modifier = Modifier.width(200.dp).height(52.dp)
+                        modifier = Modifier.width(210.dp).height(57.dp)
                     )
                 }
 
                 SpriteButton(
                     normalRect = SpriteConstants.BTN_NEWGAME_RECT,
-                    pressedRect = null, // No newgame_click
+                    pressedRect = SpriteConstants.BTN_NEWGAME_CLICK_RECT,
                     onClick = {
                         if (hasSavedGame) {
                             showOverwriteWarning = true
@@ -364,7 +366,7 @@ fun MainMenu(
                         }
                     },
                     onTriggerHaptic = onTriggerHaptic,
-                    modifier = Modifier.width(200.dp).height(52.dp)
+                    modifier = Modifier.width(210.dp).height(57.dp)
                 )
 
                 SpriteButton(
@@ -372,7 +374,7 @@ fun MainMenu(
                     pressedRect = SpriteConstants.BTN_OPTIONS_CLICK_RECT,
                     onClick = onOptions,
                     onTriggerHaptic = onTriggerHaptic,
-                    modifier = Modifier.width(200.dp).height(52.dp)
+                    modifier = Modifier.width(210.dp).height(57.dp)
                 )
 
                 if (highScores.isNotEmpty()) {
@@ -399,17 +401,25 @@ fun MainMenu(
             title = { Text("Overwrite Save?") },
             text = { Text("Starting a new game will overwrite your current progress. Continue?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showOverwriteWarning = false
-                    onNewGame()
-                }) {
-                    Text("Overwrite")
-                }
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_NEWGAME_RECT,
+                    pressedRect = SpriteConstants.BTN_NEWGAME_CLICK_RECT,
+                    onClick = {
+                        showOverwriteWarning = false
+                        onNewGame()
+                    },
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.width(100.dp).height(27.dp)
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showOverwriteWarning = false }) {
-                    Text("Cancel")
-                }
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_CANCEL_RECT,
+                    pressedRect = SpriteConstants.BTN_CANCEL_CLICK_RECT,
+                    onClick = { showOverwriteWarning = false },
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.width(100.dp).height(27.dp)
+                )
             }
         )
     }
@@ -460,24 +470,24 @@ fun GameOverOverlay(
 
                 SpriteButton(
                     normalRect = SpriteConstants.BTN_NEWGAME_RECT,
-                    pressedRect = null,
+                    pressedRect = SpriteConstants.BTN_NEWGAME_CLICK_RECT,
                     onClick = onNewGame,
                     onTriggerHaptic = onTriggerHaptic,
-                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                    modifier = Modifier.fillMaxWidth().height(95.dp)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_MAINMENU_RECT,
+                    pressedRect = null,
                     onClick = {
                         onTriggerHaptic()
                         onMainMenu()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
-                ) {
-                    Text("Main Menu", color = Color.White)
-                }
+                    onTriggerHaptic = onTriggerHaptic,
+                    modifier = Modifier.fillMaxWidth().height(95.dp)
+                )
             }
         }
     }
@@ -621,17 +631,25 @@ fun GameScreen(
             title = { Text("Pause") },
             text = { Text("What would you like to do?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showExitDialog = false
-                    viewModel.navigateTo(AppScreen.MAIN_MENU)
-                }) {
-                    Text("Main Menu")
-                }
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_MAINMENU_RECT,
+                    pressedRect = null,
+                    onClick = {
+                        showExitDialog = false
+                        viewModel.navigateTo(AppScreen.MAIN_MENU)
+                    },
+                    onTriggerHaptic = { viewModel.triggerHaptic() },
+                    modifier = Modifier.width(120.dp).height(33.dp)
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Return to Game")
-                }
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_RESUME_RECT,
+                    pressedRect = SpriteConstants.BTN_RESUME_CLICK_RECT,
+                    onClick = { showExitDialog = false },
+                    onTriggerHaptic = { viewModel.triggerHaptic() },
+                    modifier = Modifier.width(120.dp).height(33.dp)
+                )
             }
         )
     }
