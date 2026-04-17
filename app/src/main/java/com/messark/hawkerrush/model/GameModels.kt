@@ -56,7 +56,7 @@ data class Stall(
     val targetMode: TargetMode = TargetMode.FIRST,
     val aoeRadius: Float = 1.0f,
     val effectDurationMs: Long = 3000L,
-    val freezeDurationMs: Long = 1500L
+    val freezeDurationMs: Long = 500L
 )
 
 enum class EnemyType {

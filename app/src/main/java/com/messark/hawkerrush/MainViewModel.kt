@@ -36,10 +36,10 @@ class MainViewModel @JvmOverloads constructor(
     private val _availableStalls = MutableStateFlow(
         listOf(
             Stall("t1", "Teh Tarik", 150, Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
-            Stall("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 30, fireRateMs = 1500, description = "Area chili sauce damage"),
+            Stall("t2", "Satay", 200, Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 20, fireRateMs = 1500, description = "Area chili sauce damage"),
             Stall("t3", "Chicken Rice", 100, Color.Yellow, stallType = StallType.CHICKEN_RICE, range = 4f, damage = 15, fireRateMs = 700, description = "High single-target damage"),
-            Stall("t4", "Durian", 300, Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 25, fireRateMs = 2000, description = "Massive damage, slow fire"),
-            Stall("t5", "Ice Kachang", 250, Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, description = "Freezes enemies in place")
+            Stall("t4", "Durian", 300, Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 120, fireRateMs = 2000, description = "Massive damage, slow fire"),
+            Stall("t5", "Ice Kachang", 250, Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, freezeDurationMs = 500L, description = "Freezes enemies in place")
         )
     )
     val availableStalls: StateFlow<List<Stall>> = _availableStalls.asStateFlow()
@@ -725,7 +725,7 @@ class MainViewModel @JvmOverloads constructor(
                             mutableUpgrades["Duration"] = mutableUpgrades.getOrDefault("Duration", 0) + 1
                         }
                         StallType.ICE_KACHANG -> {
-                            updatedStall = updatedStall.copy(freezeDurationMs = updatedStall.freezeDurationMs + 300L)
+                            updatedStall = updatedStall.copy(freezeDurationMs = updatedStall.freezeDurationMs + 100L)
                             mutableUpgrades["Effect"] = mutableUpgrades.getOrDefault("Effect", 0) + 1
                         }
                         StallType.CHICKEN_RICE -> {
