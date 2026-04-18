@@ -5,10 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.messark.hawkerrush.model.*
-import com.messark.hawkerrush.utils.GameStateRepository
-import com.messark.hawkerrush.utils.MapGenerator
-import com.messark.hawkerrush.utils.Pathfinding
-import com.messark.hawkerrush.utils.SettingsRepository
+import com.messark.hawkerrush.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.Instant
@@ -225,374 +222,406 @@ class MainViewModel @JvmOverloads constructor(
             var newState = state
 
             // 0. Update Puddles and Visual Effects
-            val updatedPuddles = state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
-            val updatedVisualEffects = state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
-            newState = newState.copy(puddles = updatedPuddles, visualEffects = updatedVisualEffects)
+            newState = updateTransients(newState, currentTimeMs)
 
             // 1. Spawning
-            if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
-                val startPos = state.startPosition ?: return@update state
-                val endPos = state.endPosition ?: return@update state
-                val path = Pathfinding.findPath(
-                    startPos, endPos, getBlockedCoordinates(state.hexes), state.hexes.keys
-                ) ?: emptyList()
-
-                val type = state.enemiesToSpawnList.first()
-                val remainingSpawnList = state.enemiesToSpawnList.drop(1)
-
-                val enemyHealth = getEnemyHP(type, state.currentWave)
-
-                val speed = when (type) {
-                    EnemyType.SALARYMAN -> 0.08f
-                    EnemyType.TOURIST -> 0.04f
-                    EnemyType.AUNTIE -> 0.03f
-                    EnemyType.DELIVERY_RIDER -> 0.06f
-                }
-
-                val firstTarget = path.getOrNull(1) ?: startPos
-                val isFacingLeft = firstTarget.q + firstTarget.r / 2f < startPos.q + startPos.r / 2f
-
-                val newEnemy = Enemy(
-                    id = UUID.randomUUID().toString(),
-                    type = type,
-                    health = enemyHealth,
-                    maxHealth = enemyHealth,
-                    position = PreciseAxialCoordinate(startPos.q.toFloat(), startPos.r.toFloat()),
-                    baseSpeed = speed,
-                    currentSpeed = speed,
-                    path = path,
-                    currentPathIndex = 0,
-                    reward = if (type == EnemyType.DELIVERY_RIDER) 100 else 20,
-                    isFacingLeft = isFacingLeft
-                )
-                newState = newState.copy(
-                    enemies = newState.enemies + newEnemy,
-                    enemiesToSpawn = newState.enemiesToSpawn - 1,
-                    enemiesToSpawnList = remainingSpawnList,
-                    lastSpawnTimeMs = currentTimeMs
-                )
-            }
+            newState = handleSpawning(newState, currentTimeMs)
 
             // 2. Enemy Movement
-            val updatedEnemies = newState.enemies.mapNotNull { enemy ->
-                if (enemy.isDead) return@mapNotNull null
-
-                var freezeDuration = enemy.freezeDurationMs
-                if (freezeDuration > 0) {
-                    freezeDuration = Math.max(0, freezeDuration - 32)
-                }
-
-                var isStopped = enemy.isStopped
-                var stopDurationMs = enemy.stopDurationMs
-                var lastStopMs = enemy.lastStopMs
-                var speedBoostDuration = enemy.speedBoostDurationMs
-
-                if (enemy.type == EnemyType.TOURIST) {
-                    if (isStopped) {
-                        stopDurationMs -= 32
-                        if (stopDurationMs <= 0) {
-                            isStopped = false
-                            lastStopMs = currentTimeMs
-                        }
-                    } else if (currentTimeMs - lastStopMs > 8000) {
-                        isStopped = true
-                        stopDurationMs = 2000L
-                    }
-                }
-
-                if (speedBoostDuration > 0) {
-                    speedBoostDuration = Math.max(0, speedBoostDuration - 32)
-                }
-
-                if (isStopped || freezeDuration > 0) {
-                    return@mapNotNull enemy.copy(
-                        isStopped = isStopped,
-                        stopDurationMs = stopDurationMs,
-                        lastStopMs = lastStopMs,
-                        freezeDurationMs = freezeDuration,
-                        speedBoostDurationMs = speedBoostDuration
-                    )
-                }
-
-                var speedMultiplier = 1.0f
-                val inPuddle = newState.puddles.any { puddle ->
-                    axialDistance(enemy.position, puddle.position) < 0.8
-                }
-                if (inPuddle) {
-                    speedMultiplier = when (enemy.type) {
-                        EnemyType.DELIVERY_RIDER -> 0.2f // double slow (80% reduction)
-                        EnemyType.AUNTIE -> 0.8f // half slow (20% reduction)
-                        else -> 0.6f // normal slow (40% reduction)
-                    }
-                }
-
-                if (speedBoostDuration > 0) {
-                    speedMultiplier *= 1.5f
-                }
-
-                val effectiveSpeed = enemy.baseSpeed * speedMultiplier
-
-                val targetIndex = enemy.currentPathIndex + 1
-                if (targetIndex >= enemy.path.size) {
-                    newState = newState.copy(health = Math.max(0, newState.health - 1))
-                    return@mapNotNull null
-                }
-
-                val target = enemy.path[targetIndex]
-                val dq = target.q - enemy.position.q
-                val dr = target.r - enemy.position.r
-                val dist = axialDistance(enemy.position, PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()))
-
-                val newIsFacingLeft = if (target.q + target.r / 2f != enemy.position.q + enemy.position.r / 2f) {
-                    target.q + target.r / 2f < enemy.position.q + enemy.position.r / 2f
-                } else {
-                    enemy.isFacingLeft
-                }
-
-                if (dist < effectiveSpeed) {
-                    enemy.copy(
-                        position = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()),
-                        currentPathIndex = targetIndex,
-                        currentSpeed = effectiveSpeed,
-                        isStopped = isStopped,
-                        stopDurationMs = stopDurationMs,
-                        lastStopMs = lastStopMs,
-                        freezeDurationMs = freezeDuration,
-                        speedBoostDurationMs = speedBoostDuration,
-                        animationTimeMs = enemy.animationTimeMs + 32,
-                        isFacingLeft = newIsFacingLeft
-                    )
-                } else {
-                    enemy.copy(
-                        position = PreciseAxialCoordinate(
-                            enemy.position.q + (dq / dist) * effectiveSpeed,
-                            enemy.position.r + (dr / dist) * effectiveSpeed
-                        ),
-                        currentSpeed = effectiveSpeed,
-                        isStopped = isStopped,
-                        stopDurationMs = stopDurationMs,
-                        lastStopMs = lastStopMs,
-                        freezeDurationMs = freezeDuration,
-                        speedBoostDurationMs = speedBoostDuration,
-                        animationTimeMs = enemy.animationTimeMs + 32,
-                        isFacingLeft = newIsFacingLeft
-                    )
-                }
-            }
-            newState = newState.copy(enemies = updatedEnemies)
+            val (movedState, updatedEnemies) = handleEnemyMovement(newState, currentTimeMs)
+            newState = movedState.copy(enemies = updatedEnemies)
 
             // 3. Stall Firing
-            val newProjectiles = newState.projectiles.toMutableList()
-            val newPuddles = newState.puddles.toMutableList()
-            val updatedHexes = newState.hexes.toMutableMap()
-
-            newState.hexes.forEach { (coord, tile) ->
-                val stall = tile.stall
-                if (stall != null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
-                    val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-                    val potentialTargets = newState.enemies.filter { enemy ->
-                        axialDistance(enemy.position, stallPos) <= stall.range
-                    }
-
-                    val target = when (stall.targetMode) {
-                        TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                        TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
-                        TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
-                        TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
-                    }
-
-                    if (target != null) {
-                        var updatedStall = stall.copy(lastFiredMs = currentTimeMs)
-                        when (stall.stallType) {
-                            StallType.CHICKEN_RICE -> {
-                                newProjectiles.add(Projectile(
-                                    id = UUID.randomUUID().toString(),
-                                    position = stallPos,
-                                    targetEnemyId = target.id,
-                                    targetPosition = target.position,
-                                    damage = stall.damage,
-                                    color = stall.color,
-                                    sourceStallType = StallType.CHICKEN_RICE
-                                ))
-                            }
-                            StallType.TEH_TARIK -> {
-                                newPuddles.add(StickyPuddle(
-                                    id = UUID.randomUUID().toString(),
-                                    position = target.position,
-                                    spawnTimeMs = currentTimeMs,
-                                    durationMs = stall.effectDurationMs
-                                ))
-                            }
-                            StallType.SATAY -> {
-                                val dq = target.position.q - coord.q
-                                val dr = target.position.r - coord.r
-                                val angle = Math.atan2(dr.toDouble(), dq.toDouble()).toFloat()
-                                updatedStall = updatedStall.copy(rotation = angle)
-                                newProjectiles.add(Projectile(
-                                    id = UUID.randomUUID().toString(),
-                                    position = stallPos,
-                                    targetEnemyId = null,
-                                    targetPosition = target.position,
-                                    damage = stall.damage,
-                                    color = Color.White,
-                                    speed = 0.3f,
-                                    aoeRadius = stall.aoeRadius,
-                                    isArc = true,
-                                    startPosition = stallPos,
-                                    sourceStallType = StallType.SATAY
-                                ))
-                            }
-                            StallType.ICE_KACHANG -> {
-                                newProjectiles.add(Projectile(
-                                    id = UUID.randomUUID().toString(),
-                                    position = stallPos,
-                                    targetEnemyId = target.id,
-                                    targetPosition = target.position,
-                                    damage = stall.damage,
-                                    color = stall.color,
-                                    isFreeze = true,
-                                    freezeDurationMs = stall.freezeDurationMs,
-                                    sourceStallType = StallType.ICE_KACHANG
-                                ))
-                            }
-                            StallType.DURIAN -> {
-                                newProjectiles.add(Projectile(
-                                    id = UUID.randomUUID().toString(),
-                                    position = stallPos,
-                                    targetEnemyId = target.id,
-                                    targetPosition = target.position,
-                                    damage = stall.damage,
-                                    color = stall.color,
-                                    aoeRadius = stall.aoeRadius,
-                                    sourceStallType = StallType.DURIAN
-                                ))
-                            }
-                        }
-                        updatedHexes[coord] = tile.copy(stall = updatedStall)
-                    }
-                }
-            }
-            newState = newState.copy(hexes = updatedHexes, projectiles = newProjectiles, puddles = newPuddles)
+            newState = handleStallFiring(newState, currentTimeMs)
 
             // 4. Projectile Movement and Collision
-            val finalProjectiles = mutableListOf<Projectile>()
-            val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
-            val newVisualEffects = newState.visualEffects.toMutableList()
+            newState = handleProjectiles(newState, currentTimeMs)
 
-            newState.projectiles.forEach { proj ->
-                val targetPos = if (proj.targetEnemyId != null) {
-                    newState.enemies.find { it.id == proj.targetEnemyId }?.position ?: proj.targetPosition
-                } else {
-                    proj.targetPosition
-                }
-
-                val dq = targetPos.q - proj.position.q
-                val dr = targetPos.r - proj.position.r
-                val dist = axialDistance(proj.position, targetPos)
-
-                if (dist < proj.speed) {
-                    // Visual Effect
-                    if (proj.aoeRadius > 0) {
-                        val (effectColor, effectType, duration) = when {
-                            proj.isArc -> Triple(Color.Red.copy(alpha = 0.3f), VisualEffectType.GAS_CLOUD, 500L) // Satay
-                            proj.color == Color(0xFF4CAF50) -> Triple(Color(0xFFCDDC39).copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L) // Durian (greeny-yellow)
-                            else -> Triple(proj.color.copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L)
-                        }
-                        newVisualEffects.add(VisualEffect(
-                            id = UUID.randomUUID().toString(),
-                            position = targetPos,
-                            color = effectColor,
-                            startTimeMs = currentTimeMs,
-                            durationMs = duration,
-                            type = effectType
-                        ))
-                    }
-
-                    // Collect hits
-                    newState.enemies.forEach { enemy ->
-                        val isDirectTarget = proj.targetEnemyId == enemy.id
-                        val isWithinAoe = proj.aoeRadius > 0 && axialDistance(enemy.position, targetPos) <= proj.aoeRadius
-                        if (isDirectTarget || isWithinAoe) {
-                            hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
-                        }
-                    }
-                } else {
-                    // Keep moving
-                    finalProjectiles.add(proj.copy(
-                        lastPosition = proj.position,
-                        position = PreciseAxialCoordinate(
-                            proj.position.q + (dq / dist) * proj.speed,
-                            proj.position.r + (dr / dist) * proj.speed
-                        )
-                    ))
-                }
-            }
-
-            val finalEnemies = newState.enemies.map { enemy ->
-                val hits = hitEnemiesDetails[enemy.id]
-                if (hits != null) {
-                    var totalDamage = 0
-                    var maxFreezeDuration = enemy.freezeDurationMs
-                    var speedBoostDuration = enemy.speedBoostDurationMs
-
-                    hits.forEach { proj ->
-                        var damage = proj.damage.toFloat()
-                        var freezeDuration = proj.freezeDurationMs
-
-                        // Apply modifiers
-                        when (proj.sourceStallType) {
-                            StallType.SATAY -> {
-                                if (enemy.type == EnemyType.TOURIST) damage *= 2f
-                                else if (enemy.type == EnemyType.AUNTIE) damage *= 0.5f
-                            }
-                            StallType.DURIAN -> {
-                                if (enemy.type == EnemyType.DELIVERY_RIDER) damage *= 1.5f
-                                else if (enemy.type == EnemyType.SALARYMAN) speedBoostDuration = 2000L
-                            }
-                            StallType.ICE_KACHANG -> {
-                                if (enemy.type == EnemyType.SALARYMAN) freezeDuration *= 2
-                                else if (enemy.type == EnemyType.TOURIST) freezeDuration /= 2
-                            }
-                            else -> {}
-                        }
-
-                        totalDamage += damage.toInt()
-                        maxFreezeDuration = Math.max(maxFreezeDuration, freezeDuration)
-                    }
-
-                    val newHealth = Math.max(0, enemy.health - totalDamage)
-                    var updatedEnemy = enemy.copy(health = newHealth, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
-
-                    if (newHealth <= 0) {
-                        newState = newState.copy(
-                            gold = newState.gold + enemy.reward,
-                            score = newState.score + enemy.reward
-                        )
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastHapticTimeMs >= 1000) {
-                            viewModelScope.launch {
-                                if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
-                            }
-                            lastHapticTimeMs = currentTime
-                        }
-                        enemy.copy(health = 0, isDead = true)
-                    } else updatedEnemy
-                } else enemy
-            }.filter { !it.isDead }
-
-            newState = newState.copy(enemies = finalEnemies, projectiles = finalProjectiles, visualEffects = newVisualEffects)
-
+            // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
                 newState = newState.copy(waveActive = false, isBossWave = false)
                 gameStateRepository.saveGameState(newState)
             }
 
+            // 6. Game over check
             if (newState.health <= 0 && state.health > 0) {
                 handleGameOver(newState)
             }
 
             newState
         }
+    }
+
+    private fun updateTransients(state: GameState, currentTimeMs: Long): GameState {
+        val updatedPuddles = state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
+        val updatedVisualEffects = state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
+        return state.copy(puddles = updatedPuddles, visualEffects = updatedVisualEffects)
+    }
+
+    private fun handleSpawning(state: GameState, currentTimeMs: Long): GameState {
+        if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
+            val startPos = state.startPosition ?: return state
+            val endPos = state.endPosition ?: return state
+            val path = Pathfinding.findPath(
+                startPos, endPos, getBlockedCoordinates(state.hexes), state.hexes.keys
+            ) ?: emptyList()
+
+            val type = state.enemiesToSpawnList.first()
+            val remainingSpawnList = state.enemiesToSpawnList.drop(1)
+
+            val enemyHealth = getEnemyHP(type, state.currentWave)
+
+            val speed = when (type) {
+                EnemyType.SALARYMAN -> 0.08f
+                EnemyType.TOURIST -> 0.04f
+                EnemyType.AUNTIE -> 0.03f
+                EnemyType.DELIVERY_RIDER -> 0.06f
+            }
+
+            val firstTarget = path.getOrNull(1) ?: startPos
+            val isFacingLeft = firstTarget.q + firstTarget.r / 2f < startPos.q + startPos.r / 2f
+
+            val newEnemy = Enemy(
+                id = UUID.randomUUID().toString(),
+                type = type,
+                health = enemyHealth,
+                maxHealth = enemyHealth,
+                position = PreciseAxialCoordinate(startPos.q.toFloat(), startPos.r.toFloat()),
+                baseSpeed = speed,
+                currentSpeed = speed,
+                path = path,
+                currentPathIndex = 0,
+                reward = if (type == EnemyType.DELIVERY_RIDER) 100 else 20,
+                isFacingLeft = isFacingLeft
+            )
+            return state.copy(
+                enemies = state.enemies + newEnemy,
+                enemiesToSpawn = state.enemiesToSpawn - 1,
+                enemiesToSpawnList = remainingSpawnList,
+                lastSpawnTimeMs = currentTimeMs
+            )
+        }
+        return state
+    }
+
+    private fun handleEnemyMovement(state: GameState, currentTimeMs: Long): Pair<GameState, List<Enemy>> {
+        var mutableState = state
+        val updatedEnemies = state.enemies.mapNotNull { enemy ->
+            if (enemy.isDead) return@mapNotNull null
+
+            var freezeDuration = enemy.freezeDurationMs
+            if (freezeDuration > 0) {
+                freezeDuration = Math.max(0, freezeDuration - 32)
+            }
+
+            var isStopped = enemy.isStopped
+            var stopDurationMs = enemy.stopDurationMs
+            var lastStopMs = enemy.lastStopMs
+            var speedBoostDuration = enemy.speedBoostDurationMs
+
+            if (enemy.type == EnemyType.TOURIST) {
+                if (isStopped) {
+                    stopDurationMs -= 32
+                    if (stopDurationMs <= 0) {
+                        isStopped = false
+                        lastStopMs = currentTimeMs
+                    }
+                } else if (currentTimeMs - lastStopMs > 8000) {
+                    isStopped = true
+                    stopDurationMs = 2000L
+                }
+            }
+
+            if (speedBoostDuration > 0) {
+                speedBoostDuration = Math.max(0, speedBoostDuration - 32)
+            }
+
+            if (isStopped || freezeDuration > 0) {
+                return@mapNotNull enemy.copy(
+                    isStopped = isStopped,
+                    stopDurationMs = stopDurationMs,
+                    lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration,
+                    speedBoostDurationMs = speedBoostDuration
+                )
+            }
+
+            var speedMultiplier = 1.0f
+            val inPuddle = state.puddles.any { puddle ->
+                axialDistance(enemy.position, puddle.position) < 0.8
+            }
+            if (inPuddle) {
+                speedMultiplier = when (enemy.type) {
+                    EnemyType.DELIVERY_RIDER -> 0.2f // double slow (80% reduction)
+                    EnemyType.AUNTIE -> 0.8f // half slow (20% reduction)
+                    else -> 0.6f // normal slow (40% reduction)
+                }
+            }
+
+            if (speedBoostDuration > 0) {
+                speedMultiplier *= 1.5f
+            }
+
+            val effectiveSpeed = enemy.baseSpeed * speedMultiplier
+
+            val targetIndex = enemy.currentPathIndex + 1
+            if (targetIndex >= enemy.path.size) {
+                mutableState = mutableState.copy(health = Math.max(0, mutableState.health - 1))
+                return@mapNotNull null
+            }
+
+            val target = enemy.path[targetIndex]
+            val dq = target.q - enemy.position.q
+            val dr = target.r - enemy.position.r
+            val dist = axialDistance(enemy.position, PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()))
+
+            val newIsFacingLeft = if (target.q + target.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                target.q + target.r / 2f < enemy.position.q + enemy.position.r / 2f
+            } else {
+                enemy.isFacingLeft
+            }
+
+            if (dist < effectiveSpeed) {
+                enemy.copy(
+                    position = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()),
+                    currentPathIndex = targetIndex,
+                    currentSpeed = effectiveSpeed,
+                    isStopped = isStopped,
+                    stopDurationMs = stopDurationMs,
+                    lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration,
+                    speedBoostDurationMs = speedBoostDuration,
+                    animationTimeMs = enemy.animationTimeMs + 32,
+                    isFacingLeft = newIsFacingLeft
+                )
+            } else {
+                enemy.copy(
+                    position = PreciseAxialCoordinate(
+                        enemy.position.q + (dq / dist) * effectiveSpeed,
+                        enemy.position.r + (dr / dist) * effectiveSpeed
+                    ),
+                    currentSpeed = effectiveSpeed,
+                    isStopped = isStopped,
+                    stopDurationMs = stopDurationMs,
+                    lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration,
+                    speedBoostDurationMs = speedBoostDuration,
+                    animationTimeMs = enemy.animationTimeMs + 32,
+                    isFacingLeft = newIsFacingLeft
+                )
+            }
+        }
+        return Pair(mutableState, updatedEnemies)
+    }
+
+    private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
+        val newProjectiles = state.projectiles.toMutableList()
+        val newPuddles = state.puddles.toMutableList()
+        val updatedHexes = state.hexes.toMutableMap()
+
+        state.hexes.forEach { (coord, tile) ->
+            val stall = tile.stall
+            if (stall != null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+                val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+                val potentialTargets = state.enemies.filter { enemy ->
+                    axialDistance(enemy.position, stallPos) <= stall.range
+                }
+
+                val target = when (stall.targetMode) {
+                    TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
+                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
+                    TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
+                    TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
+                }
+
+                if (target != null) {
+                    var updatedStall = stall.copy(lastFiredMs = currentTimeMs)
+                    when (stall.stallType) {
+                        StallType.CHICKEN_RICE -> {
+                            newProjectiles.add(Projectile(
+                                id = UUID.randomUUID().toString(),
+                                position = stallPos,
+                                targetEnemyId = target.id,
+                                targetPosition = target.position,
+                                damage = stall.damage,
+                                color = stall.color,
+                                sourceStallType = StallType.CHICKEN_RICE
+                            ))
+                        }
+                        StallType.TEH_TARIK -> {
+                            newPuddles.add(StickyPuddle(
+                                id = UUID.randomUUID().toString(),
+                                position = target.position,
+                                spawnTimeMs = currentTimeMs,
+                                durationMs = stall.effectDurationMs
+                            ))
+                        }
+                        StallType.SATAY -> {
+                            val dq = target.position.q - coord.q
+                            val dr = target.position.r - coord.r
+                            val angle = Math.atan2(dr.toDouble(), dq.toDouble()).toFloat()
+                            updatedStall = updatedStall.copy(rotation = angle)
+                            newProjectiles.add(Projectile(
+                                id = UUID.randomUUID().toString(),
+                                position = stallPos,
+                                targetEnemyId = null,
+                                targetPosition = target.position,
+                                damage = stall.damage,
+                                color = Color.White,
+                                speed = 0.3f,
+                                aoeRadius = stall.aoeRadius,
+                                isArc = true,
+                                startPosition = stallPos,
+                                sourceStallType = StallType.SATAY
+                            ))
+                        }
+                        StallType.ICE_KACHANG -> {
+                            newProjectiles.add(Projectile(
+                                id = UUID.randomUUID().toString(),
+                                position = stallPos,
+                                targetEnemyId = target.id,
+                                targetPosition = target.position,
+                                damage = stall.damage,
+                                color = stall.color,
+                                isFreeze = true,
+                                freezeDurationMs = stall.freezeDurationMs,
+                                sourceStallType = StallType.ICE_KACHANG
+                            ))
+                        }
+                        StallType.DURIAN -> {
+                            newProjectiles.add(Projectile(
+                                id = UUID.randomUUID().toString(),
+                                position = stallPos,
+                                targetEnemyId = target.id,
+                                targetPosition = target.position,
+                                damage = stall.damage,
+                                color = stall.color,
+                                aoeRadius = stall.aoeRadius,
+                                sourceStallType = StallType.DURIAN
+                            ))
+                        }
+                    }
+                    updatedHexes[coord] = tile.copy(stall = updatedStall)
+                }
+            }
+        }
+        return state.copy(hexes = updatedHexes, projectiles = newProjectiles, puddles = newPuddles)
+    }
+
+    private fun handleProjectiles(state: GameState, currentTimeMs: Long): GameState {
+        val finalProjectiles = mutableListOf<Projectile>()
+        val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
+        val newVisualEffects = state.visualEffects.toMutableList()
+
+        state.projectiles.forEach { proj ->
+            val targetPos = if (proj.targetEnemyId != null) {
+                state.enemies.find { it.id == proj.targetEnemyId }?.position ?: proj.targetPosition
+            } else {
+                proj.targetPosition
+            }
+
+            val dq = targetPos.q - proj.position.q
+            val dr = targetPos.r - proj.position.r
+            val dist = axialDistance(proj.position, targetPos)
+
+            if (dist < proj.speed) {
+                // Visual Effect
+                if (proj.aoeRadius > 0) {
+                    val (effectColor, effectType, duration) = when {
+                        proj.isArc -> Triple(Color.Red.copy(alpha = 0.3f), VisualEffectType.GAS_CLOUD, 500L) // Satay
+                        proj.color == Color(0xFF4CAF50) -> Triple(Color(0xFFCDDC39).copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L) // Durian (greeny-yellow)
+                        else -> Triple(proj.color.copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L)
+                    }
+                    newVisualEffects.add(VisualEffect(
+                        id = UUID.randomUUID().toString(),
+                        position = targetPos,
+                        color = effectColor,
+                        startTimeMs = currentTimeMs,
+                        durationMs = duration,
+                        type = effectType
+                    ))
+                }
+
+                // Collect hits
+                state.enemies.forEach { enemy ->
+                    val isDirectTarget = proj.targetEnemyId == enemy.id
+                    val isWithinAoe = proj.aoeRadius > 0 && axialDistance(enemy.position, targetPos) <= proj.aoeRadius
+                    if (isDirectTarget || isWithinAoe) {
+                        hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
+                    }
+                }
+            } else {
+                // Keep moving
+                finalProjectiles.add(proj.copy(
+                    lastPosition = proj.position,
+                    position = PreciseAxialCoordinate(
+                        proj.position.q + (dq / dist) * proj.speed,
+                        proj.position.r + (dr / dist) * proj.speed
+                    )
+                ))
+            }
+        }
+
+        var updatedGold = state.gold
+        var updatedScore = state.score
+
+        val finalEnemies = state.enemies.map { enemy ->
+            val hits = hitEnemiesDetails[enemy.id]
+            if (hits != null) {
+                var totalDamage = 0
+                var maxFreezeDuration = enemy.freezeDurationMs
+                var speedBoostDuration = enemy.speedBoostDurationMs
+
+                hits.forEach { proj ->
+                    var damage = proj.damage.toFloat()
+                    var freezeDuration = proj.freezeDurationMs
+
+                    // Apply modifiers
+                    when (proj.sourceStallType) {
+                        StallType.SATAY -> {
+                            if (enemy.type == EnemyType.TOURIST) damage *= 2f
+                            else if (enemy.type == EnemyType.AUNTIE) damage *= 0.5f
+                        }
+                        StallType.DURIAN -> {
+                            if (enemy.type == EnemyType.DELIVERY_RIDER) damage *= 1.5f
+                            else if (enemy.type == EnemyType.SALARYMAN) speedBoostDuration = 2000L
+                        }
+                        StallType.ICE_KACHANG -> {
+                            if (enemy.type == EnemyType.SALARYMAN) freezeDuration *= 2
+                            else if (enemy.type == EnemyType.TOURIST) freezeDuration /= 2
+                        }
+                        else -> {}
+                    }
+
+                    totalDamage += damage.toInt()
+                    maxFreezeDuration = Math.max(maxFreezeDuration, freezeDuration)
+                }
+
+                val newHealth = Math.max(0, enemy.health - totalDamage)
+                if (newHealth <= 0) {
+                    updatedGold += enemy.reward
+                    updatedScore += enemy.reward
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastHapticTimeMs >= 1000) {
+                        viewModelScope.launch {
+                            if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
+                        }
+                        lastHapticTimeMs = currentTime
+                    }
+                    enemy.copy(health = 0, isDead = true)
+                } else {
+                    enemy.copy(health = newHealth, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
+                }
+            } else enemy
+        }.filter { !it.isDead }
+
+        return state.copy(
+            enemies = finalEnemies,
+            projectiles = finalProjectiles,
+            visualEffects = newVisualEffects,
+            gold = updatedGold,
+            score = updatedScore
+        )
     }
 
     private fun handleGameOver(state: GameState) {
@@ -613,7 +642,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun axialDistance(a: PreciseAxialCoordinate, b: PreciseAxialCoordinate): Float {
-        return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2f
+        return GridUtils.axialDistance(a, b)
     }
 
     fun onCellClick(coord: AxialCoordinate) {
@@ -644,26 +673,7 @@ class MainViewModel @JvmOverloads constructor(
                         newHexes[coord] = tile.copy(stall = stallToPlace.copy(id = UUID.randomUUID().toString()))
 
                         _gameState.update { state ->
-                            val updatedEnemies = state.enemies.map { enemy ->
-                                val currentTargetIndex = enemy.currentPathIndex + 1
-                                if (currentTargetIndex >= enemy.path.size) return@map enemy
-
-                                val currentTarget = enemy.path[currentTargetIndex]
-                                val newPathToFollow = Pathfinding.findPath(
-                                    currentTarget, endPos, blocked, state.hexes.keys
-                                ) ?: listOf(currentTarget)
-
-                                val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
-
-                                val nextTarget = newPath.getOrNull(currentTargetIndex + 1) ?: currentTarget
-                                val newIsFacingLeft = if (nextTarget.q + nextTarget.r / 2f != enemy.position.q + enemy.position.r / 2f) {
-                                    nextTarget.q + nextTarget.r / 2f < enemy.position.q + enemy.position.r / 2f
-                                } else {
-                                    enemy.isFacingLeft
-                                }
-
-                                enemy.copy(path = newPath, isFacingLeft = newIsFacingLeft)
-                            }
+                            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
                             state.copy(hexes = newHexes, gold = state.gold - stallToPlace.cost, enemies = updatedEnemies)
                         }
                     }
@@ -685,30 +695,10 @@ class MainViewModel @JvmOverloads constructor(
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = null)
 
-        val endPos = currentState.endPosition ?: return
         val blocked = getBlockedCoordinates(newHexes)
 
         _gameState.update { state ->
-            val updatedEnemies = state.enemies.map { enemy ->
-                val currentTargetIndex = enemy.currentPathIndex + 1
-                if (currentTargetIndex >= enemy.path.size) return@map enemy
-
-                val currentTarget = enemy.path[currentTargetIndex]
-                val newPathToFollow = Pathfinding.findPath(
-                    currentTarget, endPos, blocked, state.hexes.keys
-                ) ?: listOf(currentTarget)
-
-                val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
-
-                val nextTarget = newPath.getOrNull(currentTargetIndex + 1) ?: currentTarget
-                val newIsFacingLeft = if (nextTarget.q + nextTarget.r / 2f != enemy.position.q + enemy.position.r / 2f) {
-                    nextTarget.q + nextTarget.r / 2f < enemy.position.q + enemy.position.r / 2f
-                } else {
-                    enemy.isFacingLeft
-                }
-
-                enemy.copy(path = newPath, isFacingLeft = newIsFacingLeft)
-            }
+            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
             state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
@@ -815,6 +805,34 @@ class MainViewModel @JvmOverloads constructor(
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
         _gameState.update { it.copy(hexes = newHexes) }
+    }
+
+    private fun recalculateEnemyPaths(
+        state: GameState,
+        blocked: Set<AxialCoordinate>,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): List<Enemy> {
+        val endPos = state.endPosition ?: return state.enemies
+        return state.enemies.map { enemy ->
+            val currentTargetIndex = enemy.currentPathIndex + 1
+            if (currentTargetIndex >= enemy.path.size) return@map enemy
+
+            val currentTarget = enemy.path[currentTargetIndex]
+            val newPathToFollow = Pathfinding.findPath(
+                currentTarget, endPos, blocked, hexes.keys
+            ) ?: listOf(currentTarget)
+
+            val newPath = enemy.path.subList(0, currentTargetIndex + 1) + newPathToFollow.drop(1)
+
+            val nextTarget = newPath.getOrNull(currentTargetIndex + 1) ?: currentTarget
+            val newIsFacingLeft = if (nextTarget.q + nextTarget.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                nextTarget.q + nextTarget.r / 2f < enemy.position.q + enemy.position.r / 2f
+            } else {
+                enemy.isFacingLeft
+            }
+
+            enemy.copy(path = newPath, isFacingLeft = newIsFacingLeft)
+        }
     }
 
     private fun getBlockedCoordinates(hexes: Map<AxialCoordinate, HexTile>): Set<AxialCoordinate> {

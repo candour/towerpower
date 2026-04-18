@@ -57,7 +57,43 @@ data class Stall(
     val aoeRadius: Float = 1.0f,
     val effectDurationMs: Long = 3000L,
     val freezeDurationMs: Long = 500L
-)
+) {
+    fun getUpgradeBenefit(category: String, level: Int, baseStall: Stall): String {
+        return when (category) {
+            "Damage" -> {
+                val increasePerLevel = if (stallType == StallType.CHICKEN_RICE) {
+                    (baseStall.damage * 0.3f).toInt() + 2
+                } else {
+                    (baseStall.damage * 0.2f).toInt() + 1
+                }
+                val totalIncrease = increasePerLevel * level
+                val percentage = Math.round((totalIncrease.toFloat() / baseStall.damage) * 100)
+                "+$percentage%"
+            }
+            "Rate" -> {
+                val percentage = level * 10
+                "+$percentage%"
+            }
+            "Range" -> {
+                val totalIncrease = level * 0.5f
+                "+$totalIncrease"
+            }
+            "Radius" -> {
+                val totalIncrease = level * 0.2f
+                "+${String.format("%.1f", totalIncrease)}"
+            }
+            "Duration" -> {
+                val totalIncreaseMs = level * 500
+                "+${totalIncreaseMs}ms"
+            }
+            "Effect" -> {
+                val totalIncreaseMs = level * 100
+                "+${totalIncreaseMs}ms"
+            }
+            else -> ""
+        }
+    }
+}
 
 enum class EnemyType {
     SALARYMAN, TOURIST, AUNTIE, DELIVERY_RIDER

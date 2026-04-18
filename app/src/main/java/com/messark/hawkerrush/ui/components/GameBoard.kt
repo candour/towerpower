@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.messark.hawkerrush.R
 import com.messark.hawkerrush.model.*
 import com.messark.hawkerrush.ui.constants.SpriteConstants
+import com.messark.hawkerrush.utils.GridUtils
 import java.util.Comparator
 
 @Composable
@@ -98,11 +99,8 @@ fun GameBoard(
             val hPx = hexHeight.toPx()
             val borderPx = 20.dp.toPx()
 
-            fun toScreenPrecise(q: Float, r: Float): Offset {
-                val x = (q + r / 2f) * wPx + borderPx + wPx / 2f
-                val y = r * (hPx * rowSpacingFactor) + borderPx + hPx / 2f
-                return Offset(x, y)
-            }
+            fun toScreenPrecise(q: Float, r: Float): Offset =
+                GridUtils.toScreenPrecise(q, r, wPx, hPx, rowSpacingFactor, borderPx)
 
             fun toScreen(q: Int, r: Int): Offset = toScreenPrecise(q.toFloat(), r.toFloat())
 
