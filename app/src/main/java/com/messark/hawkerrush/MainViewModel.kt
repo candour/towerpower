@@ -277,13 +277,15 @@ class MainViewModel @JvmOverloads constructor(
             val updatedEnemies = newState.enemies.mapNotNull { enemy ->
                 if (enemy.isDead) return@mapNotNull null
 
-                if (enemy.freezeDurationMs > 0) {
-                    return@mapNotNull enemy.copy(freezeDurationMs = Math.max(0, enemy.freezeDurationMs - 32))
+                var freezeDuration = enemy.freezeDurationMs
+                if (freezeDuration > 0) {
+                    freezeDuration = Math.max(0, freezeDuration - 32)
                 }
 
                 var isStopped = enemy.isStopped
                 var stopDurationMs = enemy.stopDurationMs
                 var lastStopMs = enemy.lastStopMs
+                var speedBoostDuration = enemy.speedBoostDurationMs
 
                 if (enemy.type == EnemyType.TOURIST) {
                     if (isStopped) {
@@ -298,17 +300,36 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
 
-                if (isStopped || enemy.freezeDurationMs > 0) {
-                    return@mapNotNull enemy.copy(isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs)
+                if (speedBoostDuration > 0) {
+                    speedBoostDuration = Math.max(0, speedBoostDuration - 32)
+                }
+
+                if (isStopped || freezeDuration > 0) {
+                    return@mapNotNull enemy.copy(
+                        isStopped = isStopped,
+                        stopDurationMs = stopDurationMs,
+                        lastStopMs = lastStopMs,
+                        freezeDurationMs = freezeDuration,
+                        speedBoostDurationMs = speedBoostDuration
+                    )
                 }
 
                 var speedMultiplier = 1.0f
-                if (enemy.type != EnemyType.DELIVERY_RIDER) {
-                    val inPuddle = newState.puddles.any { puddle ->
-                        axialDistance(enemy.position, puddle.position) < 0.8
-                    }
-                    if (inPuddle) speedMultiplier = 0.6f
+                val inPuddle = newState.puddles.any { puddle ->
+                    axialDistance(enemy.position, puddle.position) < 0.8
                 }
+                if (inPuddle) {
+                    speedMultiplier = when (enemy.type) {
+                        EnemyType.DELIVERY_RIDER -> 0.2f // double slow (80% reduction)
+                        EnemyType.AUNTIE -> 0.8f // half slow (20% reduction)
+                        else -> 0.6f // normal slow (40% reduction)
+                    }
+                }
+
+                if (speedBoostDuration > 0) {
+                    speedMultiplier *= 1.5f
+                }
+
                 val effectiveSpeed = enemy.baseSpeed * speedMultiplier
 
                 val targetIndex = enemy.currentPathIndex + 1
@@ -336,6 +357,8 @@ class MainViewModel @JvmOverloads constructor(
                         isStopped = isStopped,
                         stopDurationMs = stopDurationMs,
                         lastStopMs = lastStopMs,
+                        freezeDurationMs = freezeDuration,
+                        speedBoostDurationMs = speedBoostDuration,
                         animationTimeMs = enemy.animationTimeMs + 32,
                         isFacingLeft = newIsFacingLeft
                     )
@@ -349,6 +372,8 @@ class MainViewModel @JvmOverloads constructor(
                         isStopped = isStopped,
                         stopDurationMs = stopDurationMs,
                         lastStopMs = lastStopMs,
+                        freezeDurationMs = freezeDuration,
+                        speedBoostDurationMs = speedBoostDuration,
                         animationTimeMs = enemy.animationTimeMs + 32,
                         isFacingLeft = newIsFacingLeft
                     )
@@ -386,7 +411,8 @@ class MainViewModel @JvmOverloads constructor(
                                     targetEnemyId = target.id,
                                     targetPosition = target.position,
                                     damage = stall.damage,
-                                    color = stall.color
+                                    color = stall.color,
+                                    sourceStallType = StallType.CHICKEN_RICE
                                 ))
                             }
                             StallType.TEH_TARIK -> {
@@ -412,7 +438,8 @@ class MainViewModel @JvmOverloads constructor(
                                     speed = 0.3f,
                                     aoeRadius = stall.aoeRadius,
                                     isArc = true,
-                                    startPosition = stallPos
+                                    startPosition = stallPos,
+                                    sourceStallType = StallType.SATAY
                                 ))
                             }
                             StallType.ICE_KACHANG -> {
@@ -424,7 +451,8 @@ class MainViewModel @JvmOverloads constructor(
                                     damage = stall.damage,
                                     color = stall.color,
                                     isFreeze = true,
-                                    freezeDurationMs = stall.freezeDurationMs
+                                    freezeDurationMs = stall.freezeDurationMs,
+                                    sourceStallType = StallType.ICE_KACHANG
                                 ))
                             }
                             StallType.DURIAN -> {
@@ -435,7 +463,8 @@ class MainViewModel @JvmOverloads constructor(
                                     targetPosition = target.position,
                                     damage = stall.damage,
                                     color = stall.color,
-                                    aoeRadius = stall.aoeRadius
+                                    aoeRadius = stall.aoeRadius,
+                                    sourceStallType = StallType.DURIAN
                                 ))
                             }
                         }
@@ -447,11 +476,9 @@ class MainViewModel @JvmOverloads constructor(
 
             // 4. Projectile Movement and Collision
             val finalProjectiles = mutableListOf<Projectile>()
-            val hitEnemies = mutableMapOf<String, Int>()
-            val frozenEnemies = mutableSetOf<String>()
-            val frozenDurations = mutableMapOf<String, Long>()
-
+            val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
             val newVisualEffects = newState.visualEffects.toMutableList()
+
             newState.projectiles.forEach { proj ->
                 val targetPos = if (proj.targetEnemyId != null) {
                     newState.enemies.find { it.id == proj.targetEnemyId }?.position ?: proj.targetPosition
@@ -464,6 +491,7 @@ class MainViewModel @JvmOverloads constructor(
                 val dist = axialDistance(proj.position, targetPos)
 
                 if (dist < proj.speed) {
+                    // Visual Effect
                     if (proj.aoeRadius > 0) {
                         val (effectColor, effectType, duration) = when {
                             proj.isArc -> Triple(Color.Red.copy(alpha = 0.3f), VisualEffectType.GAS_CLOUD, 500L) // Satay
@@ -480,36 +508,16 @@ class MainViewModel @JvmOverloads constructor(
                         ))
                     }
 
-                    if (proj.targetEnemyId != null) {
-                        if (proj.aoeRadius > 0) {
-                            newState.enemies.forEach { enemy ->
-                                if (axialDistance(enemy.position, targetPos) <= proj.aoeRadius) {
-                                    hitEnemies[enemy.id] = hitEnemies.getOrDefault(enemy.id, 0) + proj.damage
-                                    if (proj.isFreeze) {
-                                        frozenEnemies.add(enemy.id)
-                                        frozenDurations[enemy.id] = Math.max(frozenDurations.getOrDefault(enemy.id, 0L), proj.freezeDurationMs)
-                                    }
-                                }
-                            }
-                        } else {
-                            hitEnemies[proj.targetEnemyId] = hitEnemies.getOrDefault(proj.targetEnemyId, 0) + proj.damage
-                            if (proj.isFreeze) {
-                                frozenEnemies.add(proj.targetEnemyId)
-                                frozenDurations[proj.targetEnemyId] = Math.max(frozenDurations.getOrDefault(proj.targetEnemyId, 0L), proj.freezeDurationMs)
-                            }
-                        }
-                    } else {
-                        newState.enemies.forEach { enemy ->
-                            if (axialDistance(enemy.position, proj.targetPosition) <= proj.aoeRadius) {
-                                hitEnemies[enemy.id] = hitEnemies.getOrDefault(enemy.id, 0) + proj.damage
-                                if (proj.isFreeze) {
-                                    frozenEnemies.add(enemy.id)
-                                    frozenDurations[enemy.id] = Math.max(frozenDurations.getOrDefault(enemy.id, 0L), proj.freezeDurationMs)
-                                }
-                            }
+                    // Collect hits
+                    newState.enemies.forEach { enemy ->
+                        val isDirectTarget = proj.targetEnemyId == enemy.id
+                        val isWithinAoe = proj.aoeRadius > 0 && axialDistance(enemy.position, targetPos) <= proj.aoeRadius
+                        if (isDirectTarget || isWithinAoe) {
+                            hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
                         }
                     }
                 } else {
+                    // Keep moving
                     finalProjectiles.add(proj.copy(
                         lastPosition = proj.position,
                         position = PreciseAxialCoordinate(
@@ -521,13 +529,40 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             val finalEnemies = newState.enemies.map { enemy ->
-                val damageTaken = hitEnemies.getOrDefault(enemy.id, 0)
-                if (damageTaken > 0 || frozenEnemies.contains(enemy.id)) {
-                    val newHealth = Math.max(0, enemy.health - damageTaken)
-                    var updatedEnemy = enemy.copy(health = newHealth)
-                    if (frozenEnemies.contains(enemy.id)) {
-                        updatedEnemy = updatedEnemy.copy(freezeDurationMs = frozenDurations.getOrDefault(enemy.id, 0L))
+                val hits = hitEnemiesDetails[enemy.id]
+                if (hits != null) {
+                    var totalDamage = 0
+                    var maxFreezeDuration = enemy.freezeDurationMs
+                    var speedBoostDuration = enemy.speedBoostDurationMs
+
+                    hits.forEach { proj ->
+                        var damage = proj.damage.toFloat()
+                        var freezeDuration = proj.freezeDurationMs
+
+                        // Apply modifiers
+                        when (proj.sourceStallType) {
+                            StallType.SATAY -> {
+                                if (enemy.type == EnemyType.TOURIST) damage *= 2f
+                                else if (enemy.type == EnemyType.AUNTIE) damage *= 0.5f
+                            }
+                            StallType.DURIAN -> {
+                                if (enemy.type == EnemyType.DELIVERY_RIDER) damage *= 1.5f
+                                else if (enemy.type == EnemyType.SALARYMAN) speedBoostDuration = 2000L
+                            }
+                            StallType.ICE_KACHANG -> {
+                                if (enemy.type == EnemyType.SALARYMAN) freezeDuration *= 2
+                                else if (enemy.type == EnemyType.TOURIST) freezeDuration /= 2
+                            }
+                            else -> {}
+                        }
+
+                        totalDamage += damage.toInt()
+                        maxFreezeDuration = Math.max(maxFreezeDuration, freezeDuration)
                     }
+
+                    val newHealth = Math.max(0, enemy.health - totalDamage)
+                    var updatedEnemy = enemy.copy(health = newHealth, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
+
                     if (newHealth <= 0) {
                         newState = newState.copy(
                             gold = newState.gold + enemy.reward,

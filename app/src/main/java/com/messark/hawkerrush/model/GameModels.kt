@@ -79,6 +79,7 @@ data class Enemy(
     val lastStopMs: Long = 0L,
     val isStopped: Boolean = false,
     val stopDurationMs: Long = 0L,
+    val speedBoostDurationMs: Long = 0L,
     val animationTimeMs: Long = 0L,
     val isFacingLeft: Boolean = false
 )
@@ -96,7 +97,8 @@ data class Projectile(
     val aoeRadius: Float = 0f,
     val freezeDurationMs: Long = 0L,
     val isArc: Boolean = false,
-    val startPosition: PreciseAxialCoordinate? = null
+    val startPosition: PreciseAxialCoordinate? = null,
+    val sourceStallType: StallType? = null
 )
 
 enum class VisualEffectType {
