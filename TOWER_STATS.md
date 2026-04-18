@@ -16,22 +16,29 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 
 ---
 
-## Upgrade Scaling Estimates
+## Upgrade Scaling
 
-Upgrades are chosen randomly from three categories when an upgrade is purchased. Each upgrade costs the base price of the tower.
+Upgrades are chosen randomly from three categories when an upgrade is purchased. Scaling is **additive** based on the tower's base stats.
+
+### Upgrade Cost
+The cost of each upgrade increases linearly based on the tower's base price:
+- **1st Upgrade:** 30% of base price
+- **2nd Upgrade:** 40% of base price
+- **3rd Upgrade:** 50% of base price
+- (Increase by 10% or 1000 basis points for each subsequent upgrade)
 
 ### 1. Damage & Range
-- **Damage (Standard):** Increases by approximately **20% + 1**.
-- **Damage (Chicken Rice):** Increases by approximately **30% + 2** (specialized).
-- **Range:** Increases by **+0.5 hexes**.
+- **Damage (Standard):** +20% of base damage + 1 per level.
+- **Damage (Chicken Rice):** +30% of base damage + 2 per level.
+- **Range:** +0.5 hexes per level.
 
 ### 2. Fire Rate
-- **Shots Per Second:** Increases by approximately **11.1%** (achieved by reducing the time between shots by 10%).
+- **Fire Rate:** Reduces cooldown by 10% of the base fire rate per level (minimum cooldown: 100ms).
 
 ### 3. Special Effects
-- **AOE Radius (Satay/Durian):** Increases by **+0.2 units**.
-- **Slowing Duration (Teh Tarik):** Increases by **+500ms**.
-- **Freeze Duration (Ice Kachang):** Increases by **+100ms**.
+- **AOE Radius (Satay/Durian):** +0.2 units per level.
+- **Slowing Duration (Teh Tarik):** +500ms per level.
+- **Freeze Duration (Ice Kachang):** +100ms per level.
 
 ---
 

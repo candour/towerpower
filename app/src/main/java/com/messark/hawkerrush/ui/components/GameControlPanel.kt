@@ -67,13 +67,19 @@ fun GameControlPanel(
         }
 
         if (selectedBoardStall != null) {
+            val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
+            val baseCost = baseStall.cost
+            val nextUpgradeIndex = selectedBoardStall.upgradeCount + 1
+            val upgradeCost = Math.round(baseCost * (0.2f + nextUpgradeIndex * 0.1f)).toInt()
+
             StallConsole(
                 stall = selectedBoardStall,
+                baseStall = baseStall,
                 onSell = onSellStall,
                 onUpgrade = onUpgradeStall,
                 onCycleTarget = onCycleTargetMode,
-                canAffordUpgrade = gold >= (availableStalls.find { it.stallType == selectedBoardStall.stallType }?.cost ?: selectedBoardStall.cost),
-                upgradeCost = availableStalls.find { it.stallType == selectedBoardStall.stallType }?.cost ?: selectedBoardStall.cost,
+                canAffordUpgrade = gold >= upgradeCost,
+                upgradeCost = upgradeCost,
                 modifier = Modifier.weight(1f).fillMaxWidth()
             )
         } else {
@@ -127,6 +133,7 @@ fun GameControlPanel(
 @Composable
 fun StallConsole(
     stall: Stall,
+    baseStall: Stall,
     onSell: () -> Unit,
     onUpgrade: () -> Unit,
     onCycleTarget: () -> Unit,
@@ -151,7 +158,42 @@ fun StallConsole(
                 if (stall.upgrades.isEmpty()) {
                     Text(text = "No upgrades", color = Color.Gray, fontSize = 10.sp)
                 } else {
-                    val upgradeText = stall.upgrades.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+                    val upgradeText = stall.upgrades.entries.joinToString(", ") { (key, value) ->
+                        val benefit = when (key) {
+                            "Damage" -> {
+                                val increasePerLevel = if (stall.stallType == StallType.CHICKEN_RICE) {
+                                    (baseStall.damage * 0.3f).toInt() + 2
+                                } else {
+                                    (baseStall.damage * 0.2f).toInt() + 1
+                                }
+                                val totalIncrease = increasePerLevel * value
+                                val percentage = Math.round((totalIncrease.toFloat() / baseStall.damage) * 100)
+                                "+$percentage%"
+                            }
+                            "Rate" -> {
+                                val percentage = value * 10
+                                "+$percentage%"
+                            }
+                            "Range" -> {
+                                val totalIncrease = value * 0.5f
+                                "+$totalIncrease"
+                            }
+                            "Radius" -> {
+                                val totalIncrease = value * 0.2f
+                                "+${String.format("%.1f", totalIncrease)}"
+                            }
+                            "Duration" -> {
+                                val totalIncreaseMs = value * 500
+                                "+${totalIncreaseMs}ms"
+                            }
+                            "Effect" -> {
+                                val totalIncreaseMs = value * 100
+                                "+${totalIncreaseMs}ms"
+                            }
+                            else -> ""
+                        }
+                        if (benefit.isNotEmpty()) "$key: $value ($benefit)" else "$key: $value"
+                    }
                     Text(text = upgradeText, color = Color.Gray, fontSize = 10.sp)
                 }
             }

@@ -684,62 +684,87 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun upgradeStall() {
-        val currentState = _gameState.value
-        val coord = currentState.selectedBoardStall ?: return
-        val tile = currentState.hexes[coord] ?: return
-        val stall = tile.stall ?: return
+        _gameState.update { state ->
+            val coord = state.selectedBoardStall ?: return@update state
+            val tile = state.hexes[coord] ?: return@update state
+            val stall = tile.stall ?: return@update state
 
-        // Cost of upgrade is the same as the base cost of the tower
-        val upgradeCost = _availableStalls.value.find { it.stallType == stall.stallType }?.cost ?: stall.cost
+            val baseStall = _availableStalls.value.find { it.stallType == stall.stallType } ?: stall
+            val nextUpgradeLevel = stall.upgradeCount + 1
+            val upgradeCost = Math.round(baseStall.cost * (0.2f + nextUpgradeLevel * 0.1f)).toInt()
 
-        if (currentState.gold >= upgradeCost) {
-            val upgradeTypeIndex = Random().nextInt(3) // 0: Damage/Range, 1: Rate, 2: Special (Radius/Duration)
-            var updatedStall = stall.copy(
-                upgradeCount = stall.upgradeCount + 1,
-                totalInvestment = stall.totalInvestment + upgradeCost
-            )
-            val mutableUpgrades = updatedStall.upgrades.toMutableMap()
+            if (state.gold >= upgradeCost) {
+                val upgradeTypeIndex = Random().nextInt(3) // 0: Damage/Range, 1: Rate, 2: Special (Radius/Duration)
+                val mutableUpgrades = stall.upgrades.toMutableMap()
 
-            when (upgradeTypeIndex) {
-                0 -> {
-                    if (Random().nextBoolean()) {
-                        updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.2f).toInt() + 1)
-                        mutableUpgrades["Damage"] = mutableUpgrades.getOrDefault("Damage", 0) + 1
-                    } else {
-                        updatedStall = updatedStall.copy(range = updatedStall.range + 0.5f)
-                        mutableUpgrades["Range"] = mutableUpgrades.getOrDefault("Range", 0) + 1
-                    }
-                }
-                1 -> {
-                    updatedStall = updatedStall.copy(fireRateMs = (updatedStall.fireRateMs * 0.9f).toLong())
-                    mutableUpgrades["Rate"] = mutableUpgrades.getOrDefault("Rate", 0) + 1
-                }
-                2 -> {
-                    when (stall.stallType) {
-                        StallType.SATAY, StallType.DURIAN -> {
-                            updatedStall = updatedStall.copy(aoeRadius = updatedStall.aoeRadius + 0.2f)
-                            mutableUpgrades["Radius"] = mutableUpgrades.getOrDefault("Radius", 0) + 1
-                        }
-                        StallType.TEH_TARIK -> {
-                            updatedStall = updatedStall.copy(effectDurationMs = updatedStall.effectDurationMs + 500L)
-                            mutableUpgrades["Duration"] = mutableUpgrades.getOrDefault("Duration", 0) + 1
-                        }
-                        StallType.ICE_KACHANG -> {
-                            updatedStall = updatedStall.copy(freezeDurationMs = updatedStall.freezeDurationMs + 100L)
-                            mutableUpgrades["Effect"] = mutableUpgrades.getOrDefault("Effect", 0) + 1
-                        }
-                        StallType.CHICKEN_RICE -> {
-                            updatedStall = updatedStall.copy(damage = (updatedStall.damage * 1.3f).toInt() + 2)
+                var newDamage = stall.damage
+                var newRange = stall.range
+                var newFireRate = stall.fireRateMs
+                var newAoeRadius = stall.aoeRadius
+                var newEffectDuration = stall.effectDurationMs
+                var newFreezeDuration = stall.freezeDurationMs
+
+                when (upgradeTypeIndex) {
+                    0 -> {
+                        if (Random().nextBoolean()) {
+                            val damageIncrease = if (stall.stallType == StallType.CHICKEN_RICE) {
+                                (baseStall.damage * 0.3f).toInt() + 2
+                            } else {
+                                (baseStall.damage * 0.2f).toInt() + 1
+                            }
+                            newDamage += damageIncrease
                             mutableUpgrades["Damage"] = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                        } else {
+                            newRange += 0.5f
+                            mutableUpgrades["Range"] = mutableUpgrades.getOrDefault("Range", 0) + 1
+                        }
+                    }
+                    1 -> {
+                        val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
+                        newFireRate = Math.max(100L, stall.fireRateMs - rateReduction)
+                        mutableUpgrades["Rate"] = mutableUpgrades.getOrDefault("Rate", 0) + 1
+                    }
+                    2 -> {
+                        when (stall.stallType) {
+                            StallType.SATAY, StallType.DURIAN -> {
+                                newAoeRadius += 0.2f
+                                mutableUpgrades["Radius"] = mutableUpgrades.getOrDefault("Radius", 0) + 1
+                            }
+                            StallType.TEH_TARIK -> {
+                                newEffectDuration += 500L
+                                mutableUpgrades["Duration"] = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                            }
+                            StallType.ICE_KACHANG -> {
+                                newFreezeDuration += 100L
+                                mutableUpgrades["Effect"] = mutableUpgrades.getOrDefault("Effect", 0) + 1
+                            }
+                            StallType.CHICKEN_RICE -> {
+                                val damageIncrease = (baseStall.damage * 0.3f).toInt() + 2
+                                newDamage += damageIncrease
+                                mutableUpgrades["Damage"] = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                            }
                         }
                     }
                 }
-            }
 
-            updatedStall = updatedStall.copy(upgrades = mutableUpgrades)
-            val newHexes = currentState.hexes.toMutableMap()
-            newHexes[coord] = tile.copy(stall = updatedStall)
-            _gameState.update { it.copy(hexes = newHexes, gold = it.gold - upgradeCost) }
+                val updatedStall = stall.copy(
+                    damage = newDamage,
+                    range = newRange,
+                    fireRateMs = newFireRate,
+                    aoeRadius = newAoeRadius,
+                    effectDurationMs = newEffectDuration,
+                    freezeDurationMs = newFreezeDuration,
+                    upgradeCount = nextUpgradeLevel,
+                    totalInvestment = stall.totalInvestment + upgradeCost,
+                    upgrades = mutableUpgrades
+                )
+
+                val newHexes = state.hexes.toMutableMap()
+                newHexes[coord] = tile.copy(stall = updatedStall)
+                state.copy(hexes = newHexes, gold = state.gold - upgradeCost)
+            } else {
+                state
+            }
         }
     }
 
