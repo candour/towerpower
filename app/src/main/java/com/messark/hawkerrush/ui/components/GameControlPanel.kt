@@ -93,7 +93,7 @@ fun GameControlPanel(
                 } else if (score > 0 || currentWave > 0) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (currentWave > 0) {
-                            Text(text = "Wave $currentWave", color = Color.White, fontSize = 12.sp)
+                            Text(text = "WAVE: $currentWave", color = Color.White, fontSize = 12.sp)
                         }
                         if (score > 0 && currentWave > 0) {
                             Spacer(modifier = Modifier.width(12.dp))
