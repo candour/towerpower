@@ -43,7 +43,8 @@ enum class TargetMode {
  * Stalls can be placed on the board to attack enemies.
  *
  * @property id Unique identifier for this specific stall instance.
- * @property name Display name of the stall.
+ * @property name Display name of the stall (including prefixes/suffixes).
+ * @property baseName The original name of the stall (e.g. "Satay").
  * @property cost Gold cost to purchase the stall.
  * @property color Color used for the stall's projectile and UI elements.
  * @property range Attack range in grid units.
@@ -62,10 +63,14 @@ enum class TargetMode {
  * @property freezeDurationMs Duration of freeze effect in milliseconds.
  * @property uniqueTargetIds Set of enemy IDs that this stall has hit.
  * @property kills Total number of enemies killed by this stall.
+ * @property legendaryPrefix Assigned legendary prefix, if any.
+ * @property legendarySuffix Assigned legendary suffix, if any.
+ * @property namingCategories Categories that have already triggered a name change.
  */
 data class Stall(
     val id: String,
     val name: String,
+    val baseName: String = name,
     val cost: Int,
     val color: Color,
     val range: Float = 3f, // Grid units
@@ -83,7 +88,10 @@ data class Stall(
     val effectDurationMs: Long = 3000L,
     val freezeDurationMs: Long = 500L,
     val uniqueTargetIds: Set<String> = emptySet(),
-    val kills: Int = 0
+    val kills: Int = 0,
+    val legendaryPrefix: String? = null,
+    val legendarySuffix: String? = null,
+    val namingCategories: List<String> = emptyList()
 ) {
     fun getUpgradeCost(): Int {
         val nextUpgradeIndex = upgradeCount + 1

@@ -37,6 +37,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Upgrades:** Additive scaling based on base stats. Costs increase linearly (+10% of base cost per level).
 - **Selling:** Provides a 50% refund of the total investment (base cost + upgrades).
 - **Targeting:** Supports FIRST, CLOSEST, STRONGEST, and WEAKEST strategies.
+- **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10. These names are managed via `LegendaryNames.kt`.
 
 ### Enemies & Difficulty
 - **Variants:** Salaryman (Fast), Tourist (Stops), Auntie (Tank), Delivery Rider (Boss).
