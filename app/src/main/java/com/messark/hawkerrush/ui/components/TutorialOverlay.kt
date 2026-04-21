@@ -28,6 +28,8 @@ import com.messark.hawkerrush.R
 import com.messark.hawkerrush.SpriteButton
 import com.messark.hawkerrush.model.TutorialData
 import com.messark.hawkerrush.model.TutorialType
+import com.messark.hawkerrush.registry.EnemyRegistry
+import com.messark.hawkerrush.registry.StallRegistry
 import com.messark.hawkerrush.ui.constants.SpriteConstants
 import kotlinx.coroutines.delay
 
@@ -90,7 +92,8 @@ fun TutorialOverlay(
                     contentAlignment = Alignment.Center
                 ) {
                     if (tutorialData.enemyType != null) {
-                        val rowIndex = SpriteConstants.ENEMY_ROW_INDICES[tutorialData.enemyType] ?: 0
+                        val enemyDef = EnemyRegistry.get(tutorialData.enemyType)
+                        val rowIndex = enemyDef.spriteRow
                         val srcRect = IntRect(
                             left = frameIndex * SpriteConstants.ENEMY_SPRITE_WIDTH,
                             top = rowIndex * SpriteConstants.ENEMY_SPRITE_HEIGHT,
@@ -118,7 +121,7 @@ fun TutorialOverlay(
                             }
                         }
                     } else if (tutorialData.stallType != null) {
-                        val srcRect = SpriteConstants.STALL_RECTS[tutorialData.stallType] ?: IntRect(0, 0, 100, 100)
+                        val srcRect = StallRegistry.get(tutorialData.stallType).spriteRect
                         Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
                             val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
                             val drawWidth = srcRect.width * scale

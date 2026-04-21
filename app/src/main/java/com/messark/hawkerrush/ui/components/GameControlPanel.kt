@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.messark.hawkerrush.MainActivity
+import com.messark.hawkerrush.SpriteButton
 import com.messark.hawkerrush.R
 import com.messark.hawkerrush.model.Stall
 import com.messark.hawkerrush.model.StallType
@@ -41,6 +44,7 @@ fun GameControlPanel(
     onCycleTargetMode: () -> Unit,
     onStartWave: () -> Unit,
     onShowStallTutorial: (StallType) -> Unit,
+    onTriggerHaptic: () -> Unit,
     waveActive: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -78,6 +82,7 @@ fun GameControlPanel(
                 onSell = onSellStall,
                 onUpgrade = onUpgradeStall,
                 onCycleTarget = onCycleTargetMode,
+                onTriggerHaptic = onTriggerHaptic,
                 canAffordUpgrade = gold >= upgradeCost,
                 upgradeCost = upgradeCost,
                 modifier = Modifier.weight(1f).fillMaxWidth()
@@ -95,7 +100,10 @@ fun GameControlPanel(
                             modifier = Modifier
                                 .size(24.dp)
                                 .border(1.dp, Color.White, androidx.compose.foundation.shape.CircleShape)
-                                .clickable { onShowStallTutorial(selectedStall.stallType) },
+                                .clickable {
+                                    onShowStallTutorial(selectedStall.stallType)
+                                    onTriggerHaptic()
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(text = "?", color = Color.White, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
@@ -131,6 +139,7 @@ fun GameControlPanel(
                     StallSlot(
                         stall = stall,
                         isSelected = selectedStall?.id == stall.id,
+                        canAfford = gold >= stall.cost,
                         onClick = { onStallSelected(stall) },
                         stallsSheet = stallsSheet
                     )
@@ -138,17 +147,20 @@ fun GameControlPanel(
             }
         }
 
-        Button(
-            onClick = onStartWave,
-            modifier = Modifier.fillMaxWidth().height(40.dp),
-            enabled = !waveActive,
-            contentPadding = PaddingValues(0.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
+            SpriteButton(
+                normalRect = SpriteConstants.BTN_START_RECT,
+                onClick = onStartWave,
+                onTriggerHaptic = onTriggerHaptic,
+                enabled = !waveActive,
+                modifier = Modifier.fillMaxSize()
+            )
             Text(
                 text = if (waveActive) "LUNCH RUSH..." else "START LUNCH RUSH",
-                fontSize = 14.sp
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 2.dp)
             )
         }
     }
 }
-

@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import com.messark.hawkerrush.R
 import com.messark.hawkerrush.model.*
+import com.messark.hawkerrush.registry.EnemyRegistry
+import com.messark.hawkerrush.registry.StallRegistry
 import com.messark.hawkerrush.ui.constants.SpriteConstants
 import com.messark.hawkerrush.utils.GridUtils
 import java.util.Comparator
@@ -256,7 +258,7 @@ fun GameBoard(
 
                 // 3. Stalls
                 tile.stall?.let { stall ->
-                    val stallSrcRect = SpriteConstants.STALL_RECTS[stall.stallType] ?: SpriteConstants.STALL_RECTS[StallType.CHICKEN_RICE]!!
+                    val stallSrcRect = StallRegistry.get(stall.stallType).spriteRect
 
                     drawables.add(DrawableEntity(
                         q = coord.q.toFloat(),
@@ -414,7 +416,8 @@ fun GameBoard(
             enemies.forEach { enemy ->
                 val screenPos = toScreenPrecise(enemy.position.q, enemy.position.r)
 
-                val rowIndex = SpriteConstants.ENEMY_ROW_INDICES[enemy.type] ?: 0
+                val enemyDef = EnemyRegistry.get(enemy.type)
+                val rowIndex = enemyDef.spriteRow
                 val frameIndex = ((enemy.animationTimeMs / 500) % SpriteConstants.ENEMY_SPRITE_FRAMES).toInt()
 
                 val srcRect = IntRect(

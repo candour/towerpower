@@ -22,25 +22,10 @@ object SpriteConstants {
     val PILLAR_RECT = IntRect(31, 501, 101, 627)
     val GOAL_TABLE_RECT = IntRect(1100, 430, 1363, 628)
 
-    val STALL_RECTS = mapOf(
-        StallType.TEH_TARIK to IntRect(22, 41, 330, 451),
-        StallType.SATAY to IntRect(358, 41, 666, 451),
-        StallType.CHICKEN_RICE to IntRect(22, 500, 330, 930),
-        StallType.ICE_KACHANG to IntRect(358, 500, 666, 930),
-        StallType.DURIAN to IntRect(33, 961, 341, 1318)
-    )
-
     // Enemies (from drawable-nodpi/enemies.png)
     const val ENEMY_SPRITE_WIDTH = 100
     const val ENEMY_SPRITE_HEIGHT = 125
     const val ENEMY_SPRITE_FRAMES = 3
-
-    val ENEMY_ROW_INDICES = mapOf(
-        com.messark.hawkerrush.model.EnemyType.AUNTIE to 0,
-        com.messark.hawkerrush.model.EnemyType.TOURIST to 1,
-        com.messark.hawkerrush.model.EnemyType.SALARYMAN to 2,
-        com.messark.hawkerrush.model.EnemyType.DELIVERY_RIDER to 3
-    )
 
     val FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
 
@@ -55,4 +40,8 @@ object SpriteConstants {
     val BTN_SAVE_RECT = IntRect(0, 649, 350, 744)
     val BTN_CANCEL_RECT = IntRect(0, 743, 350, 838)
     val BTN_CANCEL_CLICK_RECT = IntRect(0, 837, 350, 932)
+    val BTN_UPGRADE_RECT = IntRect(350, 1, 700, 96)
+    val BTN_START_RECT = IntRect(350, 182, 700, 277)
+    val BTN_SELL_RECT = IntRect(350, 369, 700, 463)
+    val BTN_TARGET_RECT = IntRect(350, 555, 700, 650)
 }

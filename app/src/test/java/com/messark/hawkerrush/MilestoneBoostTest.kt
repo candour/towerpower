@@ -45,12 +45,12 @@ class MilestoneBoostTest {
 
         // Level 9: 15 + 9 * ( (15*0.3).toInt() + 2 ) = 15 + 9 * 6 = 69
         // Increase is 54. 54/15 = 3.6 -> 360%
-        val benefit9 = baseStall.getUpgradeBenefit("Damage", 9, baseStall)
+        val benefit9 = baseStall.getUpgradeBenefit("Damage", 9)
         assertEquals("+360%", benefit9)
 
         // Level 10: (15 + 10 * 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
         // Increase is 94 - 15 = 79. 79/15 = 5.266... -> 527%
-        val benefit10 = baseStall.getUpgradeBenefit("Damage", 10, baseStall)
+        val benefit10 = baseStall.getUpgradeBenefit("Damage", 10)
         assertEquals("+527%", benefit10)
     }
 

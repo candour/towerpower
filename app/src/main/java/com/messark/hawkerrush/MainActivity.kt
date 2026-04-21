@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -55,20 +57,25 @@ fun SpriteButton(
     pressedRect: androidx.compose.ui.unit.IntRect? = null,
     onClick: () -> Unit,
     onTriggerHaptic: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val context = LocalContext.current
+    val disabledColorFilter = remember {
+        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    }
     val bitmap = remember {
         BitmapFactory.decodeResource(context.resources, R.drawable.buttons).asImageBitmap()
     }
 
-    val currentRect = if (isPressed && pressedRect != null) pressedRect else normalRect
+    val currentRect = if (enabled && isPressed && pressedRect != null) pressedRect else normalRect
 
     Box(
         modifier = modifier
             .clickable(
+                enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = {
@@ -83,7 +90,8 @@ fun SpriteButton(
                 image = bitmap,
                 srcOffset = IntOffset(currentRect.left, currentRect.top),
                 srcSize = IntSize(currentRect.width, currentRect.height),
-                dstSize = IntSize(size.width.toInt(), size.height.toInt())
+                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                colorFilter = if (!enabled) disabledColorFilter else null
             )
         }
     }
@@ -613,6 +621,7 @@ fun GameScreen(
                     onCycleTargetMode = { viewModel.cycleTargetMode() },
                     onStartWave = { viewModel.startWave() },
                     onShowStallTutorial = { viewModel.showStallTutorial(it) },
+                    onTriggerHaptic = { viewModel.triggerHaptic() },
                     waveActive = gameState.waveActive,
                     modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
                 )

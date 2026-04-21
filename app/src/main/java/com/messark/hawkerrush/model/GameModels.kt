@@ -1,6 +1,7 @@
 package com.messark.hawkerrush.model
 
 import androidx.compose.ui.graphics.Color
+import com.messark.hawkerrush.registry.StallRegistry
 
 data class AxialCoordinate(val q: Int, val r: Int)
 
@@ -98,80 +99,10 @@ data class Stall(
         return Math.round(cost * (0.2f + nextUpgradeIndex * 0.1f)).toInt()
     }
 
-    fun getUpgradeBenefit(category: String, level: Int, baseStall: Stall): String {
+    fun getUpgradeBenefit(category: String, level: Int): String {
         if (level <= 0) return ""
-
-        return when (category) {
-            "Damage" -> {
-                var currentDamage = baseStall.damage
-                val increasePerLevel = if (stallType == StallType.CHICKEN_RICE) {
-                    (baseStall.damage * 0.3f).toInt() + 2
-                } else {
-                    (baseStall.damage * 0.2f).toInt() + 1
-                }
-                for (l in 1..level) {
-                    currentDamage += increasePerLevel
-                    if (l % 10 == 0) {
-                        currentDamage = Math.round(currentDamage * 1.25f)
-                    }
-                }
-                val percentage = Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
-                "+$percentage%"
-            }
-            "Rate" -> {
-                var currentRate = baseStall.fireRateMs
-                val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
-                for (l in 1..level) {
-                    currentRate = Math.max(50L, currentRate - rateReduction)
-                    if (l % 10 == 0) {
-                        currentRate = Math.max(50L, Math.round(currentRate * 0.75))
-                    }
-                }
-                val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
-                "+$percentage%"
-            }
-            "Range" -> {
-                var currentRange = baseStall.range
-                for (l in 1..level) {
-                    currentRange += 0.5f
-                    if (l % 10 == 0) {
-                        currentRange *= 1.25f
-                    }
-                }
-                "+${String.format("%.1f", currentRange - baseStall.range)}"
-            }
-            "Radius" -> {
-                var currentRadius = baseStall.aoeRadius
-                for (l in 1..level) {
-                    currentRadius += 0.2f
-                    if (l % 10 == 0) {
-                        currentRadius *= 1.25f
-                    }
-                }
-                "+${String.format("%.1f", currentRadius - baseStall.aoeRadius)}"
-            }
-            "Duration" -> {
-                var currentDuration = baseStall.effectDurationMs
-                for (l in 1..level) {
-                    currentDuration += 500
-                    if (l % 10 == 0) {
-                        currentDuration = Math.round(currentDuration * 1.25f).toLong()
-                    }
-                }
-                "+${currentDuration - baseStall.effectDurationMs}ms"
-            }
-            "Effect" -> {
-                var currentEffect = baseStall.freezeDurationMs
-                for (l in 1..level) {
-                    currentEffect += 100
-                    if (l % 10 == 0) {
-                        currentEffect = Math.round(currentEffect * 1.25f).toLong()
-                    }
-                }
-                "+${currentEffect - baseStall.freezeDurationMs}ms"
-            }
-            else -> ""
-        }
+        val stallDef = StallRegistry.get(stallType)
+        return stallDef.getUpgradeBenefit(category, level, stallDef)
     }
 }
 

@@ -5,8 +5,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.messark.hawkerrush.model.*
+import com.messark.hawkerrush.registry.*
 import com.messark.hawkerrush.utils.*
-import com.messark.hawkerrush.utils.LegendaryNames
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.Instant
@@ -32,13 +32,7 @@ class MainViewModel @JvmOverloads constructor(
     )
 
     private val _availableStalls = MutableStateFlow(
-        listOf(
-            Stall("t1", "Teh Tarik", baseName = "Teh Tarik", cost = 150, color = Color.Blue, stallType = StallType.TEH_TARIK, range = 3f, description = "Creates slowing puddles"),
-            Stall("t2", "Satay", baseName = "Satay", cost = 200, color = Color.Red, stallType = StallType.SATAY, range = 2.5f, damage = 20, fireRateMs = 1500, description = "Area chili sauce damage"),
-            Stall("t3", "Chicken Rice", baseName = "Chicken Rice", cost = 100, color = Color.Yellow, stallType = StallType.CHICKEN_RICE, range = 4f, damage = 15, fireRateMs = 700, description = "High single-target damage"),
-            Stall("t4", "Durian", baseName = "Durian", cost = 300, color = Color(0xFF4CAF50), stallType = StallType.DURIAN, range = 3f, damage = 120, fireRateMs = 2000, description = "Massive damage, slow fire"),
-            Stall("t5", "Ice Kachang", baseName = "Ice Kachang", cost = 250, color = Color.Cyan, stallType = StallType.ICE_KACHANG, range = 3.5f, damage = 2, fireRateMs = 1500, freezeDurationMs = 500L, description = "Freezes enemies in place")
-        )
+        StallRegistry.all().map { it.toStall() }
     )
     val availableStalls: StateFlow<List<Stall>> = _availableStalls.asStateFlow()
 
@@ -134,15 +128,21 @@ class MainViewModel @JvmOverloads constructor(
                 val newEnemyTypes = enemyList.distinct().filter { !settings.shownTutorials.contains("enemy_${it.name.lowercase()}") }
                 if (newEnemyTypes.isNotEmpty()) {
                     val firstNewEnemy = newEnemyTypes.first()
-                    val tutorial = TutorialContent.ENEMY_TUTORIALS[firstNewEnemy]
-                    if (tutorial != null) {
-                        _gameState.update { it.copy(activeTutorial = tutorial) }
-                        // Mark as shown
-                        settingsRepository.updateSettings {
-                            it.copy(shownTutorials = it.shownTutorials + "enemy_${firstNewEnemy.name.lowercase()}")
-                        }
-                        return@launch
+                    val enemyDef = EnemyRegistry.get(firstNewEnemy)
+                    val tutorial = TutorialData(
+                        id = "enemy_${firstNewEnemy.name.lowercase()}",
+                        type = TutorialType.ENEMY,
+                        title = enemyDef.name,
+                        description = enemyDef.description,
+                        enemyType = firstNewEnemy
+                    )
+
+                    _gameState.update { it.copy(activeTutorial = tutorial) }
+                    // Mark as shown
+                    settingsRepository.updateSettings {
+                        it.copy(shownTutorials = it.shownTutorials + "enemy_${firstNewEnemy.name.lowercase()}")
                     }
+                    return@launch
                 }
             }
 
@@ -181,7 +181,15 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun showStallTutorial(stallType: StallType) {
-        val tutorial = TutorialContent.STALL_TUTORIALS[stallType] ?: return
+        val def = StallRegistry.get(stallType)
+        val tutorial = TutorialData(
+            id = "stall_${stallType.name.lowercase()}",
+            type = TutorialType.STALL,
+            title = def.tutorialTitle,
+            signatureMove = def.signatureMove,
+            description = def.tutorialDescription,
+            stallType = stallType
+        )
         _gameState.update { it.copy(activeTutorial = tutorial) }
     }
 
@@ -244,13 +252,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun getEnemyHP(type: EnemyType, wave: Int): Int {
-        val baseHp = when (type) {
-            EnemyType.SALARYMAN -> 50
-            EnemyType.TOURIST -> 100
-            EnemyType.AUNTIE -> 150
-            EnemyType.DELIVERY_RIDER -> 500
-        }
-        return (baseHp * Math.pow(1.1, (wave - 1).toDouble())).toInt()
+        return EnemyRegistry.get(type).getHp(wave)
     }
 
     private fun startGameLoop() {
@@ -323,29 +325,13 @@ class MainViewModel @JvmOverloads constructor(
             val type = state.enemiesToSpawnList.first()
             val remainingSpawnList = state.enemiesToSpawnList.drop(1)
 
-            val enemyHealth = getEnemyHP(type, state.currentWave)
-
-            val speed = when (type) {
-                EnemyType.SALARYMAN -> 0.08f
-                EnemyType.TOURIST -> 0.04f
-                EnemyType.AUNTIE -> 0.03f
-                EnemyType.DELIVERY_RIDER -> 0.06f
-            }
-
             val firstTarget = path.getOrNull(1) ?: startPos
             val isFacingLeft = firstTarget.q + firstTarget.r / 2f < startPos.q + startPos.r / 2f
 
-            val newEnemy = Enemy(
-                id = UUID.randomUUID().toString(),
-                type = type,
-                health = enemyHealth,
-                maxHealth = enemyHealth,
+            val newEnemy = EnemyRegistry.get(type).toEnemy(
+                wave = state.currentWave,
                 position = PreciseAxialCoordinate(startPos.q.toFloat(), startPos.r.toFloat()),
-                baseSpeed = speed,
-                currentSpeed = speed,
                 path = path,
-                currentPathIndex = 0,
-                reward = if (type == EnemyType.DELIVERY_RIDER) 100 else 20,
                 isFacingLeft = isFacingLeft
             )
             return state.copy(
@@ -372,32 +358,22 @@ class MainViewModel @JvmOverloads constructor(
         val updatedEnemies = state.enemies.mapNotNull { enemy ->
             if (enemy.isDead) return@mapNotNull null
 
+            val enemyDef = EnemyRegistry.get(enemy.type)
+
             var freezeDuration = enemy.freezeDurationMs
             if (freezeDuration > 0) {
                 freezeDuration = Math.max(0, freezeDuration - 32)
             }
 
-            var isStopped = enemy.isStopped
-            var stopDurationMs = enemy.stopDurationMs
-            var lastStopMs = enemy.lastStopMs
             var speedBoostDuration = enemy.speedBoostDurationMs
-
-            if (enemy.type == EnemyType.TOURIST) {
-                if (isStopped) {
-                    stopDurationMs -= 32
-                    if (stopDurationMs <= 0) {
-                        isStopped = false
-                        lastStopMs = currentTimeMs
-                    }
-                } else if (currentTimeMs - lastStopMs > 8000) {
-                    isStopped = true
-                    stopDurationMs = 2000L
-                }
-            }
-
             if (speedBoostDuration > 0) {
                 speedBoostDuration = Math.max(0, speedBoostDuration - 32)
             }
+
+            val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(enemy, currentTimeMs)
+            var isStopped = behaviorUpdatedEnemy.isStopped
+            var stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
+            var lastStopMs = behaviorUpdatedEnemy.lastStopMs
 
             state.puddles.forEach { puddle ->
                 if (axialDistance(enemy.position, puddle.position) < 0.8 &&
@@ -422,12 +398,7 @@ class MainViewModel @JvmOverloads constructor(
             var speedMultiplier = 1.0f
             state.puddles.forEach { puddle ->
                 if (axialDistance(enemy.position, puddle.position) < 0.8) {
-                    speedMultiplier = when (enemy.type) {
-                        EnemyType.DELIVERY_RIDER -> 0.2f // double slow (80% reduction)
-                        EnemyType.AUNTIE -> 0.8f // half slow (20% reduction)
-                        else -> 0.6f // normal slow (40% reduction)
-                    }
-
+                    speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
                 }
             }
 
@@ -530,80 +501,17 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (target != null) {
-                    var updatedStall = stall.copy(lastFiredMs = currentTimeMs)
-                    when (stall.stallType) {
-                        StallType.CHICKEN_RICE -> {
-                            newProjectiles.add(Projectile(
-                                id = UUID.randomUUID().toString(),
-                                position = stallPos,
-                                targetEnemyId = target.id,
-                                targetPosition = target.position,
-                                damage = stall.damage,
-                                color = stall.color,
-                                sourceStallType = StallType.CHICKEN_RICE,
-                                sourceStallCoord = coord,
-                                sourceStallId = stall.id
-                            ))
+                    val stallDef = StallRegistry.get(stall.stallType)
+                    val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
+                    var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
+                    updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
+
+                    when (fireResult) {
+                        is FireResult.NewProjectile -> {
+                            newProjectiles.add(fireResult.projectile)
                         }
-                        StallType.TEH_TARIK -> {
-                            newPuddles.add(StickyPuddle(
-                                id = UUID.randomUUID().toString(),
-                                position = target.position,
-                                spawnTimeMs = currentTimeMs,
-                                durationMs = stall.effectDurationMs,
-                                sourceStallCoord = coord,
-                                sourceStallId = stall.id
-                            ))
-                        }
-                        StallType.SATAY -> {
-                            val dq = target.position.q - coord.q
-                            val dr = target.position.r - coord.r
-                            val angle = Math.atan2(dr.toDouble(), dq.toDouble()).toFloat()
-                            updatedStall = updatedStall.copy(rotation = angle)
-                            newProjectiles.add(Projectile(
-                                id = UUID.randomUUID().toString(),
-                                position = stallPos,
-                                targetEnemyId = null,
-                                targetPosition = target.position,
-                                damage = stall.damage,
-                                color = Color.White,
-                                speed = 0.3f,
-                                aoeRadius = stall.aoeRadius,
-                                isArc = true,
-                                startPosition = stallPos,
-                                sourceStallType = StallType.SATAY,
-                                sourceStallCoord = coord,
-                                sourceStallId = stall.id
-                            ))
-                        }
-                        StallType.ICE_KACHANG -> {
-                            newProjectiles.add(Projectile(
-                                id = UUID.randomUUID().toString(),
-                                position = stallPos,
-                                targetEnemyId = target.id,
-                                targetPosition = target.position,
-                                damage = stall.damage,
-                                color = stall.color,
-                                isFreeze = true,
-                                freezeDurationMs = stall.freezeDurationMs,
-                                sourceStallType = StallType.ICE_KACHANG,
-                                sourceStallCoord = coord,
-                                sourceStallId = stall.id
-                            ))
-                        }
-                        StallType.DURIAN -> {
-                            newProjectiles.add(Projectile(
-                                id = UUID.randomUUID().toString(),
-                                position = stallPos,
-                                targetEnemyId = target.id,
-                                targetPosition = target.position,
-                                damage = stall.damage,
-                                color = stall.color,
-                                aoeRadius = stall.aoeRadius,
-                                sourceStallType = StallType.DURIAN,
-                                sourceStallCoord = coord,
-                                sourceStallId = stall.id
-                            ))
+                        is FireResult.NewPuddle -> {
+                            newPuddles.add(fireResult.puddle)
                         }
                     }
                     updatedHexes[coord] = tile.copy(stall = updatedStall)
@@ -639,19 +547,15 @@ class MainViewModel @JvmOverloads constructor(
 
             if (dist < proj.speed) {
                 // Visual Effect
-                if (proj.aoeRadius > 0) {
-                    val (effectColor, effectType, duration) = when {
-                        proj.isArc -> Triple(Color.Red.copy(alpha = 0.3f), VisualEffectType.GAS_CLOUD, 500L) // Satay
-                        proj.color == Color(0xFF4CAF50) -> Triple(Color(0xFFCDDC39).copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L) // Durian (greeny-yellow)
-                        else -> Triple(proj.color.copy(alpha = 0.5f), VisualEffectType.EXPANDING_CIRCLE, 150L)
-                    }
+                if (proj.aoeRadius > 0 && proj.sourceStallType != null) {
+                    val stallDef = StallRegistry.get(proj.sourceStallType)
                     newVisualEffects.add(VisualEffect(
                         id = UUID.randomUUID().toString(),
                         position = targetPos,
-                        color = effectColor,
+                        color = stallDef.visualEffectColor ?: proj.color.copy(alpha = 0.5f),
                         startTimeMs = currentTimeMs,
-                        durationMs = duration,
-                        type = effectType
+                        durationMs = stallDef.visualEffectDuration,
+                        type = stallDef.visualEffectType
                     ))
                 }
 
@@ -693,20 +597,12 @@ class MainViewModel @JvmOverloads constructor(
                     var freezeDuration = proj.freezeDurationMs
 
                     // Apply modifiers
-                    when (proj.sourceStallType) {
-                        StallType.SATAY -> {
-                            if (enemy.type == EnemyType.TOURIST) damage *= 2f
-                            else if (enemy.type == EnemyType.AUNTIE) damage *= 0.5f
-                        }
-                        StallType.DURIAN -> {
-                            if (enemy.type == EnemyType.DELIVERY_RIDER) damage *= 1.5f
-                            else if (enemy.type == EnemyType.SALARYMAN) speedBoostDuration = 2000L
-                        }
-                        StallType.ICE_KACHANG -> {
-                            if (enemy.type == EnemyType.SALARYMAN) freezeDuration *= 2
-                            else if (enemy.type == EnemyType.TOURIST) freezeDuration /= 2
-                        }
-                        else -> {}
+                    if (proj.sourceStallType != null) {
+                        val stallDef = StallRegistry.get(proj.sourceStallType)
+                        damage = stallDef.applyDamageModifiers(enemy, damage)
+                        freezeDuration = stallDef.getFreezeModifier(enemy, freezeDuration)
+                        val boost = stallDef.getSpeedBoost(enemy)
+                        if (boost > 0) speedBoostDuration = boost
                     }
 
                     val damageDealt = damage.toInt()
@@ -852,6 +748,7 @@ class MainViewModel @JvmOverloads constructor(
 
             if (state.gold >= upgradeCost) {
                 val upgradeCategories = mutableListOf(0, 1, 2).apply { shuffle() }
+                val stallDef = StallRegistry.get(stall.stallType)
 
                 while (upgradeCategories.isNotEmpty()) {
                     val upgradeTypeIndex = upgradeCategories.removeAt(0)
@@ -869,11 +766,7 @@ class MainViewModel @JvmOverloads constructor(
                         0 -> {
                             if (kotlin.random.Random.nextBoolean()) {
                                 currentCategoryName = "Damage"
-                                val damageIncrease = if (stall.stallType == StallType.CHICKEN_RICE) {
-                                    (baseStall.damage * 0.3f).toInt() + 2
-                                } else {
-                                    (baseStall.damage * 0.2f).toInt() + 1
-                                }
+                                val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
                                 newDamage += damageIncrease
                                 val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
                                 if (newLevel % 10 == 0) {
@@ -937,7 +830,7 @@ class MainViewModel @JvmOverloads constructor(
                                 }
                                 StallType.CHICKEN_RICE -> {
                                     currentCategoryName = "Damage"
-                                    val damageIncrease = (baseStall.damage * 0.3f).toInt() + 2
+                                    val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
                                     newDamage += damageIncrease
                                     val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
                                     if (newLevel % 10 == 0) {
