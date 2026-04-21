@@ -846,112 +846,143 @@ class MainViewModel @JvmOverloads constructor(
             val upgradeCost = stall.getUpgradeCost()
 
             if (state.gold >= upgradeCost) {
-                val upgradeTypeIndex = kotlin.random.Random.nextInt(3) // 0: Damage/Range, 1: Rate, 2: Special (Radius/Duration)
-                val mutableUpgrades = stall.upgrades.toMutableMap()
+                val upgradeCategories = mutableListOf(0, 1, 2).apply { shuffle() }
 
-                var newDamage = stall.damage
-                var newRange = stall.range
-                var newFireRate = stall.fireRateMs
-                var newAoeRadius = stall.aoeRadius
-                var newEffectDuration = stall.effectDurationMs
-                var newFreezeDuration = stall.freezeDurationMs
-                var triggeredCategory: String? = null
+                while (upgradeCategories.isNotEmpty()) {
+                    val upgradeTypeIndex = upgradeCategories.removeAt(0)
+                    val mutableUpgrades = stall.upgrades.toMutableMap()
 
-                when (upgradeTypeIndex) {
-                    0 -> {
-                        if (kotlin.random.Random.nextBoolean()) {
-                            val damageIncrease = if (stall.stallType == StallType.CHICKEN_RICE) {
-                                (baseStall.damage * 0.3f).toInt() + 2
-                            } else {
-                                (baseStall.damage * 0.2f).toInt() + 1
-                            }
-                            newDamage += damageIncrease
-                            val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
-                            mutableUpgrades["Damage"] = newLevel
-                            if (newLevel == 10) triggeredCategory = "Damage"
-                        } else {
-                            newRange += 0.5f
-                            val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
-                            mutableUpgrades["Range"] = newLevel
-                            if (newLevel == 10) triggeredCategory = "Range"
-                        }
-                    }
-                    1 -> {
-                        val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
-                        newFireRate = Math.max(100L, stall.fireRateMs - rateReduction)
-                        val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
-                        mutableUpgrades["Rate"] = newLevel
-                        if (newLevel == 10) triggeredCategory = "Rate"
-                    }
-                    2 -> {
-                        when (stall.stallType) {
-                            StallType.SATAY, StallType.DURIAN -> {
-                                newAoeRadius += 0.2f
-                                val newLevel = mutableUpgrades.getOrDefault("Radius", 0) + 1
-                                mutableUpgrades["Radius"] = newLevel
-                                if (newLevel == 10) triggeredCategory = "Radius"
-                            }
-                            StallType.TEH_TARIK -> {
-                                newEffectDuration += 500L
-                                val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
-                                mutableUpgrades["Duration"] = newLevel
-                                if (newLevel == 10) triggeredCategory = "Duration"
-                            }
-                            StallType.ICE_KACHANG -> {
-                                newFreezeDuration += 100L
-                                val newLevel = mutableUpgrades.getOrDefault("Effect", 0) + 1
-                                mutableUpgrades["Effect"] = newLevel
-                                if (newLevel == 10) triggeredCategory = "Effect"
-                            }
-                            StallType.CHICKEN_RICE -> {
-                                val damageIncrease = (baseStall.damage * 0.3f).toInt() + 2
+                    var newDamage = stall.damage
+                    var newRange = stall.range
+                    var newFireRate = stall.fireRateMs
+                    var newAoeRadius = stall.aoeRadius
+                    var newEffectDuration = stall.effectDurationMs
+                    var newFreezeDuration = stall.freezeDurationMs
+                    var currentCategoryName = ""
+
+                    when (upgradeTypeIndex) {
+                        0 -> {
+                            if (kotlin.random.Random.nextBoolean()) {
+                                currentCategoryName = "Damage"
+                                val damageIncrease = if (stall.stallType == StallType.CHICKEN_RICE) {
+                                    (baseStall.damage * 0.3f).toInt() + 2
+                                } else {
+                                    (baseStall.damage * 0.2f).toInt() + 1
+                                }
                                 newDamage += damageIncrease
                                 val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                if (newLevel % 10 == 0) {
+                                    newDamage = Math.round(newDamage * 1.25f)
+                                }
                                 mutableUpgrades["Damage"] = newLevel
-                                if (newLevel == 10) triggeredCategory = "Damage"
+                            } else {
+                                currentCategoryName = "Range"
+                                newRange += 0.5f
+                                val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                if (newLevel % 10 == 0) {
+                                    newRange *= 1.25f
+                                }
+                                mutableUpgrades["Range"] = newLevel
+                            }
+                        }
+                        1 -> {
+                            currentCategoryName = "Rate"
+                            val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
+                            var potentialRate = stall.fireRateMs - rateReduction
+                            val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
+                            if (newLevel % 10 == 0) {
+                                potentialRate = Math.round(potentialRate * 0.75)
+                            }
+
+                            if (potentialRate < 50L) {
+                                continue // Try another category
+                            }
+
+                            newFireRate = potentialRate
+                            mutableUpgrades["Rate"] = newLevel
+                        }
+                        2 -> {
+                            when (stall.stallType) {
+                                StallType.SATAY, StallType.DURIAN -> {
+                                    currentCategoryName = "Radius"
+                                    newAoeRadius += 0.2f
+                                    val newLevel = mutableUpgrades.getOrDefault("Radius", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newAoeRadius *= 1.25f
+                                    }
+                                    mutableUpgrades["Radius"] = newLevel
+                                }
+                                StallType.TEH_TARIK -> {
+                                    currentCategoryName = "Duration"
+                                    newEffectDuration += 500L
+                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newEffectDuration = Math.round(newEffectDuration * 1.25)
+                                    }
+                                    mutableUpgrades["Duration"] = newLevel
+                                }
+                                StallType.ICE_KACHANG -> {
+                                    currentCategoryName = "Effect"
+                                    newFreezeDuration += 100L
+                                    val newLevel = mutableUpgrades.getOrDefault("Effect", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newFreezeDuration = Math.round(newFreezeDuration * 1.25)
+                                    }
+                                    mutableUpgrades["Effect"] = newLevel
+                                }
+                                StallType.CHICKEN_RICE -> {
+                                    currentCategoryName = "Damage"
+                                    val damageIncrease = (baseStall.damage * 0.3f).toInt() + 2
+                                    newDamage += damageIncrease
+                                    val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newDamage = Math.round(newDamage * 1.25f)
+                                    }
+                                    mutableUpgrades["Damage"] = newLevel
+                                }
                             }
                         }
                     }
-                }
 
-                var newPrefix = stall.legendaryPrefix
-                var newSuffix = stall.legendarySuffix
-                val newNamingCategories = stall.namingCategories.toMutableList()
+                    var newPrefix = stall.legendaryPrefix
+                    var newSuffix = stall.legendarySuffix
+                    val newNamingCategories = stall.namingCategories.toMutableList()
 
-                if (triggeredCategory != null && !stall.namingCategories.contains(triggeredCategory)) {
-                    if (stall.namingCategories.isEmpty()) {
-                        newSuffix = LegendaryNames.getRandomSuffix(triggeredCategory)
-                        newNamingCategories.add(triggeredCategory)
-                    } else if (stall.namingCategories.size == 1) {
-                        newPrefix = LegendaryNames.getRandomPrefix(triggeredCategory)
-                        newNamingCategories.add(triggeredCategory)
+                    val levelOfUpgradedCat = mutableUpgrades[currentCategoryName] ?: 0
+                    if (levelOfUpgradedCat == 10 && !stall.namingCategories.contains(currentCategoryName)) {
+                        if (stall.namingCategories.isEmpty()) {
+                            newSuffix = LegendaryNames.getRandomSuffix(currentCategoryName)
+                            newNamingCategories.add(currentCategoryName)
+                        } else if (stall.namingCategories.size == 1) {
+                            newPrefix = LegendaryNames.getRandomPrefix(currentCategoryName)
+                            newNamingCategories.add(currentCategoryName)
+                        }
                     }
+
+                    val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
+
+                    val updatedStall = stall.copy(
+                        name = newName,
+                        damage = newDamage,
+                        range = newRange,
+                        fireRateMs = newFireRate,
+                        aoeRadius = newAoeRadius,
+                        effectDurationMs = newEffectDuration,
+                        freezeDurationMs = newFreezeDuration,
+                        upgradeCount = stall.upgradeCount + 1,
+                        totalInvestment = stall.totalInvestment + upgradeCost,
+                        upgrades = mutableUpgrades,
+                        legendaryPrefix = newPrefix,
+                        legendarySuffix = newSuffix,
+                        namingCategories = newNamingCategories
+                    )
+
+                    val newHexes = state.hexes.toMutableMap()
+                    newHexes[coord] = tile.copy(stall = updatedStall)
+                    return@update state.copy(hexes = newHexes, gold = state.gold - upgradeCost)
                 }
-
-                val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
-
-                val updatedStall = stall.copy(
-                    name = newName,
-                    damage = newDamage,
-                    range = newRange,
-                    fireRateMs = newFireRate,
-                    aoeRadius = newAoeRadius,
-                    effectDurationMs = newEffectDuration,
-                    freezeDurationMs = newFreezeDuration,
-                    upgradeCount = stall.upgradeCount + 1,
-                    totalInvestment = stall.totalInvestment + upgradeCost,
-                    upgrades = mutableUpgrades,
-                    legendaryPrefix = newPrefix,
-                    legendarySuffix = newSuffix,
-                    namingCategories = newNamingCategories
-                )
-
-                val newHexes = state.hexes.toMutableMap()
-                newHexes[coord] = tile.copy(stall = updatedStall)
-                state.copy(hexes = newHexes, gold = state.gold - upgradeCost)
-            } else {
-                state
             }
+            state
         }
     }
 

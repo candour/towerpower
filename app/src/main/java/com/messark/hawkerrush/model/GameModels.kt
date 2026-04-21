@@ -99,36 +99,76 @@ data class Stall(
     }
 
     fun getUpgradeBenefit(category: String, level: Int, baseStall: Stall): String {
+        if (level <= 0) return ""
+
         return when (category) {
             "Damage" -> {
+                var currentDamage = baseStall.damage
                 val increasePerLevel = if (stallType == StallType.CHICKEN_RICE) {
                     (baseStall.damage * 0.3f).toInt() + 2
                 } else {
                     (baseStall.damage * 0.2f).toInt() + 1
                 }
-                val totalIncrease = increasePerLevel * level
-                val percentage = Math.round((totalIncrease.toFloat() / baseStall.damage) * 100)
+                for (l in 1..level) {
+                    currentDamage += increasePerLevel
+                    if (l % 10 == 0) {
+                        currentDamage = Math.round(currentDamage * 1.25f)
+                    }
+                }
+                val percentage = Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
                 "+$percentage%"
             }
             "Rate" -> {
-                val percentage = level * 10
+                var currentRate = baseStall.fireRateMs
+                val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
+                for (l in 1..level) {
+                    currentRate = Math.max(50L, currentRate - rateReduction)
+                    if (l % 10 == 0) {
+                        currentRate = Math.max(50L, Math.round(currentRate * 0.75))
+                    }
+                }
+                val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
                 "+$percentage%"
             }
             "Range" -> {
-                val totalIncrease = level * 0.5f
-                "+$totalIncrease"
+                var currentRange = baseStall.range
+                for (l in 1..level) {
+                    currentRange += 0.5f
+                    if (l % 10 == 0) {
+                        currentRange *= 1.25f
+                    }
+                }
+                "+${String.format("%.1f", currentRange - baseStall.range)}"
             }
             "Radius" -> {
-                val totalIncrease = level * 0.2f
-                "+${String.format("%.1f", totalIncrease)}"
+                var currentRadius = baseStall.aoeRadius
+                for (l in 1..level) {
+                    currentRadius += 0.2f
+                    if (l % 10 == 0) {
+                        currentRadius *= 1.25f
+                    }
+                }
+                "+${String.format("%.1f", currentRadius - baseStall.aoeRadius)}"
             }
             "Duration" -> {
-                val totalIncreaseMs = level * 500
-                "+${totalIncreaseMs}ms"
+                var currentDuration = baseStall.effectDurationMs
+                for (l in 1..level) {
+                    currentDuration += 500
+                    if (l % 10 == 0) {
+                        currentDuration = Math.round(currentDuration * 1.25f).toLong()
+                    }
+                }
+                "+${currentDuration - baseStall.effectDurationMs}ms"
             }
             "Effect" -> {
-                val totalIncreaseMs = level * 100
-                "+${totalIncreaseMs}ms"
+                var currentEffect = baseStall.freezeDurationMs
+                for (l in 1..level) {
+                    currentEffect += 100
+                    if (l % 10 == 0) {
+                        currentEffect = Math.round(currentEffect * 1.25f).toLong()
+                    }
+                }
+                "+${currentEffect - baseStall.freezeDurationMs}ms"
             }
             else -> ""
         }
