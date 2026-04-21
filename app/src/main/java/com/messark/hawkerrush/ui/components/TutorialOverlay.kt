@@ -177,34 +177,24 @@ fun TutorialOverlay(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    SpriteButton(
-                        normalRect = SpriteConstants.BTN_RESUME_RECT, // We'll use Resume as Okay! for now or find a better one
-                        pressedRect = SpriteConstants.BTN_RESUME_CLICK_RECT,
-                        onClick = onDismiss,
-                        onTriggerHaptic = onTriggerHaptic,
-                        modifier = Modifier
-                            .width(200.dp)
-                            .height(54.dp)
-                    )
-
-                    // Add text over the button since we don't have an "Okay!" sprite
-                    // Wait, I should probably just use the button and hope it looks okay,
-                    // or I can draw text on top of the SpriteButton.
-                    // Actually, the SpriteButton doesn't support text easily.
-                    // Let's use the Resume button and maybe it's fine.
-                    // Or I can add a Text overlay.
+                    Box(contentAlignment = Alignment.Center) {
+                        SpriteButton(
+                            normalRect = SpriteConstants.BTN_RESUME_RECT,
+                            pressedRect = SpriteConstants.BTN_RESUME_CLICK_RECT,
+                            onClick = onDismiss,
+                            onTriggerHaptic = onTriggerHaptic,
+                            modifier = Modifier
+                                .width(200.dp)
+                                .height(54.dp)
+                        )
+                        Text(
+                            text = "OKAY!",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                    }
                 }
-            }
-
-            // Overlay "OKAY!" text on the button
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                 Text(
-                    text = "OKAY!",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(bottom = 30.dp) // Adjust to align with the button
-                )
             }
         }
     }
