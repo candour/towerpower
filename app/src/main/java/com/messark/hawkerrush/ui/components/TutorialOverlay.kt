@@ -6,7 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -174,48 +176,55 @@ fun TutorialOverlay(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = tutorialData.description,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 24.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = tutorialData.description,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 24.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        if (tutorialData.type == TutorialType.ENEMY) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { onToggleTutorialsSetting(!showTutorialsSetting) }
+                            ) {
+                                Checkbox(
+                                    checked = showTutorialsSetting,
+                                    onCheckedChange = {
+                                        onToggleTutorialsSetting(it)
+                                        onTriggerHaptic()
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = themeColor,
+                                        uncheckedColor = Color.Gray,
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                Text(
+                                    text = "Show tutorials",
+                                    color = Color.White,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Bottom: Controls
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (tutorialData.type == TutorialType.ENEMY) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { onToggleTutorialsSetting(!showTutorialsSetting) }
-                        ) {
-                            Checkbox(
-                                checked = showTutorialsSetting,
-                                onCheckedChange = {
-                                    onToggleTutorialsSetting(it)
-                                    onTriggerHaptic()
-                                },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = themeColor,
-                                    uncheckedColor = Color.Gray,
-                                    checkmarkColor = Color.White
-                                )
-                            )
-                            Text(
-                                text = "Show tutorials",
-                                color = Color.White,
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
                     Box(contentAlignment = Alignment.Center) {
                         SpriteButton(
                             normalRect = SpriteConstants.BTN_RESUME_RECT,
@@ -225,12 +234,6 @@ fun TutorialOverlay(
                             modifier = Modifier
                                 .width(200.dp)
                                 .height(54.dp)
-                        )
-                        Text(
-                            text = "OKAY!",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
                         )
                     }
                 }
