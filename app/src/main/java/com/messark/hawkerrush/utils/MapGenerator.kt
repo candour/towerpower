@@ -3,16 +3,15 @@ package com.messark.hawkerrush.utils
 import com.messark.hawkerrush.model.AxialCoordinate
 import com.messark.hawkerrush.model.HexTile
 import com.messark.hawkerrush.model.TileType
-import java.util.Random
+import kotlin.random.Random
 
 object MapGenerator {
-    private val random = Random()
 
     fun generateRandomVerticalMap(width: Int = 8, height: Int = 16): Triple<Map<AxialCoordinate, HexTile>, AxialCoordinate, AxialCoordinate> {
         while (true) {
             val hexes = mutableMapOf<AxialCoordinate, HexTile>()
-            val startQOffset = random.nextInt(width)
-            val endQOffset = random.nextInt(width)
+            val startQOffset = Random.nextInt(width)
+            val endQOffset = Random.nextInt(width)
 
             val startR = height - 1
             val startQ = startQOffset - (startR - (startR and 1)) / 2
@@ -34,7 +33,7 @@ object MapGenerator {
                         startPos -> TileType.START
                         endPos -> TileType.GOAL_TABLE
                         else -> {
-                            if (random.nextFloat() < 0.10f) TileType.PILLAR else TileType.FLOOR
+                            if (Random.nextFloat() < 0.10f) TileType.PILLAR else TileType.FLOOR
                         }
                     }
 
@@ -90,10 +89,10 @@ object MapGenerator {
     }
 
     private fun getWeightedFloorVariant(): Int {
-        return if (random.nextFloat() < 0.90f) {
+        return if (Random.nextFloat() < 0.90f) {
             0
         } else {
-            1 + random.nextInt(6) // floor01 to floor10 (20% total)
+            1 + Random.nextInt(6) // floor01 to floor10 (20% total)
         }
     }
 

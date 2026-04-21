@@ -367,7 +367,7 @@ fun GameBoard(
 
                         if (effect.type == VisualEffectType.GAS_CLOUD) {
                             // Pseudo-random patchy gas effect seeded by effect ID
-                            val random = java.util.Random(effect.id.hashCode().toLong())
+                            val random = kotlin.random.Random(effect.id.hashCode().toLong())
                             val baseRadius = wPx * 0.4f
                             for (i in 0 until 8) {
                                 val offsetX = (random.nextFloat() - 0.5f) * wPx * 1.5f

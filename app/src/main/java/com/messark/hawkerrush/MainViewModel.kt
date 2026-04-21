@@ -175,10 +175,9 @@ class MainViewModel @JvmOverloads constructor(
             allowedTiers = allowedTiers.filter { it != EnemyType.DELIVERY_RIDER }
         }
 
-        val random = Random()
         var attempts = 0
         while (remainingBudget > 0 && attempts < 100) {
-            val type = allowedTiers[random.nextInt(allowedTiers.size)]
+            val type = allowedTiers[kotlin.random.Random.nextInt(allowedTiers.size)]
             val hp = getEnemyHP(type, wave)
             if (hp <= remainingBudget) {
                 enemyList.add(type)
