@@ -86,6 +86,12 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    fun updateTutorialsSetting(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSettings { it.copy(showTutorials = enabled) }
+        }
+    }
+
     fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
 
     fun resumeGame() {
@@ -116,10 +122,34 @@ class MainViewModel @JvmOverloads constructor(
 
     fun startWave() {
         val currentState = _gameState.value
-        if (currentState.waveActive) return
+        if (currentState.waveActive || currentState.activeTutorial != null) return
 
         val newWave = currentState.currentWave + 1
         val enemyList = generateEnemyList(newWave)
+
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.showTutorials) {
+                val newEnemyTypes = enemyList.distinct().filter { !settings.shownTutorials.contains("enemy_${it.name.lowercase()}") }
+                if (newEnemyTypes.isNotEmpty()) {
+                    val firstNewEnemy = newEnemyTypes.first()
+                    val tutorial = TutorialContent.ENEMY_TUTORIALS[firstNewEnemy]
+                    if (tutorial != null) {
+                        _gameState.update { it.copy(activeTutorial = tutorial) }
+                        // Mark as shown
+                        settingsRepository.updateSettings {
+                            it.copy(shownTutorials = it.shownTutorials + "enemy_${firstNewEnemy.name.lowercase()}")
+                        }
+                        return@launch
+                    }
+                }
+            }
+
+            proceedWithWave(newWave, enemyList)
+        }
+    }
+
+    private fun proceedWithWave(newWave: Int, enemyList: List<EnemyType>) {
         val isBossWave = newWave % 10 == 0
         val currentTime = System.currentTimeMillis()
 
@@ -133,6 +163,19 @@ class MainViewModel @JvmOverloads constructor(
                 bossWaveTriggerTimeMs = if (isBossWave) currentTime else 0L,
                 lastSpawnTimeMs = currentTime
             )
+        }
+    }
+
+    fun dismissTutorial() {
+        val currentState = _gameState.value
+        val tutorial = currentState.activeTutorial ?: return
+
+        _gameState.update { it.copy(activeTutorial = null) }
+
+        // If it was an enemy tutorial, we might want to start the wave now
+        if (tutorial.type == TutorialType.ENEMY) {
+            // Re-check if there are MORE tutorials for this wave (e.g. wave has 2 new enemies)
+            startWave()
         }
     }
 
@@ -224,6 +267,7 @@ class MainViewModel @JvmOverloads constructor(
      */
     internal fun updateGame(currentTimeMs: Long) {
         _gameState.update { state ->
+            if (state.activeTutorial != null) return@update state
             var newState = state
 
             // 0. Update Puddles and Visual Effects

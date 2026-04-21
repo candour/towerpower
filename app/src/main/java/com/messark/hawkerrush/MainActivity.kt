@@ -42,6 +42,7 @@ import com.messark.hawkerrush.model.HighScore
 import com.messark.hawkerrush.model.Settings
 import com.messark.hawkerrush.ui.components.GameBoard
 import com.messark.hawkerrush.ui.components.GameControlPanel
+import com.messark.hawkerrush.ui.components.TutorialOverlay
 import com.messark.hawkerrush.ui.constants.LayoutConstants
 import com.messark.hawkerrush.ui.constants.SpriteConstants
 import com.messark.hawkerrush.utils.SettingsRepository
@@ -150,7 +151,9 @@ class MainActivity : ComponentActivity() {
                             AppScreen.OPTIONS -> {
                                 OptionsScreen(
                                     hapticEnabled = settings.hapticEnabled,
+                                    showTutorials = settings.showTutorials,
                                     onHapticToggle = { viewModel.updateHapticSetting(it) },
+                                    onTutorialsToggle = { viewModel.updateTutorialsSetting(it) },
                                     onSave = { viewModel.navigateTo(AppScreen.MAIN_MENU) },
                                     onTriggerHaptic = { viewModel.triggerHaptic() }
                                 )
@@ -159,7 +162,8 @@ class MainActivity : ComponentActivity() {
                                 GameScreen(
                                     gameState = gameState,
                                     availableStalls = availableStalls,
-                                    viewModel = viewModel
+                                    viewModel = viewModel,
+                                    showTutorialsSetting = settings.showTutorials
                                 )
                             }
                         }
@@ -173,7 +177,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun OptionsScreen(
     hapticEnabled: Boolean,
+    showTutorials: Boolean,
     onHapticToggle: (Boolean) -> Unit,
+    onTutorialsToggle: (Boolean) -> Unit,
     onSave: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
@@ -221,6 +227,25 @@ fun OptionsScreen(
                         checked = hapticEnabled,
                         onCheckedChange = {
                             onHapticToggle(it)
+                            onTriggerHaptic()
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Show Tutorials",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Switch(
+                        checked = showTutorials,
+                        onCheckedChange = {
+                            onTutorialsToggle(it)
                             onTriggerHaptic()
                         }
                     )
@@ -549,7 +574,8 @@ fun BossWaveOverlay(show: Boolean) {
 fun GameScreen(
     gameState: com.messark.hawkerrush.model.GameState,
     availableStalls: List<com.messark.hawkerrush.model.Stall>,
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
+    showTutorialsSetting: Boolean
 ) {
     var showExitDialog by remember { mutableStateOf(false) }
 
@@ -593,6 +619,16 @@ fun GameScreen(
 
             val showBossWave = gameState.isBossWave && (System.currentTimeMillis() - gameState.bossWaveTriggerTimeMs < 2000)
             BossWaveOverlay(show = showBossWave)
+
+            gameState.activeTutorial?.let { tutorial ->
+                TutorialOverlay(
+                    tutorialData = tutorial,
+                    showTutorialsSetting = showTutorialsSetting,
+                    onToggleTutorialsSetting = { viewModel.updateTutorialsSetting(it) },
+                    onDismiss = { viewModel.dismissTutorial() },
+                    onTriggerHaptic = { viewModel.triggerHaptic() }
+                )
+            }
 
             if (gameState.health <= 0) {
                 GameOverOverlay(

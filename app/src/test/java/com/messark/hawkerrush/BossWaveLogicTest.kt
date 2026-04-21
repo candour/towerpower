@@ -12,6 +12,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,17 +32,21 @@ class BossWaveLogicTest {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
-        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawkerrush.model.Settings())
+        // Default settings: showTutorials = false to avoid tutorial flow in these tests
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(
+            com.messark.hawkerrush.model.Settings(showTutorials = false)
+        )
 
         viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
     }
 
     @Test
-    fun `isBossWave and Delivery Rider logic`() = runBlocking {
+    fun `isBossWave and Delivery Rider logic`() = runTest {
         // We will manually advance the wave state to test logic
         for (w in 1..40) {
             setWave(w - 1)
             viewModel.startWave()
+            advanceUntilIdle()
             val state = viewModel.gameState.value
             assertEquals("Expected wave $w", w, state.currentWave)
 
