@@ -40,6 +40,7 @@ fun GameControlPanel(
     onUpgradeStall: () -> Unit,
     onCycleTargetMode: () -> Unit,
     onStartWave: () -> Unit,
+    onShowStallTutorial: (StallType) -> Unit,
     waveActive: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -87,7 +88,19 @@ fun GameControlPanel(
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
                 if (selectedStall != null) {
-                    Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = selectedStall.description, color = Color.White, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .border(1.dp, Color.White, androidx.compose.foundation.shape.CircleShape)
+                                .clickable { onShowStallTutorial(selectedStall.stallType) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "?", color = Color.White, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        }
+                    }
                 } else if (score > 0 || currentWave > 0) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (currentWave > 0) {

@@ -96,6 +96,7 @@ class MilestoneBoostTest {
         assertEquals(10, upgradedStall.upgrades["Damage"])
         // (69 + 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
         assertEquals(94, upgradedStall.damage)
+    }
 
     @Test
     fun `upgradeStall respects 50ms minimum fire rate`() {

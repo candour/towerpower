@@ -180,6 +180,11 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    fun showStallTutorial(stallType: StallType) {
+        val tutorial = TutorialContent.STALL_TUTORIALS[stallType] ?: return
+        _gameState.update { it.copy(activeTutorial = tutorial) }
+    }
+
     private fun generateEnemyList(wave: Int): List<EnemyType> {
         if (wave <= 6) {
             val list = when (wave) {

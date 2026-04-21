@@ -612,6 +612,7 @@ fun GameScreen(
                     onUpgradeStall = { viewModel.upgradeStall() },
                     onCycleTargetMode = { viewModel.cycleTargetMode() },
                     onStartWave = { viewModel.startWave() },
+                    onShowStallTutorial = { viewModel.showStallTutorial(it) },
                     waveActive = gameState.waveActive,
                     modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
                 )

@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +42,9 @@ fun TutorialOverlay(
     val context = LocalContext.current
     val enemyBitmap = remember {
         BitmapFactory.decodeResource(context.resources, R.drawable.enemies).asImageBitmap()
+    }
+    val stallBitmap = remember {
+        BitmapFactory.decodeResource(context.resources, R.drawable.stalls).asImageBitmap()
     }
 
     // Animation state for the sprite
@@ -115,6 +117,27 @@ fun TutorialOverlay(
                                 canvas.nativeCanvas.drawBitmap(enemyBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
                             }
                         }
+                    } else if (tutorialData.stallType != null) {
+                        val srcRect = SpriteConstants.STALL_RECTS[tutorialData.stallType] ?: IntRect(0, 0, 100, 100)
+                        Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
+                            val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
+                            val drawWidth = srcRect.width * scale
+                            val drawHeight = srcRect.height * scale
+
+                            drawIntoCanvas { canvas ->
+                                val paint = android.graphics.Paint().apply {
+                                    isFilterBitmap = false
+                                }
+                                val androidSrc = android.graphics.Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
+                                val androidDst = android.graphics.RectF(
+                                    (size.width - drawWidth) / 2f,
+                                    (size.height - drawHeight) / 2f,
+                                    (size.width + drawWidth) / 2f,
+                                    (size.height + drawHeight) / 2f
+                                )
+                                canvas.nativeCanvas.drawBitmap(stallBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
+                            }
+                        }
                     }
                 }
 
@@ -135,6 +158,17 @@ fun TutorialOverlay(
                         textAlign = TextAlign.Center
                     )
 
+                    tutorialData.signatureMove?.let { move ->
+                        Text(
+                            text = move.uppercase(),
+                            color = Color.Yellow,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
@@ -152,30 +186,32 @@ fun TutorialOverlay(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onToggleTutorialsSetting(!showTutorialsSetting) }
-                    ) {
-                        Checkbox(
-                            checked = showTutorialsSetting,
-                            onCheckedChange = {
-                                onToggleTutorialsSetting(it)
-                                onTriggerHaptic()
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = themeColor,
-                                uncheckedColor = Color.Gray,
-                                checkmarkColor = Color.White
+                    if (tutorialData.type == TutorialType.ENEMY) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { onToggleTutorialsSetting(!showTutorialsSetting) }
+                        ) {
+                            Checkbox(
+                                checked = showTutorialsSetting,
+                                onCheckedChange = {
+                                    onToggleTutorialsSetting(it)
+                                    onTriggerHaptic()
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = themeColor,
+                                    uncheckedColor = Color.Gray,
+                                    checkmarkColor = Color.White
+                                )
                             )
-                        )
-                        Text(
-                            text = "Show tutorials",
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
-                    }
+                            Text(
+                                text = "Show tutorials",
+                                color = Color.White,
+                                fontSize = 16.sp
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
                     Box(contentAlignment = Alignment.Center) {
                         SpriteButton(
