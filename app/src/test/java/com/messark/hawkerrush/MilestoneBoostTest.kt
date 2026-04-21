@@ -136,7 +136,10 @@ class MilestoneBoostTest {
         val upgradedStall = viewModel.gameState.value.hexes[stallCoord]?.stall!!
         assertEquals(9, upgradedStall.upgrades["Rate"] ?: 0)
         assertTrue(upgradedStall.upgradeCount == 10)
-        // One of the other categories should have been upgraded
-        assertTrue(upgradedStall.upgrades.size > 1 || (upgradedStall.upgrades["Rate"] == 9 && upgradedStall.upgradeCount == 10))
+        assertTrue(
+            upgradedStall.upgrades.any { (category, level) ->
+                category != "Rate" && level > 0
+            }
+        )
     }
 }
