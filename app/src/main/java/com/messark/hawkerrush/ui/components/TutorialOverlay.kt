@@ -35,6 +35,22 @@ import com.messark.hawkerrush.registry.StallRegistry
 import com.messark.hawkerrush.ui.constants.SpriteConstants
 import kotlinx.coroutines.delay
 
+/**
+ * Displays a full-screen tutorial overlay with sprite artwork, title, description, an optional
+ * signature move, an optional "Show tutorials" checkbox for enemy tutorials, and a Resume button.
+ *
+ * The overlay dims and blocks interaction with the underlying UI while visible. Enemy and stall
+ * sprites are rendered from bundled sprite sheets; enemy sprites animate automatically.
+ *
+ * @param tutorialData Provides the content and type of the tutorial (includes `type`, `title`,
+ *        `description`, optional `signatureMove`, and either `enemyType` or `stallType`).
+ * @param showTutorialsSetting Current enabled/disabled state of the "Show tutorials" checkbox.
+ * @param onToggleTutorialsSetting Called with the new checkbox state when the user toggles the
+ *        "Show tutorials" setting.
+ * @param onDismiss Called when the user presses the Resume button to dismiss the overlay.
+ * @param onTriggerHaptic Called to request a haptic feedback event for interactive actions
+ *        (checkbox changes and Resume button).
+ */
 @Composable
 fun TutorialOverlay(
     tutorialData: TutorialData,
