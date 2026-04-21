@@ -48,7 +48,10 @@ class LegendaryNamingTest {
         assertNotNull(state.hexes[placedStallCoord]?.stall)
 
         // Force gold for upgrades
-        viewModel._gameState.value = state.copy(gold = 100000)
+        val field = MainViewModel::class.java.getDeclaredField("_gameState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<GameState>
+        stateFlow.value = state.copy(gold = 100000)
 
         // Select the placed stall
         viewModel.onCellClick(placedStallCoord)
@@ -88,7 +91,11 @@ class LegendaryNamingTest {
         viewModel.selectStall(chickenRice)
         viewModel.onCellClick(coord)
 
-        viewModel._gameState.value = viewModel.gameState.value.copy(gold = 1000000)
+        val field = MainViewModel::class.java.getDeclaredField("_gameState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<GameState>
+        stateFlow.value = stateFlow.value.copy(gold = 1000000)
+
         viewModel.onCellClick(coord)
 
         var namingCategories = emptyList<String>()
