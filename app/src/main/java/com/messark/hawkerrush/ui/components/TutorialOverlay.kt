@@ -154,10 +154,7 @@ fun TutorialOverlay(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {
-                            onToggleTutorialsSetting(!showTutorialsSetting)
-                            onTriggerHaptic()
-                        }
+                        modifier = Modifier.clickable { onToggleTutorialsSetting(!showTutorialsSetting) }
                     ) {
                         Checkbox(
                             checked = showTutorialsSetting,
