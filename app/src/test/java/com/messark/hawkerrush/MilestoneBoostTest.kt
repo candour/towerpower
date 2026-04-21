@@ -93,11 +93,9 @@ class MilestoneBoostTest {
         }
 
         val upgradedStall = viewModel.gameState.value.hexes[stallCoord]?.stall!!
-        if (upgradedStall.upgrades["Damage"] == 10) {
-            // (69 + 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
-            assertEquals(94, upgradedStall.damage)
-        }
-    }
+        assertEquals(10, upgradedStall.upgrades["Damage"])
+        // (69 + 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
+        assertEquals(94, upgradedStall.damage)
 
     @Test
     fun `upgradeStall respects 50ms minimum fire rate`() {
