@@ -486,53 +486,55 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state with new projectiles/puddles.
      */
- private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
-     val newProjectiles = state.projectiles.toMutableList()
-     val newPuddles = state.puddles.toMutableList()
-     val updatedHexes = state.hexes.toMutableMap()
-     val updatedEnemies = state.enemies.toMutableList()
-     val grabbedEnemyIds = updatedEnemies.filter { it.isGrabbed }.mapTo(mutableSetOf()) { it.id }
+    private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
+        val newProjectiles = state.projectiles.toMutableList()
+        val newPuddles = state.puddles.toMutableList()
+        val updatedHexes = state.hexes.toMutableMap()
 
-     state.hexes.forEach { (coord, tile) ->
-         val stall = tile.stall
-         if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
-             val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-             val potentialTargets = updatedEnemies.filter { enemy ->
-                 enemy.id !in grabbedEnemyIds && axialDistance(enemy.position, stallPos) <= stall.range
-             }
+        state.hexes.forEach { (coord, tile) ->
+            val stall = tile.stall
+            if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+                val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+                val potentialTargets = state.enemies.filter { enemy ->
+                    !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range
+                }
 
-             val target = when (stall.targetMode) {
-                 TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                 TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
-                 TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
-                 TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
-             }
-             if (target != null) {
-                 if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                     val updatedStall = stall.copy(
-                         lastFiredMs = currentTimeMs,
-                         heldEnemyId = target.id,
-                         releaseTimeMs = currentTimeMs + stall.effectDurationMs
-                     )
-                     val enemyIndex = updatedEnemies.indexOfFirst { it.id == target.id }
-                     if (enemyIndex != -1) {
-                         updatedEnemies[enemyIndex] = updatedEnemies[enemyIndex].copy(
-                             isGrabbed = true,
-                             position = stallPos
-                         )
-                         grabbedEnemyIds += target.id
-                     }
-                     updatedHexes[coord] = tile.copy(stall = updatedStall)
-                 }
-             }
-         }
-     return state.copy(
-         hexes = updatedHexes,
-         enemies = updatedEnemies,
-         projectiles = newProjectiles,
-         puddles = newPuddles
-     )
- }
+                val target = when (stall.targetMode) {
+                    TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
+                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
+                    TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
+                    TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
+                }
+
+                if (target != null) {
+                    if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                        val updatedStall = stall.copy(
+                            lastFiredMs = currentTimeMs,
+                            heldEnemyId = target.id,
+                            releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                        )
+                        updatedHexes[coord] = tile.copy(stall = updatedStall)
+                    } else {
+                        val stallDef = StallRegistry.get(stall.stallType)
+                        val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
+                        var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
+                        updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
+
+                        when (fireResult) {
+                            is FireResult.NewProjectile -> {
+                                newProjectiles.add(fireResult.projectile)
+                            }
+                            is FireResult.NewPuddle -> {
+                                newPuddles.add(fireResult.puddle)
+                            }
+                        }
+                        updatedHexes[coord] = tile.copy(stall = updatedStall)
+                    }
+                }
+            }
+        }
+        return state.copy(hexes = updatedHexes, projectiles = newProjectiles, puddles = newPuddles)
+    }
 
     /**
      * Updates projectile positions and handles impacts with enemies.
@@ -813,22 +815,26 @@ class MainViewModel @JvmOverloads constructor(
                                     currentCategoryName = "Grab Rate"
                                     val rateReduction = 100L
                                     var potentialRate = stall.fireRateMs - rateReduction
-                                    val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
+                                    val newLevel = mutableUpgrades.getOrDefault("Grab Rate", 0) + 1
                                     if (newLevel % 10 == 0) {
                                         potentialRate = Math.round(potentialRate * 0.75)
                                     }
-                                    newFireRate = potentialRate.coerceAtLeast(10_000L)
-                                    mutableUpgrades["Rate"] = newLevel
+                                    if (potentialRate < 10000L) continue
+                                    newFireRate = potentialRate
+                                    mutableUpgrades["Grab Rate"] = newLevel
+                                    mutableUpgrades["Rate"] = newLevel // Also sync to standard key for internal logic
                                 } else {
                                     // Path for Category 2 (Cleaning Time)
                                     currentCategoryName = "Cleaning Time"
                                     var potentialDuration = stall.effectDurationMs + 100L
-                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                    val newLevel = mutableUpgrades.getOrDefault("Cleaning Time", 0) + 1
                                     if (newLevel % 10 == 0) {
                                         potentialDuration = Math.round(potentialDuration * 1.25)
                                     }
-                                    newEffectDuration = potentialDuration.coerceAtMost(4_000L)
-                                    mutableUpgrades["Duration"] = newLevel
+                                    if (potentialDuration > 4000L) continue
+                                    newEffectDuration = potentialDuration
+                                    mutableUpgrades["Cleaning Time"] = newLevel
+                                    mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
                             } else {
                                 if (kotlin.random.Random.nextBoolean()) {
@@ -855,7 +861,7 @@ class MainViewModel @JvmOverloads constructor(
                             currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
                             val rateReduction = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
                             var potentialRate = stall.fireRateMs - rateReduction
-                            val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
+                            val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
                             if (newLevel % 10 == 0) {
                                 potentialRate = Math.round(potentialRate * 0.75)
                             }
@@ -866,7 +872,10 @@ class MainViewModel @JvmOverloads constructor(
                             }
 
                             newFireRate = potentialRate
-                            mutableUpgrades["Rate"] = newLevel
+                            mutableUpgrades[currentCategoryName] = newLevel
+                            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                                mutableUpgrades["Rate"] = newLevel
+                            }
                         }
                         2 -> {
                             when (stall.stallType) {
@@ -900,7 +909,7 @@ class MainViewModel @JvmOverloads constructor(
                                 StallType.TRAY_RETURN_UNCLE -> {
                                     currentCategoryName = "Cleaning Time"
                                     var potentialDuration = stall.effectDurationMs + 100L
-                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                    val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
                                     if (newLevel % 10 == 0) {
                                         potentialDuration = Math.round(potentialDuration * 1.25)
                                     }
@@ -908,6 +917,7 @@ class MainViewModel @JvmOverloads constructor(
                                         continue
                                     }
                                     newEffectDuration = potentialDuration
+                                    mutableUpgrades[currentCategoryName] = newLevel
                                     mutableUpgrades["Duration"] = newLevel
                                 }
                                 StallType.CHICKEN_RICE -> {
@@ -1074,7 +1084,7 @@ class MainViewModel @JvmOverloads constructor(
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
-            hexes[adj]?.type == TileType.FLOOR && adj !in blocked && (endPos == null || Pathfinding.findPath(adj, endPos, blocked, hexes.keys) != null)
+            hexes.containsKey(adj) && !blocked.contains(adj) && hexes[adj]?.type != TileType.PILLAR && hexes[adj]?.type != TileType.GOAL_TABLE && hexes[adj]?.type?.name?.startsWith("EDGE_") == false
         }
 
         val releaseCoord = if (validTiles.isNotEmpty()) {

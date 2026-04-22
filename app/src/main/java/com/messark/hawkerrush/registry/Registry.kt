@@ -166,7 +166,7 @@ data class StallDefinition(
                 val percentage = Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
                 "+$percentage%"
             }
-            "Rate" -> {
+            "Grab Rate", "Rate" -> {
                 var currentRate = baseStall.fireRateMs
                 val rateReduction = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
                 for (l in 1..level) {
@@ -209,7 +209,7 @@ data class StallDefinition(
                 }
                 "+${String.format("%.1f", currentRadius - baseStall.aoeRadius)}"
             }
-            "Duration" -> {
+            "Cleaning Time", "Duration" -> {
                 var currentDuration = baseStall.effectDurationMs
                 for (l in 1..level) {
                     if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
