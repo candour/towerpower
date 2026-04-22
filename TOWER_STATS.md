@@ -11,6 +11,7 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 | **Satay** | 20 | 1500 | 0.67 | 13.33 | 2.5 | AOE Radius: 1.0 (Gas Cloud) | $200 |
 | **Ice Kachang** | 2 | 1500 | 0.67 | 1.33 | 3.5 | 0.5s Freeze duration | $250 |
 | **Durian** | 120 | 2000 | 0.50 | 60.00 | 3.0 | AOE Radius: 1.0 | $300 |
+| **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Grabs/Holds enemies for 2s | $450 |
 
 *Note: Teh Tarik has a "damage" stat of 10 in the code, but its actual in-game behavior currently deals 0 damage as it only creates slowing puddles.*
 
@@ -34,11 +35,13 @@ The cost of each upgrade increases linearly based on the tower's base price:
 
 ### 2. Fire Rate
 - **Fire Rate:** Reduces cooldown by 10% of the base fire rate per level (minimum cooldown: 100ms).
+- **Grab Rate (Tray Return Uncle):** Reduces cooldown by 100ms per level (minimum cooldown: 10s).
 
 ### 3. Special Effects
 - **AOE Radius (Satay/Durian):** +0.2 units per level.
 - **Slowing Duration (Teh Tarik):** +500ms per level.
 - **Freeze Duration (Ice Kachang):** +100ms per level.
+- **Cleaning Time (Tray Return Uncle):** +100ms per level (maximum duration: 4s).
 
 ---
 

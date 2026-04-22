@@ -21,6 +21,8 @@ class MainViewModel @JvmOverloads constructor(
     internal val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
+    private val random = kotlin.random.Random(System.currentTimeMillis())
+
     private val _logoVisible = MutableStateFlow(true)
     val logoVisible: StateFlow<Boolean> = _logoVisible.asStateFlow()
 
@@ -280,6 +282,9 @@ class MainViewModel @JvmOverloads constructor(
             // 0. Update Puddles and Visual Effects
             newState = updateTransients(newState, currentTimeMs)
 
+            // 0.5 Update Held Enemies
+            newState = updateHeldEnemies(newState, currentTimeMs)
+
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
 
@@ -357,6 +362,7 @@ class MainViewModel @JvmOverloads constructor(
 
         val updatedEnemies = state.enemies.mapNotNull { enemy ->
             if (enemy.isDead) return@mapNotNull null
+            if (enemy.isGrabbed) return@mapNotNull enemy
 
             val enemyDef = EnemyRegistry.get(enemy.type)
 
@@ -487,10 +493,10 @@ class MainViewModel @JvmOverloads constructor(
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
-            if (stall != null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+            if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
-                    axialDistance(enemy.position, stallPos) <= stall.range
+                    !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range
                 }
 
                 val target = when (stall.targetMode) {
@@ -501,20 +507,29 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (target != null) {
-                    val stallDef = StallRegistry.get(stall.stallType)
-                    val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
-                    var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
-                    updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
+                    if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                        val updatedStall = stall.copy(
+                            lastFiredMs = currentTimeMs,
+                            heldEnemyId = target.id,
+                            releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                        )
+                        updatedHexes[coord] = tile.copy(stall = updatedStall)
+                    } else {
+                        val stallDef = StallRegistry.get(stall.stallType)
+                        val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
+                        var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
+                        updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
 
-                    when (fireResult) {
-                        is FireResult.NewProjectile -> {
-                            newProjectiles.add(fireResult.projectile)
+                        when (fireResult) {
+                            is FireResult.NewProjectile -> {
+                                newProjectiles.add(fireResult.projectile)
+                            }
+                            is FireResult.NewPuddle -> {
+                                newPuddles.add(fireResult.puddle)
+                            }
                         }
-                        is FireResult.NewPuddle -> {
-                            newPuddles.add(fireResult.puddle)
-                        }
+                        updatedHexes[coord] = tile.copy(stall = updatedStall)
                     }
-                    updatedHexes[coord] = tile.copy(stall = updatedStall)
                 }
             }
         }
@@ -536,7 +551,7 @@ class MainViewModel @JvmOverloads constructor(
 
         state.projectiles.forEach { proj ->
             val targetPos = if (proj.targetEnemyId != null) {
-                state.enemies.find { it.id == proj.targetEnemyId }?.position ?: proj.targetPosition
+                state.enemies.find { it.id == proj.targetEnemyId && !it.isGrabbed }?.position ?: proj.targetPosition
             } else {
                 proj.targetPosition
             }
@@ -561,6 +576,7 @@ class MainViewModel @JvmOverloads constructor(
 
                 // Collect hits
                 state.enemies.forEach { enemy ->
+                    if (enemy.isGrabbed) return@forEach
                     val isDirectTarget = proj.targetEnemyId == enemy.id
                     val isWithinAoe = proj.aoeRadius > 0 && axialDistance(enemy.position, targetPos) <= proj.aoeRadius
                     if (isDirectTarget || isWithinAoe) {
@@ -689,6 +705,26 @@ class MainViewModel @JvmOverloads constructor(
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
 
+                // Check "last empty space" rule for Tray Return Uncle
+                val trayUncles = currentState.hexes.filter { it.value.stall?.stallType == StallType.TRAY_RETURN_UNCLE }.toMutableMap()
+                if (stallToPlace.stallType == StallType.TRAY_RETURN_UNCLE) {
+                    trayUncles[coord] = tile // Add current tile as potential Uncle
+                }
+
+                var violatesTrayUncleRule = false
+                for ((uncleCoord, _) in trayUncles) {
+                    val uncleNeighbors = getAdjacentCoordinates(uncleCoord)
+                    val freeUncleNeighbors = uncleNeighbors.filter {
+                        currentState.hexes.containsKey(it) && !blocked.contains(it) && it != coord && currentState.hexes[it]?.type == TileType.FLOOR
+                    }
+                    if (freeUncleNeighbors.isEmpty()) {
+                        violatesTrayUncleRule = true
+                        break
+                    }
+                }
+
+                if (violatesTrayUncleRule) return
+
                 val startPath = Pathfinding.findPath(startPos, endPos, blocked, currentState.hexes.keys)
 
                 if (startPath != null) {
@@ -727,7 +763,15 @@ class MainViewModel @JvmOverloads constructor(
         val blocked = getBlockedCoordinates(newHexes)
 
         _gameState.update { state ->
-            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+            var updatedEnemies = state.enemies
+            if (stall.heldEnemyId != null) {
+                updatedEnemies = updatedEnemies.map { enemy ->
+                    if (enemy.id == stall.heldEnemyId) {
+                        releaseEnemy(enemy, coord, newHexes, state.endPosition)
+                    } else enemy
+                }
+            }
+            updatedEnemies = recalculateEnemyPaths(state.copy(enemies = updatedEnemies), blocked, newHexes)
             state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
@@ -764,35 +808,64 @@ class MainViewModel @JvmOverloads constructor(
 
                     when (upgradeTypeIndex) {
                         0 -> {
-                            if (kotlin.random.Random.nextBoolean()) {
-                                currentCategoryName = "Damage"
-                                val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
-                                newDamage += damageIncrease
-                                val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
-                                if (newLevel % 10 == 0) {
-                                    newDamage = Math.round(newDamage * 1.25f)
+                            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                                // Split across Grab Rate and Cleaning Time
+                                if (kotlin.random.Random.nextBoolean()) {
+                                    // Path for Category 1 (Grab Rate)
+                                    currentCategoryName = "Grab Rate"
+                                    val rateReduction = 100L
+                                    var potentialRate = stall.fireRateMs - rateReduction
+                                    val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        potentialRate = Math.round(potentialRate * 0.75)
+                                    }
+                                    if (potentialRate < 10000L) continue
+                                    newFireRate = potentialRate
+                                    mutableUpgrades["Rate"] = newLevel
+                                } else {
+                                    // Path for Category 2 (Cleaning Time)
+                                    currentCategoryName = "Cleaning Time"
+                                    var potentialDuration = stall.effectDurationMs + 100L
+                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        potentialDuration = Math.round(potentialDuration * 1.25)
+                                    }
+                                    if (potentialDuration > 4000L) continue
+                                    newEffectDuration = potentialDuration
+                                    mutableUpgrades["Duration"] = newLevel
                                 }
-                                mutableUpgrades["Damage"] = newLevel
                             } else {
-                                currentCategoryName = "Range"
-                                newRange += 0.5f
-                                val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
-                                if (newLevel % 10 == 0) {
-                                    newRange *= 1.25f
+                                if (kotlin.random.Random.nextBoolean()) {
+                                    currentCategoryName = "Damage"
+                                    val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
+                                    newDamage += damageIncrease
+                                    val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newDamage = Math.round(newDamage * 1.25f)
+                                    }
+                                    mutableUpgrades["Damage"] = newLevel
+                                } else {
+                                    currentCategoryName = "Range"
+                                    newRange += 0.5f
+                                    val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newRange *= 1.25f
+                                    }
+                                    mutableUpgrades["Range"] = newLevel
                                 }
-                                mutableUpgrades["Range"] = newLevel
                             }
                         }
                         1 -> {
-                            currentCategoryName = "Rate"
-                            val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
+                            currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                            val rateReduction = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
                             var potentialRate = stall.fireRateMs - rateReduction
                             val newLevel = mutableUpgrades.getOrDefault("Rate", 0) + 1
                             if (newLevel % 10 == 0) {
                                 potentialRate = Math.round(potentialRate * 0.75)
                             }
 
-                            if (potentialRate < 50L) {
+                            val floor = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 10000L else 50L
+                            if (potentialRate < floor) {
                                 continue // Try another category
                             }
 
@@ -828,6 +901,19 @@ class MainViewModel @JvmOverloads constructor(
                                     }
                                     mutableUpgrades["Effect"] = newLevel
                                 }
+                                StallType.TRAY_RETURN_UNCLE -> {
+                                    currentCategoryName = "Cleaning Time"
+                                    var potentialDuration = stall.effectDurationMs + 100L
+                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        potentialDuration = Math.round(potentialDuration * 1.25)
+                                    }
+                                    if (potentialDuration > 4000L) {
+                                        continue
+                                    }
+                                    newEffectDuration = potentialDuration
+                                    mutableUpgrades["Duration"] = newLevel
+                                }
                                 StallType.CHICKEN_RICE -> {
                                     currentCategoryName = "Damage"
                                     val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
@@ -848,11 +934,16 @@ class MainViewModel @JvmOverloads constructor(
 
                     val levelOfUpgradedCat = mutableUpgrades[currentCategoryName] ?: 0
                     if (levelOfUpgradedCat == 10 && !stall.namingCategories.contains(currentCategoryName)) {
+                        val legendaryCat = when(currentCategoryName) {
+                            "Grab Rate" -> "Rate"
+                            "Cleaning Time" -> "Duration"
+                            else -> currentCategoryName
+                        }
                         if (stall.namingCategories.isEmpty()) {
-                            newSuffix = LegendaryNames.getRandomSuffix(currentCategoryName)
+                            newSuffix = LegendaryNames.getRandomSuffix(legendaryCat)
                             newNamingCategories.add(currentCategoryName)
                         } else if (stall.namingCategories.size == 1) {
-                            newPrefix = LegendaryNames.getRandomPrefix(currentCategoryName)
+                            newPrefix = LegendaryNames.getRandomPrefix(legendaryCat)
                             newNamingCategories.add(currentCategoryName)
                         }
                     }
@@ -930,5 +1021,97 @@ class MainViewModel @JvmOverloads constructor(
         return hexes.values.filter {
             it.stall != null || it.type == TileType.PILLAR || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
         }.map { it.coordinate }.toSet()
+    }
+
+    private fun updateHeldEnemies(state: GameState, currentTimeMs: Long): GameState {
+        var updatedHexes = state.hexes.toMutableMap()
+        var updatedEnemies = state.enemies.toMutableList()
+        var changed = false
+
+        state.hexes.forEach { (coord, tile) ->
+            val stall = tile.stall
+            if (stall != null && stall.heldEnemyId != null) {
+                val enemyIndex = updatedEnemies.indexOfFirst { it.id == stall.heldEnemyId }
+                if (enemyIndex != -1) {
+                    val enemy = updatedEnemies[enemyIndex]
+                    if (currentTimeMs >= stall.releaseTimeMs) {
+                        // Release enemy
+                        val releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
+                        updatedEnemies[enemyIndex] = releasedEnemy
+                        updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
+                        changed = true
+                    } else {
+                        // Move to stall center
+                        if (!enemy.isGrabbed || enemy.position.q != coord.q.toFloat() || enemy.position.r != coord.r.toFloat()) {
+                            updatedEnemies[enemyIndex] = enemy.copy(
+                                isGrabbed = true,
+                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+                            )
+                            changed = true
+                        }
+                    }
+                } else {
+                    // Enemy gone?
+                    updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
+                    changed = true
+                }
+            }
+        }
+
+        return if (changed) state.copy(hexes = updatedHexes, enemies = updatedEnemies) else state
+    }
+
+    private fun releaseEnemy(
+        enemy: Enemy,
+        stallCoord: AxialCoordinate,
+        hexes: Map<AxialCoordinate, HexTile>,
+        endPos: AxialCoordinate?
+    ): Enemy {
+        val adjacentCoords = listOf(
+            AxialCoordinate(stallCoord.q + 1, stallCoord.r),
+            AxialCoordinate(stallCoord.q + 1, stallCoord.r - 1),
+            AxialCoordinate(stallCoord.q, stallCoord.r - 1),
+            AxialCoordinate(stallCoord.q - 1, stallCoord.r),
+            AxialCoordinate(stallCoord.q - 1, stallCoord.r + 1),
+            AxialCoordinate(stallCoord.q, stallCoord.r + 1)
+        )
+
+        val blocked = getBlockedCoordinates(hexes)
+        val validTiles = adjacentCoords.filter { adj ->
+            hexes.containsKey(adj) && !blocked.contains(adj) && hexes[adj]?.type != TileType.PILLAR && hexes[adj]?.type != TileType.GOAL_TABLE && hexes[adj]?.type?.name?.startsWith("EDGE_") == false
+        }
+
+        val releaseCoord = if (validTiles.isNotEmpty()) {
+            validTiles[random.nextInt(validTiles.size)]
+        } else {
+            stallCoord // Fallback to stall coord if no adjacent is free, though shouldn't happen with our placement rule
+        }
+
+        val preciseRelease = PreciseAxialCoordinate(releaseCoord.q.toFloat(), releaseCoord.r.toFloat())
+
+        // Recalculate path from release point
+        val newPath = if (endPos != null) {
+            Pathfinding.findPath(releaseCoord, endPos, blocked, hexes.keys) ?: listOf(releaseCoord)
+        } else {
+            listOf(releaseCoord)
+        }
+
+        return enemy.copy(
+            isGrabbed = false,
+            position = preciseRelease,
+            path = newPath,
+            currentPathIndex = 0
+        )
+    }
+
+    private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
+        return listOf(
+            AxialCoordinate(coord.q + 1, coord.r),
+            AxialCoordinate(coord.q + 1, coord.r - 1),
+            AxialCoordinate(coord.q, coord.r - 1),
+            AxialCoordinate(coord.q - 1, coord.r),
+            AxialCoordinate(coord.q - 1, coord.r + 1),
+            AxialCoordinate(coord.q, coord.r + 1)
+        )
     }
 }

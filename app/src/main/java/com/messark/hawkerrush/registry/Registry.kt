@@ -168,12 +168,23 @@ data class StallDefinition(
             }
             "Rate" -> {
                 var currentRate = baseStall.fireRateMs
-                val rateReduction = (baseStall.fireRateMs * 0.1f).toLong()
+                val rateReduction = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
                 for (l in 1..level) {
-                    currentRate = Math.max(50L, currentRate - rateReduction)
-                    if (l % 10 == 0) {
-                        currentRate = Math.max(50L, Math.round(currentRate * 0.75))
+                    currentRate = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                        Math.max(10000L, currentRate - rateReduction)
+                    } else {
+                        Math.max(50L, currentRate - rateReduction)
                     }
+                    if (l % 10 == 0) {
+                        currentRate = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                            Math.max(10000L, Math.round(currentRate * 0.75))
+                        } else {
+                            Math.max(50L, Math.round(currentRate * 0.75))
+                        }
+                    }
+                }
+                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                    currentRate = Math.max(10000L, currentRate)
                 }
                 val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
                 "+$percentage%"
@@ -201,10 +212,17 @@ data class StallDefinition(
             "Duration" -> {
                 var currentDuration = baseStall.effectDurationMs
                 for (l in 1..level) {
-                    currentDuration += 500
+                    if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                        currentDuration = Math.min(4000L, currentDuration + 100)
+                    } else {
+                        currentDuration += 500
+                    }
                     if (l % 10 == 0) {
                         currentDuration = Math.round(currentDuration * 1.25f).toLong()
                     }
+                }
+                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                    currentDuration = Math.min(4000L, currentDuration)
                 }
                 "+${currentDuration - baseStall.effectDurationMs}ms"
             }
@@ -365,6 +383,21 @@ object StallRegistry {
             tutorialDescription = "Want something to really chill out the enemies? Then you need the Auntie at the Ice Kachang Cart! She’s taken traditional dessert techniques to the cryo-level. Her specialized ice shaver can launch a massive, compacted ball of shaved ice, syrup, and cold, cold, red beans, aimed precisely at the lead enemy. Upon impact, it doesn't just damage; it delivers an Absolute Zero Brain Freeze. The target is frozen solid, encased in a giant colorful ice cube, completely immobilized for several precious seconds. A perfect stall for controlling boss units.",
             spriteRect = IntRect(358, 500, 666, 930),
             freezeDurationMs = 500L
+        ),
+        StallType.TRAY_RETURN_UNCLE to StallDefinition(
+            type = StallType.TRAY_RETURN_UNCLE,
+            name = "Tray Return Uncle",
+            cost = 450,
+            color = Color.Gray,
+            range = 1.1f,
+            damage = 0,
+            fireRateMs = 15000,
+            description = "Cleans trays, and enemies",
+            tutorialTitle = "Tray Return Uncle (Enemy Displacement)",
+            signatureMove = "THE GREAT TRAY CLEARANCE",
+            tutorialDescription = "Don't leave your trays behind, or this Uncle might just clear YOU! The Tray Return Uncle is the master of order in the hawker center. Every 15 seconds, he spots an enemy and decides they need a good cleaning. He'll grab them, pull them into his stall for a few seconds of 'intensive tray-training', and then place them back on the floor in a random nearby spot. While they're being 'cleaned', they're off the board and can't be touched. Efficient, orderly, and slightly terrifying.",
+            spriteRect = IntRect(358, 500, 666, 930), // Placeholder Ice Kachang sprite
+            effectDurationMs = 2000L // Cleaning time
         )
     )
 

@@ -32,7 +32,7 @@ data class HexTile(
 )
 
 enum class StallType {
-    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG
+    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG, TRAY_RETURN_UNCLE
 }
 
 enum class TargetMode {
@@ -92,7 +92,9 @@ data class Stall(
     val kills: Int = 0,
     val legendaryPrefix: String? = null,
     val legendarySuffix: String? = null,
-    val namingCategories: List<String> = emptyList()
+    val namingCategories: List<String> = emptyList(),
+    val heldEnemyId: String? = null,
+    val releaseTimeMs: Long = 0L
 ) {
     fun getUpgradeCost(): Int {
         val nextUpgradeIndex = upgradeCount + 1
@@ -128,7 +130,8 @@ data class Enemy(
     val stopDurationMs: Long = 0L,
     val speedBoostDurationMs: Long = 0L,
     val animationTimeMs: Long = 0L,
-    val isFacingLeft: Boolean = false
+    val isFacingLeft: Boolean = false,
+    val isGrabbed: Boolean = false
 )
 
 /**
