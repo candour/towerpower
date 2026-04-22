@@ -504,26 +504,25 @@ class MainViewModel @JvmOverloads constructor(
              val target = when (stall.targetMode) {
                  TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
                  TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
-
-                 if (target != null) {
-                     if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                         val updatedStall = stall.copy(
-                             lastFiredMs = currentTimeMs,
-                             heldEnemyId = target.id,
-                             releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                 TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
+                 TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
+             }
+             if (target != null) {
+                 if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                     val updatedStall = stall.copy(
+                         lastFiredMs = currentTimeMs,
+                         heldEnemyId = target.id,
+                         releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                     )
+                     val enemyIndex = updatedEnemies.indexOfFirst { it.id == target.id }
+                     if (enemyIndex != -1) {
+                         updatedEnemies[enemyIndex] = updatedEnemies[enemyIndex].copy(
+                             isGrabbed = true,
+                             position = stallPos
                          )
-                         val enemyIndex = updatedEnemies.indexOfFirst { it.id == target.id }
-                         if (enemyIndex != -1) {
-                             updatedEnemies[enemyIndex] = updatedEnemies[enemyIndex].copy(
-                                 isGrabbed = true,
-                                 position = stallPos
-                             )
-                             grabbedEnemyIds += target.id
-                         }
-                         updatedHexes[coord] = tile.copy(stall = updatedStall)
-                     } else {
-                         ...
+                         grabbedEnemyIds += target.id
                      }
+                     updatedHexes[coord] = tile.copy(stall = updatedStall)
                  }
              }
          }
