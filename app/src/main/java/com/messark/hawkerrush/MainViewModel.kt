@@ -819,8 +819,7 @@ class MainViewModel @JvmOverloads constructor(
                                     if (newLevel % 10 == 0) {
                                         potentialRate = Math.round(potentialRate * 0.75)
                                     }
-                                    if (potentialRate < 10000L) continue
-                                    newFireRate = potentialRate
+                                    newFireRate = potentialRate.coerceAtLeast(10_000L)
                                     mutableUpgrades["Rate"] = newLevel
                                 } else {
                                     // Path for Category 2 (Cleaning Time)
@@ -830,8 +829,7 @@ class MainViewModel @JvmOverloads constructor(
                                     if (newLevel % 10 == 0) {
                                         potentialDuration = Math.round(potentialDuration * 1.25)
                                     }
-                                    if (potentialDuration > 4000L) continue
-                                    newEffectDuration = potentialDuration
+                                    newEffectDuration = potentialDuration.coerceAtMost(4_000L)
                                     mutableUpgrades["Duration"] = newLevel
                                 }
                             } else {
@@ -1078,7 +1076,7 @@ class MainViewModel @JvmOverloads constructor(
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
-            hexes.containsKey(adj) && !blocked.contains(adj) && hexes[adj]?.type != TileType.PILLAR && hexes[adj]?.type != TileType.GOAL_TABLE && hexes[adj]?.type?.name?.startsWith("EDGE_") == false
+            hexes[adj]?.type == TileType.FLOOR && adj !in blocked && (endPos == null || Pathfinding.findPath(adj, endPos, blocked, hexes.keys) != null)
         }
 
         val releaseCoord = if (validTiles.isNotEmpty()) {
