@@ -186,8 +186,12 @@ data class StallDefinition(
                 if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
                     currentRate = Math.max(10000L, currentRate)
                 }
-                val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
-                "+$percentage%"
+                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
+                    "-${baseStall.fireRateMs - currentRate}ms"
+                } else {
+                    val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
+                    "+$percentage%"
+                }
             }
             "Range" -> {
                 var currentRange = baseStall.range
