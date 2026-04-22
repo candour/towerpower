@@ -1,0 +1,96 @@
+package com.messark.hawker
+
+import android.app.Application
+import com.messark.hawker.model.AppScreen
+import com.messark.hawker.utils.GameStateRepository
+import com.messark.hawker.utils.SettingsRepository
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.setMain
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class MainViewModelTest {
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @Test
+    fun `gameState is initialized correctly`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val state = viewModel.gameState.first()
+
+        assertTrue(state.hexes.isNotEmpty())
+        assertEquals(10, state.health) // Hawker Rush uses 10 tables
+        assertEquals(500, state.gold)
+        assertNotNull(state.startPosition)
+        assertNotNull(state.endPosition)
+        assertEquals(AppScreen.LOADING, state.currentScreen)
+    }
+
+    @Test
+    fun `navigateTo changes currentScreen`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.navigateTo(AppScreen.MAIN_MENU)
+
+        val state = viewModel.gameState.first()
+        assertEquals(AppScreen.MAIN_MENU, state.currentScreen)
+    }
+
+    @Test
+    fun `resetGame reinitializes state and sets screen to GAME`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.resetGame()
+
+        val state = viewModel.gameState.first()
+        assertEquals(AppScreen.GAME, state.currentScreen)
+        assertTrue(state.hexes.isNotEmpty())
+        assertEquals(500, state.gold)
+    }
+
+    @Test
+    fun `availableStalls have correct descriptions`() = runBlocking {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val stalls = viewModel.availableStalls.value
+
+        assertEquals(6, stalls.size)
+        assertEquals("Creates slowing puddles", stalls.find { it.name == "Teh Tarik" }?.description)
+        assertEquals("Area chili sauce damage", stalls.find { it.name == "Satay" }?.description)
+        assertEquals("High single-target damage", stalls.find { it.name == "Chicken Rice" }?.description)
+        assertEquals("Massive damage, slow fire", stalls.find { it.name == "Durian" }?.description)
+        assertEquals("Freezes enemies in place", stalls.find { it.name == "Ice Kachang" }?.description)
+        assertEquals("Cleans trays, and enemies", stalls.find { it.name == "Tray Return Uncle" }?.description)
+    }
+}
