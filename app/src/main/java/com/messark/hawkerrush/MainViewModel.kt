@@ -486,55 +486,54 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state with new projectiles/puddles.
      */
-    private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
-        val newProjectiles = state.projectiles.toMutableList()
-        val newPuddles = state.puddles.toMutableList()
-        val updatedHexes = state.hexes.toMutableMap()
+ private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
+     val newProjectiles = state.projectiles.toMutableList()
+     val newPuddles = state.puddles.toMutableList()
+     val updatedHexes = state.hexes.toMutableMap()
+     val updatedEnemies = state.enemies.toMutableList()
+     val grabbedEnemyIds = updatedEnemies.filter { it.isGrabbed }.mapTo(mutableSetOf()) { it.id }
 
-        state.hexes.forEach { (coord, tile) ->
-            val stall = tile.stall
-            if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
-                val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-                val potentialTargets = state.enemies.filter { enemy ->
-                    !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range
-                }
+     state.hexes.forEach { (coord, tile) ->
+         val stall = tile.stall
+         if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+             val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+             val potentialTargets = updatedEnemies.filter { enemy ->
+                 enemy.id !in grabbedEnemyIds && axialDistance(enemy.position, stallPos) <= stall.range
+             }
 
-                val target = when (stall.targetMode) {
-                    TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
-                    TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
-                    TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
-                }
+             val target = when (stall.targetMode) {
+                 TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
+                 TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
 
-                if (target != null) {
-                    if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                        val updatedStall = stall.copy(
-                            lastFiredMs = currentTimeMs,
-                            heldEnemyId = target.id,
-                            releaseTimeMs = currentTimeMs + stall.effectDurationMs
-                        )
-                        updatedHexes[coord] = tile.copy(stall = updatedStall)
-                    } else {
-                        val stallDef = StallRegistry.get(stall.stallType)
-                        val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
-                        var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
-                        updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
-
-                        when (fireResult) {
-                            is FireResult.NewProjectile -> {
-                                newProjectiles.add(fireResult.projectile)
-                            }
-                            is FireResult.NewPuddle -> {
-                                newPuddles.add(fireResult.puddle)
-                            }
-                        }
-                        updatedHexes[coord] = tile.copy(stall = updatedStall)
-                    }
-                }
-            }
-        }
-        return state.copy(hexes = updatedHexes, projectiles = newProjectiles, puddles = newPuddles)
-    }
+                 if (target != null) {
+                     if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                         val updatedStall = stall.copy(
+                             lastFiredMs = currentTimeMs,
+                             heldEnemyId = target.id,
+                             releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                         )
+                         val enemyIndex = updatedEnemies.indexOfFirst { it.id == target.id }
+                         if (enemyIndex != -1) {
+                             updatedEnemies[enemyIndex] = updatedEnemies[enemyIndex].copy(
+                                 isGrabbed = true,
+                                 position = stallPos
+                             )
+                             grabbedEnemyIds += target.id
+                         }
+                         updatedHexes[coord] = tile.copy(stall = updatedStall)
+                     } else {
+                         ...
+                     }
+                 }
+             }
+         }
+     return state.copy(
+         hexes = updatedHexes,
+         enemies = updatedEnemies,
+         projectiles = newProjectiles,
+         puddles = newPuddles
+     )
+ }
 
     /**
      * Updates projectile positions and handles impacts with enemies.
