@@ -334,7 +334,7 @@ object StallRegistry {
             tutorialTitle = "Uncle's Satay Stall (AoE Damage)",
             signatureMove = "The Chili Conflagration",
             tutorialDescription = "Wah, smells so shiok! Behind this unassuming grill, the Satay Uncle is fanning a fiery revolution. Watch out for his signature Chili Conflagration—the chili isn't just spicy; it's explosive. He loads up a massive spoon and, with a precision usually reserved for satay-counting, launches a gigantic splash of his secret, explosive chili sauce. When it hits, it covers a wide circle, dousing groups of enemies in a sticky, burning chili storm that eats away at their health (and their willpower). If you need a crowd-control burn, this Uncle is the OG.",
-            spriteRect = IntRect(358, 41, 666, 451),
+            spriteRect = IntRect(14, 1541, 322, 1951),
             aoeRadius = 1.0f,
             projectileSpeed = 0.3f,
             isArc = true,
@@ -355,7 +355,7 @@ object StallRegistry {
             tutorialTitle = "Ah Hock’s Chicken Rice Stand (Single-Target DPS)",
             signatureMove = "The Garlic-Ginger Gatling Gun",
             tutorialDescription = "Ah Hock’s Chicken Rice is famous for two things: the tenderest steamed chicken and the single-minded focus of his attacks. Don’t be fooled by the simple setup; this stand is your base single-target workhorse. When an enemy is targeted, Ah Hock deploys his Garlic-Ginger Gatling Gun. Instead of bullets, he’s launching high-velocity, precision-aimed balls of marinated meat, dousing targets in flavor-infused damage. It’s consistent, it’s powerful, and it never runs out of stock. A classic choice that never fails.",
-            spriteRect = IntRect(22, 500, 330, 930)
+            spriteRect = IntRect(22, 541, 330, 971)
         ),
         StallType.DURIAN to StallDefinition(
             type = StallType.DURIAN,
@@ -369,7 +369,7 @@ object StallRegistry {
             tutorialTitle = "The King Durian Bunker (High Damage/Slight AoE)",
             signatureMove = "The Spiky Cataclysm",
             tutorialDescription = "They call the Durian the King of Fruits, and this stall is the King of Damage. The King Durian Bunker is fortified with armor-plating and smells… well, like a durian. When the King’s crew makes a sale, they aren't selling just fruit; they are deploying a localized explosive. Using a heavy-duty pneumatic launcher, they fire an overripe, spikey Durian bomb into the largest cluster of enemies. Upon impact, it delivers a high-damage, single-target blow, followed immediately by a Spiky Cataclysm AoE explosion as the potent, heavy aroma bursts outward. It’s high-cost and slow-reloading, but the raw damage (and the scent) is devastating.",
-            spriteRect = IntRect(33, 961, 341, 1318),
+            spriteRect = IntRect(33, 1041, 341, 1398),
             aoeRadius = 1.0f,
             visualEffectColor = Color(0xFFCDDC39).copy(alpha = 0.5f)
         ),
@@ -385,7 +385,7 @@ object StallRegistry {
             tutorialTitle = "Auntie's Ice Kachang Cart (Stun/Freezer)",
             signatureMove = "The Absolute Zero Brain Freeze",
             tutorialDescription = "Want something to really chill out the enemies? Then you need the Auntie at the Ice Kachang Cart! She’s taken traditional dessert techniques to the cryo-level. Her specialized ice shaver can launch a massive, compacted ball of shaved ice, syrup, and cold, cold, red beans, aimed precisely at the lead enemy. Upon impact, it doesn't just damage; it delivers an Absolute Zero Brain Freeze. The target is frozen solid, encased in a giant colorful ice cube, completely immobilized for several precious seconds. A perfect stall for controlling boss units.",
-            spriteRect = IntRect(358, 500, 666, 930),
+            spriteRect = IntRect(14, 2041, 322, 2471),
             freezeDurationMs = 500L
         ),
         StallType.TRAY_RETURN_UNCLE to StallDefinition(
@@ -400,7 +400,7 @@ object StallRegistry {
             tutorialTitle = "Tray Return Uncle (Enemy Displacement)",
             signatureMove = "THE GREAT TRAY CLEARANCE",
             tutorialDescription = "Don't leave your trays behind, or this Uncle might just clear YOU! The Tray Return Uncle is the master of order in the hawker center. Every 15 seconds, he spots an enemy and decides they need a good cleaning. He'll grab them, pull them into his stall for a few seconds of 'intensive tray-training', and then place them back on the floor in a random nearby spot. While they're being 'cleaned', they're off the board and can't be touched. Efficient, orderly, and slightly terrifying.",
-            spriteRect = IntRect(358, 500, 666, 930), // Placeholder Ice Kachang sprite
+            spriteRect = IntRect(14, 3041, 322, 3471),
             effectDurationMs = 2000L // Cleaning time
         )
     )
