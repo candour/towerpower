@@ -127,13 +127,18 @@ fun StallConsole(
                         "Damage" -> "Feed"
                         else -> key
                     }
-                    val text = if (benefit.isNotEmpty()) "$label: Lvl $value ($benefit)" else "$label: Lvl $value"
-                    Text(text = text, color = Color.Blue, fontSize = 8.sp, lineHeight = 9.sp)
+                    val valueText = if (benefit.isNotEmpty()) "Lvl $value ($benefit)" else "Lvl $value"
+                    StatLine(
+                        label = label,
+                        value = valueText,
+                        labelColor = Color.Blue,
+                        valueColor = Color.Blue
+                    )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
             }
 
-            StatLine(label = "Fed", value = "${stall.kills}", valueColor = Color(0xFF00AA00))
+            StatLine(label = "People Fed", value = "${stall.kills}", valueColor = Color(0xFF00AA00))
         }
 
         // BUTTONS (Transparent Clickables)

@@ -13,6 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -44,7 +48,7 @@ fun StallSlot(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Canvas(modifier = Modifier.size(width = 24.dp, height = 32.dp)) {
+            Canvas(modifier = Modifier.size(width = 29.dp, height = 39.dp)) {
                 drawImage(
                     image = stallsSheet,
                     srcOffset = spriteRect.topLeft,
@@ -58,14 +62,24 @@ fun StallSlot(
             }
             Text(
                 text = stall.name,
-                color = if (canAfford) Color.White else Color.Gray,
-                fontSize = 8.sp,
-                maxLines = 1
+                color = Color.Black,
+                fontSize = 12.sp,
+                lineHeight = 13.sp,
+                maxLines = 2,
+                textAlign = TextAlign.Center
             )
             Text(
                 text = "\$${stall.cost}",
-                color = if (canAfford) Color.Yellow else Color.Red,
-                fontSize = 9.sp,
+                style = TextStyle(
+                    color = if (canAfford) Color(0xFF00DD00) else Color.Red,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    shadow = Shadow(
+                        color = if (canAfford) Color(0xFF004400) else Color(0xFF440000),
+                        offset = androidx.compose.ui.geometry.Offset(1f, 1f),
+                        blurRadius = 2f
+                    )
+                ),
                 maxLines = 1
             )
         }
