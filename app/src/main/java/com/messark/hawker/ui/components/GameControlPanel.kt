@@ -7,8 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,11 +16,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import com.messark.hawker.SpriteButton
 import androidx.compose.ui.res.imageResource
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.messark.hawker.MainActivity
 import com.messark.hawker.R
 import com.messark.hawker.model.Stall
 import com.messark.hawker.model.StallType
@@ -47,7 +42,6 @@ fun GameControlPanel(
     waveActive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
     val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
     val context = LocalContext.current
     val versionName = try {
@@ -56,37 +50,38 @@ fun GameControlPanel(
         "1.0"
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.DarkGray)
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+    if (selectedBoardStall != null) {
+        val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
+
+        StallConsole(
+            stall = selectedBoardStall,
+            baseStall = baseStall,
+            gold = gold,
+            onSell = onSellStall,
+            onUpgrade = onUpgradeStall,
+            onCycleTarget = onCycleTargetMode,
+            onStartWave = onStartWave,
+            onTriggerHaptic = onTriggerHaptic,
+            waveActive = waveActive,
+            modifier = modifier.fillMaxSize()
+        )
+    } else {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color.DarkGray)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "🪑 Tables: $health", color = Color.Red, fontSize = 16.sp)
-            Text(text = "💰 Budget: $gold", color = Color.Yellow, fontSize = 16.sp)
-        }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Health (Tables) hidden as per user request (Q1)
+                // Text(text = "🪑 Tables: $health", color = Color.Red, fontSize = 16.sp)
+                Text(text = "💰 Budget: $gold", color = Color.Yellow, fontSize = 16.sp)
+            }
 
-        if (selectedBoardStall != null) {
-            val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
-            val upgradeCost = selectedBoardStall.getUpgradeCost()
-
-            StallConsole(
-                stall = selectedBoardStall,
-                baseStall = baseStall,
-                onSell = onSellStall,
-                onUpgrade = onUpgradeStall,
-                onCycleTarget = onCycleTargetMode,
-                onTriggerHaptic = onTriggerHaptic,
-                canAffordUpgrade = gold >= upgradeCost,
-                upgradeCost = upgradeCost,
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            )
-        } else {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 2.dp)
@@ -143,22 +138,22 @@ fun GameControlPanel(
                     )
                 }
             }
-        }
 
-        Box(modifier = Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
-            SpriteButton(
-                normalRect = SpriteConstants.BTN_START_RECT,
-                onClick = onStartWave,
-                onTriggerHaptic = onTriggerHaptic,
-                enabled = !waveActive,
-                modifier = Modifier.fillMaxSize()
-            )
-            Text(
-                text = if (waveActive) "LUNCH RUSH..." else "START LUNCH RUSH",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 2.dp)
-            )
+            Box(modifier = Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
+                SpriteButton(
+                    normalRect = SpriteConstants.BTN_START_RECT,
+                    onClick = onStartWave,
+                    onTriggerHaptic = onTriggerHaptic,
+                    enabled = !waveActive,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Text(
+                    text = if (waveActive) "LUNCH RUSH..." else "START LUNCH RUSH",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+            }
         }
     }
 }
