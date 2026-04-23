@@ -292,25 +292,29 @@ fun GameBoard(
                             r = coord.r.toFloat(),
                             zOrder = 10,
                             draw = {
-                                val radius = stall.range * wPx
+                                val radiusX = (stall.range + 0.25f) * wPx
+                                val radiusY = (stall.range * rowSpacingFactor + 0.25f) * hPx
+                                val ovalSize = Size(radiusX * 2, radiusY * 2)
+                                val ovalTopLeft = Offset(screenPos.x - radiusX, screenPos.y - radiusY)
+
                                 // 1. Filled area
-                                drawCircle(
+                                drawOval(
                                     color = Color.White.copy(alpha = 0.15f),
-                                    radius = radius,
-                                    center = screenPos
+                                    topLeft = ovalTopLeft,
+                                    size = ovalSize
                                 )
                                 // 2. Yellow border (wider stroke)
-                                drawCircle(
+                                drawOval(
                                     color = Color.Yellow,
-                                    radius = radius,
-                                    center = screenPos,
+                                    topLeft = ovalTopLeft,
+                                    size = ovalSize,
                                     style = Stroke(width = 4.dp.toPx())
                                 )
                                 // 3. Red outline (thinner stroke on top)
-                                drawCircle(
+                                drawOval(
                                     color = Color.Red,
-                                    radius = radius,
-                                    center = screenPos,
+                                    topLeft = ovalTopLeft,
+                                    size = ovalSize,
                                     style = Stroke(width = 2.dp.toPx())
                                 )
                             }
