@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
@@ -20,6 +21,8 @@ fun OutlinedText(
     outlineColor: Color = Color.Black,
     fontSize: TextUnit = TextUnit.Unspecified,
     fontWeight: FontWeight? = null,
+    textAlign: TextAlign? = null,
+    lineHeight: TextUnit = TextUnit.Unspecified,
     style: TextStyle = LocalTextStyle.current
 ) {
     Box(modifier = modifier) {
@@ -29,6 +32,8 @@ fun OutlinedText(
             color = outlineColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
+            textAlign = textAlign,
+            lineHeight = lineHeight,
             style = style,
             modifier = Modifier.offset(x = -outlineOffset, y = -outlineOffset)
         )
@@ -37,6 +42,8 @@ fun OutlinedText(
             color = outlineColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
+            textAlign = textAlign,
+            lineHeight = lineHeight,
             style = style,
             modifier = Modifier.offset(x = outlineOffset, y = -outlineOffset)
         )
@@ -45,6 +52,8 @@ fun OutlinedText(
             color = outlineColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
+            textAlign = textAlign,
+            lineHeight = lineHeight,
             style = style,
             modifier = Modifier.offset(x = -outlineOffset, y = outlineOffset)
         )
@@ -53,6 +62,8 @@ fun OutlinedText(
             color = outlineColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
+            textAlign = textAlign,
+            lineHeight = lineHeight,
             style = style,
             modifier = Modifier.offset(x = outlineOffset, y = outlineOffset)
         )
@@ -61,6 +72,8 @@ fun OutlinedText(
             color = fillColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
+            textAlign = textAlign,
+            lineHeight = lineHeight,
             style = style
         )
     }

@@ -62,26 +62,15 @@ fun StallConsole(
                 .offset(x = (width * 0.16f), y = (height * 0.15f))
         )
 
-        // STALL NAME (Top Blue Header)
-        OutlinedText(
-            text = stall.name.uppercase(),
-            fillColor = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (width * 0.38f), y = (height * 0.04f))
-        )
-
         // STALL ICON
         val stallDef = StallRegistry.get(stall.stallType)
         val spriteRect = stallDef.spriteRect
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = (-width * 0.02f), y = (height * 0.02f))
-                .width(width * 0.3f)
-                .height(height * 0.38f)
+                .offset(x = (-width * 0.02f), y = (height * 0.08f)) // Moved down to yellow box
+                .width(width * 0.3f * 0.8f) // Reduced by 20%
+                .height(height * 0.38f * 0.8f) // Reduced by 20%
         ) {
             androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
                 drawImage(
@@ -91,6 +80,25 @@ fun StallConsole(
                     dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt())
                 )
             }
+        }
+
+        // STALL NAME (Now in the yellow box area)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = (width * 0.34f), y = (height * 0.08f))
+                .width(width * 0.40f) // Slightly wider
+                .height(height * 0.22f),
+            contentAlignment = Alignment.Center
+        ) {
+            OutlinedText(
+                text = stall.name.uppercase(),
+                fillColor = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                lineHeight = 16.sp // Tighter line height
+            )
         }
 
         // STATS BOX
@@ -108,7 +116,8 @@ fun StallConsole(
             if (stall.aoeRadius > 0) {
                 StatLine(label = "Area", value = String.format("%.1f", stall.aoeRadius))
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            // Reduced spacing
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Upgrade details inside STATS box
             if (stall.upgrades.isNotEmpty()) {
@@ -119,12 +128,12 @@ fun StallConsole(
                         else -> key
                     }
                     val text = if (benefit.isNotEmpty()) "$label: Lvl $value ($benefit)" else "$label: Lvl $value"
-                    Text(text = text, color = Color.LightGray, fontSize = 8.sp, lineHeight = 10.sp)
+                    Text(text = text, color = Color.Blue, fontSize = 8.sp, lineHeight = 9.sp)
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
             }
 
-            StatLine(label = "Fed", value = "${stall.kills}", color = Color.Green)
+            StatLine(label = "Fed", value = "${stall.kills}", valueColor = Color(0xFF00AA00))
         }
 
         // BUTTONS (Transparent Clickables)
@@ -198,7 +207,10 @@ fun StallConsole(
                 fillColor = Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp)
+                    .offset(y = (-6).dp) // Moved up by half height (text is approx 11-12sp/dp)
             )
         }
 
@@ -221,12 +233,31 @@ fun StallConsole(
 }
 
 @Composable
-fun StatLine(label: String, value: String, color: Color = Color.White) {
+fun StatLine(
+    label: String,
+    value: String,
+    labelColor: Color = Color.Black,
+    valueColor: Color = Color.Black,
+    labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "$label:", color = Color.Gray, fontSize = 9.sp)
-        Text(text = value, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = "$label:",
+            color = labelColor,
+            fontSize = 9.sp,
+            lineHeight = 9.sp,
+            modifier = Modifier.padding(start = labelOffset)
+        )
+        Text(
+            text = value,
+            color = valueColor,
+            fontSize = 9.sp,
+            lineHeight = 9.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
