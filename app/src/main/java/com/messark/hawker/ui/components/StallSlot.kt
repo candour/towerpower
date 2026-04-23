@@ -26,12 +26,13 @@ fun StallSlot(
     isSelected: Boolean,
     canAfford: Boolean,
     onClick: () -> Unit,
-    stallsSheet: ImageBitmap
+    stallsSheet: ImageBitmap,
+    modifier: Modifier = Modifier
 ) {
     val spriteRect = StallRegistry.get(stall.stallType).spriteRect
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(0.7f) // Slightly taller to accommodate text below
             .background(if (isSelected) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f))
             .border(1.dp, if (isSelected) Color.White else Color.Gray)

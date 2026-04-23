@@ -5,9 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -128,12 +127,10 @@ fun GameControlPanel(
                 }
             }
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                modifier = Modifier.weight(1f).fillMaxWidth(0.95f),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                contentPadding = PaddingValues(2.dp)
+            LazyRow(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 items(availableStalls) { stall ->
                     StallSlot(
@@ -141,7 +138,8 @@ fun GameControlPanel(
                         isSelected = selectedStall?.id == stall.id,
                         canAfford = gold >= stall.cost,
                         onClick = { onStallSelected(stall) },
-                        stallsSheet = stallsSheet
+                        stallsSheet = stallsSheet,
+                        modifier = Modifier.fillMaxHeight()
                     )
                 }
             }

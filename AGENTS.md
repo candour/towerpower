@@ -58,7 +58,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Resource Naming:** Use only lowercase letters (a-z), numbers (0-9), and underscores.
 - **Anchoring:**
   - Stalls/Pillars: Bottom-center at hex center (`Offset(0.5f, 0.8f)`).
-  - Enemies: Centered at hex center (`Offset(0.5f, 0.5f)`).
+  - Enemies: Feet (bottom-center) at hex center (`Offset(0.5f, 1.0f)`).
   - Goal Tables: Bottom-center.
 
 ### Enemy Animation

@@ -442,11 +442,29 @@ fun GameBoard(
                             flipHorizontal = enemy.isFacingLeft
                         )
 
-                        val barWidth = wPx * 0.8f
-                        val barHeight = 4.dp.toPx()
+                        val barWidth = 2.dp.toPx()
+                        val barHeight = hPx * 0.5f
                         val healthPercent = enemy.health.toFloat() / enemy.maxHealth
-                        drawRect(Color.Black, Offset(screenPos.x - barWidth / 2, screenPos.y - hPx / 2 - 10f), Size(barWidth, barHeight))
-                        drawRect(Color.Red, Offset(screenPos.x - barWidth / 2, screenPos.y - hPx / 2 - 10f), Size(barWidth * healthPercent, barHeight))
+
+                        // Positioned on the right side of the enemy, vertically centered
+                        val barX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
+                        val spriteCenterY = screenPos.y - SpriteConstants.ENEMY_SPRITE_HEIGHT / 2f
+                        val barY = spriteCenterY - barHeight / 2f
+
+                        // Background (Black)
+                        drawRect(
+                            color = Color.Black,
+                            topLeft = Offset(barX, barY),
+                            size = Size(barWidth, barHeight)
+                        )
+
+                        // Health (Red) - Drains from top to bottom (bottom remains filled)
+                        val filledHeight = barHeight * healthPercent
+                        drawRect(
+                            color = Color.Red,
+                            topLeft = Offset(barX, barY + (barHeight - filledHeight)),
+                            size = Size(barWidth, filledHeight)
+                        )
                     }
                 ))
             }
