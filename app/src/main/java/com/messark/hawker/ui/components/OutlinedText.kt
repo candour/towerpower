@@ -23,6 +23,7 @@ fun OutlinedText(
     fontWeight: FontWeight? = null,
     textAlign: TextAlign? = null,
     lineHeight: TextUnit = TextUnit.Unspecified,
+    maxLines: Int = Int.MAX_VALUE,
     style: TextStyle = LocalTextStyle.current
 ) {
     Box(modifier = modifier) {
@@ -34,6 +35,7 @@ fun OutlinedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
             style = style,
             modifier = Modifier.offset(x = -outlineOffset, y = -outlineOffset)
         )
@@ -44,6 +46,7 @@ fun OutlinedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
             style = style,
             modifier = Modifier.offset(x = outlineOffset, y = -outlineOffset)
         )
@@ -54,6 +57,7 @@ fun OutlinedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
             style = style,
             modifier = Modifier.offset(x = -outlineOffset, y = outlineOffset)
         )
@@ -64,6 +68,7 @@ fun OutlinedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
             style = style,
             modifier = Modifier.offset(x = outlineOffset, y = outlineOffset)
         )
@@ -74,6 +79,7 @@ fun OutlinedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
             style = style
         )
     }

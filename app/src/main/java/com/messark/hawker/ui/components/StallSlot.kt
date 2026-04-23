@@ -13,12 +13,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.messark.hawker.model.Stall
@@ -60,26 +62,24 @@ fun StallSlot(
                     } else null
                 )
             }
+            var lineCount by remember { mutableStateOf(1) }
             Text(
                 text = stall.name,
                 color = Color.Black,
-                fontSize = 12.sp,
-                lineHeight = 13.sp,
+                fontSize = if (lineCount > 1) 9.sp else 12.sp,
+                lineHeight = if (lineCount > 1) 10.sp else 13.sp,
                 maxLines = 2,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                onTextLayout = { textLayoutResult ->
+                    lineCount = textLayoutResult.lineCount
+                }
             )
-            Text(
+            OutlinedText(
                 text = "\$${stall.cost}",
-                style = TextStyle(
-                    color = if (canAfford) Color(0xFF00DD00) else Color.Red,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    shadow = Shadow(
-                        color = if (canAfford) Color(0xFF004400) else Color(0xFF440000),
-                        offset = androidx.compose.ui.geometry.Offset(1f, 1f),
-                        blurRadius = 2f
-                    )
-                ),
+                fillColor = if (canAfford) Color(0xFF00DD00) else Color.Red,
+                outlineColor = Color.Black,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
         }
