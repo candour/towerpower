@@ -62,16 +62,18 @@ fun StallSlot(
                     } else null
                 )
             }
-            var lineCount by remember { mutableStateOf(1) }
+            var useSmallFont by remember(stall.name) { mutableStateOf(false) }
             Text(
                 text = stall.name,
                 color = Color.Black,
-                fontSize = if (lineCount > 1) 9.sp else 12.sp,
-                lineHeight = if (lineCount > 1) 10.sp else 13.sp,
+                fontSize = if (useSmallFont) 9.sp else 12.sp,
+                lineHeight = if (useSmallFont) 10.sp else 13.sp,
                 maxLines = 2,
                 textAlign = TextAlign.Center,
                 onTextLayout = { textLayoutResult ->
-                    lineCount = textLayoutResult.lineCount
+                    if (textLayoutResult.lineCount > 1) {
+                        useSmallFont = true
+                    }
                 }
             )
             OutlinedText(
