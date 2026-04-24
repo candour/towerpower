@@ -589,10 +589,19 @@ fun GameScreen(
 
     val context = LocalContext.current
     DisposableEffect(Unit) {
-        val activity = context as? android.app.Activity
-        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val window = (context as? android.app.Activity)?.window
+        val isScreenOnAlreadySet = window?.let {
+            (it.attributes.flags and android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+        } ?: false
+
+        if (!isScreenOnAlreadySet) {
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
         onDispose {
-            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (!isScreenOnAlreadySet) {
+                window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
     }
 
