@@ -840,7 +840,7 @@ class MainViewModel @JvmOverloads constructor(
                                     mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
                             } else {
-                                val isUtilityWithZeroDamage = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG
+                                val isUtilityWithZeroDamage = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG || stall.stallType == StallType.TRAY_RETURN_UNCLE
                                 if (kotlin.random.Random.nextBoolean() && !isUtilityWithZeroDamage) {
                                     currentCategoryName = "Damage"
                                     val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
