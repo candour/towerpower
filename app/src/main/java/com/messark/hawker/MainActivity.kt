@@ -587,6 +587,15 @@ fun GameScreen(
 ) {
     var showExitDialog by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->

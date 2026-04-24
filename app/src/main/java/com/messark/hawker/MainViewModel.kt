@@ -511,7 +511,8 @@ class MainViewModel @JvmOverloads constructor(
                         val updatedStall = stall.copy(
                             lastFiredMs = currentTimeMs,
                             heldEnemyId = target.id,
-                            releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                            releaseTimeMs = currentTimeMs + stall.effectDurationMs,
+                            uniqueTargetIds = stall.uniqueTargetIds + target.id
                         )
                         updatedHexes[coord] = tile.copy(stall = updatedStall)
                     } else {
@@ -632,7 +633,9 @@ class MainViewModel @JvmOverloads constructor(
                             if (stall.id == proj.sourceStallId) {
                                 val isKill = currentHealth <= 0
                                 val newTargetIds = stall.uniqueTargetIds + enemy.id
-                                val newKills = if (isKill) stall.kills + 1 else stall.kills
+                                // Only count kill if stall is NOT Teh Tarik or Ice Kachang
+                                val isUtilityStall = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG
+                                val newKills = if (isKill && !isUtilityStall) stall.kills + 1 else stall.kills
                                 updatedHexes[coord] = updatedHexes[coord]!!.copy(stall = stall.copy(
                                     uniqueTargetIds = newTargetIds,
                                     kills = newKills
