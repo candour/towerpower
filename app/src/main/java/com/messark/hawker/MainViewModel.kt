@@ -932,16 +932,17 @@ class MainViewModel @JvmOverloads constructor(
                                     }
                                     mutableUpgrades["Damage"] = newLevel
                                 }
-                                StallType.TEH_TARIK, StallType.ICE_KACHANG, StallType.TRAY_RETURN_UNCLE -> {
-                                    // Utility stalls with 0 base damage should not have damage upgrades.
-                                    // Redirect to Range as a fallback for this category index.
-                                    currentCategoryName = "Range"
-                                    newRange += 0.5f
-                                    val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newRange *= 1.25f
+                                else -> {
+                                    // Fallback for any utility stalls or other types that shouldn't hit the above
+                                    if (stall.stallType.isUtility) {
+                                        currentCategoryName = "Range"
+                                        newRange += 0.5f
+                                        val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                        if (newLevel % 10 == 0) {
+                                            newRange *= 1.25f
+                                        }
+                                        mutableUpgrades["Range"] = newLevel
                                     }
-                                    mutableUpgrades["Range"] = newLevel
                                 }
                             }
                         }
