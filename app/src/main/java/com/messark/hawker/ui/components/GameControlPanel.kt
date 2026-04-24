@@ -172,9 +172,9 @@ fun GameControlPanel(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .offset(x = (width * 0.08f), y = (height * 0.33f))
+                    .offset(x = (width * 0.08f), y = (height * 0.30f))
                     .width(width * 0.84f)
-                    .height(height * 0.40f)
+                    .height(height * 0.45f)
                     .padding(8.dp)
             ) {
                 LazyRow(
