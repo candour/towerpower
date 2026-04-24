@@ -816,25 +816,27 @@ class MainViewModel @JvmOverloads constructor(
                                     // Path for Category 1 (Grab Rate)
                                     currentCategoryName = "Grab Rate"
                                     val rateReduction = 100L
-                                    var potentialRate = stall.fireRateMs - rateReduction
                                     val newLevel = mutableUpgrades.getOrDefault("Grab Rate", 0) + 1
+                                    var potentialRate = stall.fireRateMs - rateReduction
                                     if (newLevel % 10 == 0) {
                                         potentialRate = Math.round(potentialRate * 0.75)
                                     }
-                                    if (potentialRate < 10000L) continue
-                                    newFireRate = potentialRate
+
+                                    val floor = 10000L
+                                    newFireRate = Math.max(floor, potentialRate)
                                     mutableUpgrades["Grab Rate"] = newLevel
                                     mutableUpgrades["Rate"] = newLevel // Also sync to standard key for internal logic
                                 } else {
                                     // Path for Category 2 (Cleaning Time)
                                     currentCategoryName = "Cleaning Time"
-                                    var potentialDuration = stall.effectDurationMs + 100L
                                     val newLevel = mutableUpgrades.getOrDefault("Cleaning Time", 0) + 1
+                                    var potentialDuration = stall.effectDurationMs + 100L
                                     if (newLevel % 10 == 0) {
                                         potentialDuration = Math.round(potentialDuration * 1.25)
                                     }
-                                    if (potentialDuration > 4000L) continue
-                                    newEffectDuration = potentialDuration
+
+                                    val cap = 4000L
+                                    newEffectDuration = Math.min(cap, potentialDuration)
                                     mutableUpgrades["Cleaning Time"] = newLevel
                                     mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
@@ -862,18 +864,14 @@ class MainViewModel @JvmOverloads constructor(
                         1 -> {
                             currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
                             val rateReduction = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
-                            var potentialRate = stall.fireRateMs - rateReduction
                             val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
+                            var potentialRate = stall.fireRateMs - rateReduction
                             if (newLevel % 10 == 0) {
                                 potentialRate = Math.round(potentialRate * 0.75)
                             }
 
                             val floor = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 10000L else 50L
-                            if (potentialRate < floor) {
-                                continue // Try another category
-                            }
-
-                            newFireRate = potentialRate
+                            newFireRate = Math.max(floor, potentialRate)
                             mutableUpgrades[currentCategoryName] = newLevel
                             if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
                                 mutableUpgrades["Rate"] = newLevel
@@ -910,15 +908,14 @@ class MainViewModel @JvmOverloads constructor(
                                 }
                                 StallType.TRAY_RETURN_UNCLE -> {
                                     currentCategoryName = "Cleaning Time"
-                                    var potentialDuration = stall.effectDurationMs + 100L
                                     val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
+                                    var potentialDuration = stall.effectDurationMs + 100L
                                     if (newLevel % 10 == 0) {
                                         potentialDuration = Math.round(potentialDuration * 1.25)
                                     }
-                                    if (potentialDuration > 4000L) {
-                                        continue
-                                    }
-                                    newEffectDuration = potentialDuration
+
+                                    val cap = 4000L
+                                    newEffectDuration = Math.min(cap, potentialDuration)
                                     mutableUpgrades[currentCategoryName] = newLevel
                                     mutableUpgrades["Duration"] = newLevel
                                 }

@@ -121,7 +121,12 @@ fun StallConsole(
 
             // Upgrade details inside STATS box
             if (stall.upgrades.isNotEmpty()) {
-                stall.upgrades.entries.forEach { (key, value) ->
+                val displayUpgrades = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                    stall.upgrades.filterKeys { it != "Rate" && it != "Duration" }
+                } else {
+                    stall.upgrades
+                }
+                displayUpgrades.entries.forEach { (key, value) ->
                     val benefit = stall.getUpgradeBenefit(key, value)
                     val label = when(key) {
                         "Damage" -> "Feed"
