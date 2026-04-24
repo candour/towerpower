@@ -633,9 +633,8 @@ class MainViewModel @JvmOverloads constructor(
                             if (stall.id == proj.sourceStallId) {
                                 val isKill = currentHealth <= 0
                                 val newTargetIds = stall.uniqueTargetIds + enemy.id
-                                // Only count kill if stall is NOT Teh Tarik or Ice Kachang
-                                val isUtilityStall = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG
-                                val newKills = if (isKill && !isUtilityStall) stall.kills + 1 else stall.kills
+                                // Only count kill if stall is NOT a utility stall
+                                val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
                                 updatedHexes[coord] = updatedHexes[coord]!!.copy(stall = stall.copy(
                                     uniqueTargetIds = newTargetIds,
                                     kills = newKills
@@ -840,8 +839,7 @@ class MainViewModel @JvmOverloads constructor(
                                     mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
                             } else {
-                                val isUtilityWithZeroDamage = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG || stall.stallType == StallType.TRAY_RETURN_UNCLE
-                                if (kotlin.random.Random.nextBoolean() && !isUtilityWithZeroDamage) {
+                                if (kotlin.random.Random.nextBoolean() && !stall.stallType.isUtility) {
                                     currentCategoryName = "Damage"
                                     val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
                                     newDamage += damageIncrease
@@ -934,7 +932,7 @@ class MainViewModel @JvmOverloads constructor(
                                     }
                                     mutableUpgrades["Damage"] = newLevel
                                 }
-                                StallType.TEH_TARIK, StallType.ICE_KACHANG -> {
+                                StallType.TEH_TARIK, StallType.ICE_KACHANG, StallType.TRAY_RETURN_UNCLE -> {
                                     // Utility stalls with 0 base damage should not have damage upgrades.
                                     // Redirect to Range as a fallback for this category index.
                                     currentCategoryName = "Range"

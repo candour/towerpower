@@ -108,10 +108,7 @@ fun StallConsole(
                 .offset(x = (width * 0.08f), y = (height * 0.42f))
                 .width(width * 0.32f)
         ) {
-            val hungerWord = when (stall.stallType) {
-                StallType.ICE_KACHANG, StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "Effect"
-                else -> "Feed"
-            }
+            val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
 
             StatLine(label = hungerWord, value = "${stall.damage}")
             StatLine(label = "Range", value = String.format("%.1f", stall.range))
