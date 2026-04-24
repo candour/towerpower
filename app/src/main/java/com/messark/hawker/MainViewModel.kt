@@ -511,7 +511,8 @@ class MainViewModel @JvmOverloads constructor(
                         val updatedStall = stall.copy(
                             lastFiredMs = currentTimeMs,
                             heldEnemyId = target.id,
-                            releaseTimeMs = currentTimeMs + stall.effectDurationMs
+                            releaseTimeMs = currentTimeMs + stall.effectDurationMs,
+                            uniqueTargetIds = stall.uniqueTargetIds + target.id
                         )
                         updatedHexes[coord] = tile.copy(stall = updatedStall)
                     } else {
@@ -632,7 +633,8 @@ class MainViewModel @JvmOverloads constructor(
                             if (stall.id == proj.sourceStallId) {
                                 val isKill = currentHealth <= 0
                                 val newTargetIds = stall.uniqueTargetIds + enemy.id
-                                val newKills = if (isKill) stall.kills + 1 else stall.kills
+                                // Only count kill if stall is NOT a utility stall
+                                val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
                                 updatedHexes[coord] = updatedHexes[coord]!!.copy(stall = stall.copy(
                                     uniqueTargetIds = newTargetIds,
                                     kills = newKills
@@ -837,7 +839,7 @@ class MainViewModel @JvmOverloads constructor(
                                     mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
                             } else {
-                                if (kotlin.random.Random.nextBoolean()) {
+                                if (kotlin.random.Random.nextBoolean() && !stall.stallType.isUtility) {
                                     currentCategoryName = "Damage"
                                     val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
                                     newDamage += damageIncrease
@@ -929,6 +931,18 @@ class MainViewModel @JvmOverloads constructor(
                                         newDamage = Math.round(newDamage * 1.25f)
                                     }
                                     mutableUpgrades["Damage"] = newLevel
+                                }
+                                else -> {
+                                    // Fallback for any utility stalls or other types that shouldn't hit the above
+                                    if (stall.stallType.isUtility) {
+                                        currentCategoryName = "Range"
+                                        newRange += 0.5f
+                                        val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                        if (newLevel % 10 == 0) {
+                                            newRange *= 1.25f
+                                        }
+                                        mutableUpgrades["Range"] = newLevel
+                                    }
                                 }
                             }
                         }

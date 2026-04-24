@@ -17,10 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.messark.hawker.model.Stall
@@ -62,20 +58,19 @@ fun StallSlot(
                     } else null
                 )
             }
-            var useSmallFont by remember(stall.name) { mutableStateOf(false) }
-            Text(
-                text = stall.name,
-                color = Color.Black,
-                fontSize = if (useSmallFont) 9.sp else 12.sp,
-                lineHeight = if (useSmallFont) 10.sp else 13.sp,
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-                onTextLayout = { textLayoutResult ->
-                    if (textLayoutResult.lineCount > 1) {
-                        useSmallFont = true
-                    }
-                }
-            )
+            Box(
+                modifier = Modifier.height(28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stall.name,
+                    color = Color.Black,
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center
+                )
+            }
             OutlinedText(
                 text = "\$${stall.cost}",
                 fillColor = if (canAfford) Color(0xFF00DD00) else Color.Red,

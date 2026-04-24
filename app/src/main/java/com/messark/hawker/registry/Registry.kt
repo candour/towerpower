@@ -163,7 +163,9 @@ data class StallDefinition(
                         currentDamage = Math.round(currentDamage * 1.25f)
                     }
                 }
-                val percentage = Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
+                val percentage = if (baseStall.damage > 0) {
+                    Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
+                } else 0
                 "+$percentage%"
             }
             "Grab Rate", "Rate" -> {
@@ -313,7 +315,7 @@ object StallRegistry {
             cost = 150,
             color = Color.Blue,
             range = 3f,
-            damage = 10,
+            damage = 0,
             fireRateMs = 1000L,
             description = "Creates slowing puddles",
             tutorialTitle = "Teh Tarik Maestro (Movement Slow)",
@@ -379,12 +381,12 @@ object StallRegistry {
             cost = 250,
             color = Color.Cyan,
             range = 3.5f,
-            damage = 2,
+            damage = 0,
             fireRateMs = 1500,
             description = "Freezes enemies in place",
             tutorialTitle = "Auntie's Ice Kachang Cart (Stun/Freezer)",
             signatureMove = "The Absolute Zero Brain Freeze",
-            tutorialDescription = "Want something to really chill out the enemies? Then you need the Auntie at the Ice Kachang Cart! She’s taken traditional dessert techniques to the cryo-level. Her specialized ice shaver can launch a massive, compacted ball of shaved ice, syrup, and cold, cold, red beans, aimed precisely at the lead enemy. Upon impact, it doesn't just damage; it delivers an Absolute Zero Brain Freeze. The target is frozen solid, encased in a giant colorful ice cube, completely immobilized for several precious seconds. A perfect stall for controlling boss units.",
+            tutorialDescription = "Want something to really chill out the enemies? Then you need the Auntie at the Ice Kachang Cart! She’s taken traditional dessert techniques to the cryo-level. Her specialized ice shaver can launch a massive, compacted ball of shaved ice, syrup, and cold, cold, red beans, aimed precisely at the lead enemy. Upon impact, it delivers an Absolute Zero Brain Freeze. The target is frozen solid, encased in a giant colorful ice cube, completely immobilized for several precious seconds. A perfect stall for controlling boss units.",
             spriteRect = IntRect(14, 2041, 322, 2471),
             freezeDurationMs = 500L
         ),

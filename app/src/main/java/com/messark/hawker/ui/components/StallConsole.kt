@@ -108,7 +108,7 @@ fun StallConsole(
                 .offset(x = (width * 0.08f), y = (height * 0.42f))
                 .width(width * 0.32f)
         ) {
-            val hungerWord = if (stall.stallType == StallType.ICE_KACHANG || stall.stallType == StallType.TEH_TARIK) "Effect" else "Feed"
+            val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
 
             StatLine(label = hungerWord, value = "${stall.damage}")
             StatLine(label = "Range", value = String.format("%.1f", stall.range))
@@ -138,7 +138,13 @@ fun StallConsole(
                 Spacer(modifier = Modifier.height(2.dp))
             }
 
-            StatLine(label = "People Fed", value = "${stall.kills}", valueColor = Color(0xFF00AA00))
+            val (statLabel, statValue) = when (stall.stallType) {
+                StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
+                StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
+                StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
+                else -> "People Fed" to stall.kills
+            }
+            StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF00AA00))
         }
 
         // BUTTONS (Transparent Clickables)

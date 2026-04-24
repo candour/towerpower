@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.messark.hawker.R
@@ -99,7 +100,8 @@ fun GameControlPanel(
                     fillColor = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
@@ -115,7 +117,10 @@ fun GameControlPanel(
                 if (selectedStall != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp)
                     ) {
                         Text(
                             text = selectedStall.description,
@@ -135,11 +140,31 @@ fun GameControlPanel(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "?", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "?",
+                                color = Color.Black,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                        includeFontPadding = false
+                                    )
+                                ),
+                                modifier = Modifier.offset(y = (-1).dp)
+                            )
                         }
                     }
-                } else if (score > 0) {
-                    Text(text = "SCORE: $score", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                } else if (score >= 0) {
+                    Text(
+                        text = "SCORE: $score",
+                        color = Color.Black,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(Alignment.CenterVertically)
+                    )
                 }
             }
 
@@ -147,9 +172,9 @@ fun GameControlPanel(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .offset(x = (width * 0.08f), y = (height * 0.33f))
+                    .offset(x = (width * 0.08f), y = (height * 0.30f))
                     .width(width * 0.84f)
-                    .height(height * 0.40f)
+                    .height(height * 0.45f)
                     .padding(8.dp)
             ) {
                 LazyRow(
