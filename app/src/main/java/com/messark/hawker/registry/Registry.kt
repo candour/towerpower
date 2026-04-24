@@ -163,7 +163,9 @@ data class StallDefinition(
                         currentDamage = Math.round(currentDamage * 1.25f)
                     }
                 }
-                val percentage = Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
+                val percentage = if (baseStall.damage > 0) {
+                    Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
+                } else 0
                 "+$percentage%"
             }
             "Grab Rate", "Rate" -> {

@@ -840,7 +840,8 @@ class MainViewModel @JvmOverloads constructor(
                                     mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
                                 }
                             } else {
-                                if (kotlin.random.Random.nextBoolean()) {
+                                val isUtilityWithZeroDamage = stall.stallType == StallType.TEH_TARIK || stall.stallType == StallType.ICE_KACHANG
+                                if (kotlin.random.Random.nextBoolean() && !isUtilityWithZeroDamage) {
                                     currentCategoryName = "Damage"
                                     val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
                                     newDamage += damageIncrease
@@ -932,6 +933,17 @@ class MainViewModel @JvmOverloads constructor(
                                         newDamage = Math.round(newDamage * 1.25f)
                                     }
                                     mutableUpgrades["Damage"] = newLevel
+                                }
+                                StallType.TEH_TARIK, StallType.ICE_KACHANG -> {
+                                    // Utility stalls with 0 base damage should not have damage upgrades.
+                                    // Redirect to Range as a fallback for this category index.
+                                    currentCategoryName = "Range"
+                                    newRange += 0.5f
+                                    val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newRange *= 1.25f
+                                    }
+                                    mutableUpgrades["Range"] = newLevel
                                 }
                             }
                         }
