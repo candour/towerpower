@@ -1,6 +1,7 @@
 package com.messark.hawker.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -244,7 +245,15 @@ fun StallConsole(
                     onTriggerHaptic()
                     onStartWave()
                 }
-        )
+        ) {
+            if (waveActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                )
+            }
+        }
     }
 }
 

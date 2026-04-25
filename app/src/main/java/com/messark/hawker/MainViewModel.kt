@@ -1084,14 +1084,7 @@ class MainViewModel @JvmOverloads constructor(
         hexes: Map<AxialCoordinate, HexTile>,
         endPos: AxialCoordinate?
     ): Enemy {
-        val adjacentCoords = listOf(
-            AxialCoordinate(stallCoord.q + 1, stallCoord.r),
-            AxialCoordinate(stallCoord.q + 1, stallCoord.r - 1),
-            AxialCoordinate(stallCoord.q, stallCoord.r - 1),
-            AxialCoordinate(stallCoord.q - 1, stallCoord.r),
-            AxialCoordinate(stallCoord.q - 1, stallCoord.r + 1),
-            AxialCoordinate(stallCoord.q, stallCoord.r + 1)
-        )
+        val adjacentCoords = getAdjacentCoordinates(stallCoord)
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
