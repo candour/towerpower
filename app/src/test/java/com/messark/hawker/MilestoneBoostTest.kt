@@ -99,7 +99,7 @@ class MilestoneBoostTest {
     }
 
     @Test
-    fun `upgradeStall respects 50ms minimum fire rate`() {
+    fun `upgradeStall allows reaching level 11 Rate even if capped at 50ms`() {
         val application = mockk<Application>(relaxed = true)
         val settingsRepository = mockk<SettingsRepository>()
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
@@ -109,19 +109,17 @@ class MilestoneBoostTest {
 
         val stallCoord = AxialCoordinate(0, 0)
         // Chicken Rice base rate 700ms. Reduction 70ms.
-        // At level 9: 70ms.
-        // Next upgrade would be 0ms (or 50ms minimum, but wait)
-        // Level 10 upgrade: (70 - 70) * 0.75 = 0.
-        // It should skip Rate and pick something else.
+        // At level 10: 50ms.
+        // Level 11 should be allowed and cap at 50ms.
         val stall = Stall(
             id = "s1",
             name = "Chicken Rice",
             cost = 100,
             color = Color.Yellow,
             stallType = StallType.CHICKEN_RICE,
-            fireRateMs = 70,
-            upgrades = mapOf("Rate" to 9),
-            upgradeCount = 9
+            fireRateMs = 50,
+            upgrades = mapOf("Rate" to 10),
+            upgradeCount = 10
         )
 
         viewModel._gameState.value = GameState(
@@ -130,15 +128,14 @@ class MilestoneBoostTest {
             selectedBoardStall = stallCoord
         )
 
-        viewModel.upgradeStall()
+        var attempts = 0
+        while (viewModel.gameState.value.hexes[stallCoord]?.stall?.upgrades?.get("Rate") == 10 && attempts < 100) {
+            viewModel.upgradeStall()
+            attempts++
+        }
 
         val upgradedStall = viewModel.gameState.value.hexes[stallCoord]?.stall!!
-        assertEquals(9, upgradedStall.upgrades["Rate"] ?: 0)
-        assertTrue(upgradedStall.upgradeCount == 10)
-        assertTrue(
-            upgradedStall.upgrades.any { (category, level) ->
-                category != "Rate" && level > 0
-            }
-        )
+        assertEquals(11, upgradedStall.upgrades["Rate"])
+        assertEquals(50L, upgradedStall.fireRateMs)
     }
 }

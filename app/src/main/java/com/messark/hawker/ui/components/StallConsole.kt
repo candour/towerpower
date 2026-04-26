@@ -1,6 +1,7 @@
 package com.messark.hawker.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -121,7 +122,12 @@ fun StallConsole(
 
             // Upgrade details inside STATS box
             if (stall.upgrades.isNotEmpty()) {
-                stall.upgrades.entries.forEach { (key, value) ->
+                val displayUpgrades = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                    stall.upgrades.filterKeys { it != "Rate" && it != "Duration" }
+                } else {
+                    stall.upgrades
+                }
+                displayUpgrades.entries.forEach { (key, value) ->
                     val benefit = stall.getUpgradeBenefit(key, value)
                     val label = when(key) {
                         "Damage" -> "Feed"
@@ -239,7 +245,15 @@ fun StallConsole(
                     onTriggerHaptic()
                     onStartWave()
                 }
-        )
+        ) {
+            if (waveActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                )
+            }
+        }
     }
 }
 
