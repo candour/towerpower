@@ -110,10 +110,17 @@ fun StallConsole(
                 .width(width * 0.32f)
         ) {
             val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
+            val hungerValue = when (stall.stallType) {
+                StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
+                StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
+                else -> "${stall.damage}"
+            }
 
-            StatLine(label = hungerWord, value = "${stall.damage}")
+            StatLine(label = hungerWord, value = hungerValue)
             StatLine(label = "Range", value = String.format("%.1f", stall.range))
-            StatLine(label = "Rate", value = String.format("%.1fs", stall.fireRateMs / 1000f))
+
+            val rateLabel = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+            StatLine(label = rateLabel, value = String.format("%.1fs", stall.fireRateMs / 1000f))
             if (stall.aoeRadius > 0) {
                 StatLine(label = "Area", value = String.format("%.1f", stall.aoeRadius))
             }
