@@ -469,6 +469,35 @@ fun GameBoard(
                             topLeft = Offset(barX, barY + (barHeight - filledHeight)),
                             size = Size(barWidth, filledHeight)
                         )
+
+                        // Armor Buff Icon (Shield)
+                        if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
+                            val shieldSize = 10.dp.toPx()
+                            val shieldX = barX - shieldSize - 2.dp.toPx()
+                            val shieldY = barY + (barHeight - shieldSize) / 2f
+
+                            val shieldPath = Path().apply {
+                                moveTo(shieldX + shieldSize / 2f, shieldY) // Top center
+                                lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.3f) // Right top
+                                lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.7f) // Right bottom
+                                quadraticBezierTo(
+                                    shieldX + shieldSize / 2f, shieldY + shieldSize, // Bottom center control
+                                    shieldX, shieldY + shieldSize * 0.7f // Left bottom
+                                )
+                                lineTo(shieldX, shieldY + shieldSize * 0.3f) // Left top
+                                close()
+                            }
+
+                            drawPath(
+                                path = shieldPath,
+                                color = Color(0xFF90A4AE) // Slate Grey
+                            )
+                            drawPath(
+                                path = shieldPath,
+                                color = Color.White,
+                                style = Stroke(width = 1.dp.toPx())
+                            )
+                        }
                     }
                 ))
             }
