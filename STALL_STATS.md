@@ -56,3 +56,20 @@ The cost of each upgrade increases linearly based on the stall's base price:
 
 ## Selling
 - Stalls can be sold for **50% of the total investment** (base cost + all upgrade costs).
+
+---
+
+## Level 24 Average Stall Comparison
+
+The following table shows the statistics for each stall after receiving **24 upgrades**, with upgrades distributed evenly across the stall's available categories (round-robin). Total cost includes the base price plus the cost of all 24 upgrades.
+
+| Stall Type | Damage | Fire Rate (ms) | Shots / Sec | DPS | Range (hexes) | Special / AOE Properties | Total Cost | DPS / $ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- | :---: | :---: |
+| **Chicken Rice** | 106 | 140 | 7.14 | 757.14 | 6.0 | High single-target DPS | $3,580 | 0.2115 |
+| **Teh Tarik** | 0 | 200 | 5.00 | 0.00 | 7.0 | 40% Slow (7s puddle duration) | $5,370 | 0.0000 |
+| **Satay** | 40 | 300 | 3.33 | 133.33 | 4.5 | AOE Radius: 2.6 (Gas Cloud) | $7,160 | 0.0186 |
+| **Ice Kachang** | 0 | 300 | 3.33 | 0.00 | 7.5 | 1.3s Freeze duration | $8,950 | 0.0000 |
+| **Durian** | 220 | 400 | 2.50 | 550.00 | 5.0 | AOE Radius: 2.6 | $10,740 | 0.0512 |
+| **Tray Return Uncle** | 0 | 10300 | 0.10 | 0.00 | 1.1 | Grabs/Holds customers for 3.95s | $16,110 | 0.0000 |
+
+*Note: DPS is calculated for single-target impact. AOE stalls (Satay/Durian) deal damage to all enemies within their radius. Total Cost includes base price and 24 upgrades.*
