@@ -33,14 +33,6 @@ data class StallDefinition(
     val visualEffectColor: Color? = null,
     val visualEffectDuration: Long = 150L
 ) {
-    fun getUpgradeDamageIncrease(baseDamage: Int): Int {
-        return if (type == StallType.CHICKEN_RICE) {
-            (baseDamage * 0.3f).toInt() + 2
-        } else {
-            (baseDamage * 0.2f).toInt() + 1
-        }
-    }
-
     fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float {
         return when (type) {
             StallType.SATAY -> when (enemy.type) {
@@ -155,38 +147,40 @@ data class StallDefinition(
 
         return when (category) {
             "Damage" -> {
-                var currentDamage = baseStall.damage
-                val increasePerLevel = getUpgradeDamageIncrease(baseStall.damage)
+                var currentDamage = baseStall.damage.toFloat()
                 for (l in 1..level) {
-                    currentDamage += increasePerLevel
+                    currentDamage = Math.round(currentDamage * 1.15f).toFloat()
                     if (l % 10 == 0) {
-                        currentDamage = Math.round(currentDamage * 1.25f)
+                        currentDamage = Math.round(currentDamage * 1.25f).toFloat()
                     }
                 }
                 val percentage = if (baseStall.damage > 0) {
-                    Math.round(((currentDamage - baseStall.damage).toFloat() / baseStall.damage) * 100)
+                    Math.round(((currentDamage - baseStall.damage) / baseStall.damage) * 100)
                 } else 0
                 "+$percentage%"
             }
             "Grab Rate", "Rate" -> {
                 var currentRate = baseStall.fireRateMs
-                val rateReduction = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
-                for (l in 1..level) {
-                    currentRate = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                        Math.max(10000L, currentRate - rateReduction)
-                    } else {
-                        Math.max(50L, currentRate - rateReduction)
-                    }
-                    if (l % 10 == 0) {
-                        currentRate = if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                            Math.max(10000L, Math.round(currentRate * 0.75))
-                        } else {
-                            Math.max(50L, Math.round(currentRate * 0.75))
-                        }
-                    }
+                val rateReduction = when (baseStall.type) {
+                    StallType.TRAY_RETURN_UNCLE -> 100L
+                    StallType.CHICKEN_RICE -> 15L
+                    StallType.DURIAN -> 50L
+                    StallType.SATAY -> 25L
+                    else -> (baseStall.fireRateMs * 0.1f).toLong()
                 }
-                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                    currentRate = Math.max(10000L, currentRate)
+                val floor = when (baseStall.type) {
+                    StallType.TRAY_RETURN_UNCLE -> 10000L
+                    StallType.CHICKEN_RICE -> 200L
+                    StallType.DURIAN -> 1000L
+                    StallType.SATAY -> 750L
+                    else -> 50L
+                }
+
+                for (l in 1..level) {
+                    currentRate = Math.max(floor, currentRate - rateReduction)
+                    if (l % 10 == 0) {
+                        currentRate = Math.max(floor, Math.round(currentRate * 0.75))
+                    }
                 }
                 if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
                     "-${baseStall.fireRateMs - currentRate}ms"
@@ -330,7 +324,7 @@ object StallRegistry {
             cost = 200,
             color = Color.Red,
             range = 2.5f,
-            damage = 20,
+            damage = 30,
             fireRateMs = 1500L,
             description = "Area chili sauce damage",
             tutorialTitle = "Uncle's Satay Stall (AoE Damage)",
@@ -351,8 +345,8 @@ object StallRegistry {
             cost = 100,
             color = Color.Yellow,
             range = 4f,
-            damage = 15,
-            fireRateMs = 700L,
+            damage = 10,
+            fireRateMs = 500L,
             description = "High single-target damage",
             tutorialTitle = "Ah Hock’s Chicken Rice Stand (Single-Target DPS)",
             signatureMove = "The Garlic-Ginger Gatling Gun",
@@ -365,7 +359,7 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF4CAF50),
             range = 3f,
-            damage = 120,
+            damage = 150,
             fireRateMs = 2000L,
             description = "Massive damage, slow fire",
             tutorialTitle = "The King Durian Bunker (High Damage/Slight AoE)",
@@ -448,6 +442,15 @@ object EnemyRegistry {
             baseSpeed = 0.06f,
             reward = 100,
             spriteRow = 3
+        ),
+        EnemyType.TIGER_MOM to EnemyDefinition(
+            type = EnemyType.TIGER_MOM,
+            name = "Tiger Mom",
+            description = "She's not just here for the food; she's here to ensure success! The Tiger Mom is a formidable force who occasionally stops to give another customer an 'encouraging' lecture, providing them with a 90% armor buff until she's fully fed. Only one Tiger Mom can be on the board at a time.",
+            baseHp = 80,
+            baseSpeed = 0.05f,
+            reward = 50,
+            spriteRow = 4
         )
     )
 

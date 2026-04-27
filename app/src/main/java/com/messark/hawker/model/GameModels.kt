@@ -112,8 +112,18 @@ data class Stall(
 }
 
 enum class EnemyType {
-    SALARYMAN, TOURIST, AUNTIE, DELIVERY_RIDER
+    SALARYMAN, TOURIST, AUNTIE, DELIVERY_RIDER, TIGER_MOM
 }
+
+enum class BuffType {
+    ARMOR
+}
+
+data class Buff(
+    val type: BuffType,
+    val sourceId: String,
+    val value: Float = 0f
+)
 
 data class Enemy(
     val id: String,
@@ -134,7 +144,10 @@ data class Enemy(
     val speedBoostDurationMs: Long = 0L,
     val animationTimeMs: Long = 0L,
     val isFacingLeft: Boolean = false,
-    val isGrabbed: Boolean = false
+    val isGrabbed: Boolean = false,
+    val buffs: List<Buff> = emptyList(),
+    val buffingTargetId: String? = null,
+    val hasActivatedBuff: Boolean = false
 )
 
 /**
