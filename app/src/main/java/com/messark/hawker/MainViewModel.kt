@@ -1006,6 +1006,15 @@ class MainViewModel @JvmOverloads constructor(
                                     }
                                     mutableUpgrades["Effect"] = newLevel
                                 }
+                                StallType.CHICKEN_RICE -> {
+                                    currentCategoryName = "Damage"
+                                    newDamage = Math.round(newDamage * 1.15f)
+                                    val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                    if (newLevel % 10 == 0) {
+                                        newDamage = Math.round(newDamage * 1.25f)
+                                    }
+                                    mutableUpgrades["Damage"] = newLevel
+                                }
                                 StallType.TRAY_RETURN_UNCLE -> {
                                     currentCategoryName = "Cleaning Time"
                                     val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
