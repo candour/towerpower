@@ -73,3 +73,14 @@ The following table shows the statistics for each stall after receiving **24 upg
 | **Tray Return Uncle** | 0 | 10300 | 0.10 | 0.00 | 1.1 | Grabs/Holds customers for 3.95s | $16,110 | 0.0000 |
 
 *Note: DPS is calculated for single-target impact. AOE stalls (Satay/Durian) deal damage to all enemies within their radius. Total Cost includes base price and 24 upgrades.*
+
+### Upgrade Derivation (How these numbers were reached)
+
+To ensure a fair "average" comparison, 24 upgrades were distributed across the available categories for each stall as follows:
+
+- **Standard Distribution:** 8 upgrades were allocated to each of the three categories:
+    - **Category 0 (Utility/Basic):** Split 4/4 between Damage and Range (if applicable), or 8 into Range for utility stalls.
+    - **Category 1 (Fire Rate):** 8 upgrades into Fire Rate (or Grab Rate).
+    - **Category 2 (Specialization):** 8 upgrades into the stall's specific special stat (AOE Radius, Slow/Freeze Duration, or extra Damage for Chicken Rice).
+- **Milestone Boosts:** Statistics include the +25% bonus applied at Level 10 for any individual stat that reached or exceeded that level (e.g., Chicken Rice Damage L12, Tray Return Uncle stats L12).
+- **Total Investment:** Calculated as `Base Cost + (Base Cost * 34.8)`, reflecting the linear price progression of 24 upgrades.
