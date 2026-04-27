@@ -30,7 +30,8 @@ class MainViewModel @JvmOverloads constructor(
         EnemyType.SALARYMAN,
         EnemyType.TOURIST,
         EnemyType.AUNTIE,
-        EnemyType.DELIVERY_RIDER
+        EnemyType.DELIVERY_RIDER,
+        EnemyType.TIGER_MOM
     )
 
     private val _availableStalls = MutableStateFlow(
@@ -233,9 +234,20 @@ class MainViewModel @JvmOverloads constructor(
             allowedTiers = allowedTiers.filter { it != EnemyType.DELIVERY_RIDER }
         }
 
+        // Only allow Tiger Mom from wave 16 onwards, and only one per wave
+        if (wave < 16) {
+            allowedTiers = allowedTiers.filter { it != EnemyType.TIGER_MOM }
+        }
+
         var attempts = 0
         while (remainingBudget > 0 && attempts < 100) {
             val type = allowedTiers[kotlin.random.Random.nextInt(allowedTiers.size)]
+
+            if (type == EnemyType.TIGER_MOM && enemyList.contains(EnemyType.TIGER_MOM)) {
+                attempts++
+                continue
+            }
+
             val hp = getEnemyHP(type, wave)
             if (hp <= remainingBudget) {
                 enemyList.add(type)
@@ -321,13 +333,20 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun handleSpawning(state: GameState, currentTimeMs: Long): GameState {
         if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
+            val type = state.enemiesToSpawnList.first()
+
+            // One Tiger Mom on board limit
+            if (type == EnemyType.TIGER_MOM && state.enemies.any { it.type == EnemyType.TIGER_MOM }) {
+                // Delay spawning by resetting lastSpawnTimeMs to try again next tick
+                return state.copy(lastSpawnTimeMs = currentTimeMs - 500)
+            }
+
             val startPos = state.startPosition ?: return state
             val endPos = state.endPosition ?: return state
             val path = Pathfinding.findPath(
                 startPos, endPos, getBlockedCoordinates(state.hexes), state.hexes.keys
             ) ?: emptyList()
 
-            val type = state.enemiesToSpawnList.first()
             val remainingSpawnList = state.enemiesToSpawnList.drop(1)
 
             val firstTarget = path.getOrNull(1) ?: startPos
@@ -359,6 +378,8 @@ class MainViewModel @JvmOverloads constructor(
     private fun handleEnemyMovement(state: GameState, currentTimeMs: Long): Pair<GameState, List<Enemy>> {
         var mutableState = state
         val affectingStalls = mutableMapOf<Pair<AxialCoordinate, String>, MutableSet<String>>()
+        val buffActions = mutableListOf<Pair<String, String>>() // TigerMomId, TargetEnemyId
+        val stopBuffingIds = mutableSetOf<String>() // TigerMomIds
 
         val updatedEnemies = state.enemies.mapNotNull { enemy ->
             if (enemy.isDead) return@mapNotNull null
@@ -392,6 +413,14 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
             if (isStopped || freezeDuration > 0) {
+                if (enemy.type == EnemyType.TIGER_MOM && enemy.buffingTargetId != null) {
+                    val targetExists = state.enemies.any { it.id == enemy.buffingTargetId && !it.isDead }
+                    if (!targetExists) {
+                        stopBuffingIds.add(enemy.id)
+                        isStopped = false
+                    }
+                }
+
                 return@mapNotNull enemy.copy(
                     isStopped = isStopped,
                     stopDurationMs = stopDurationMs,
@@ -431,7 +460,7 @@ class MainViewModel @JvmOverloads constructor(
                 enemy.isFacingLeft
             }
 
-            if (dist < effectiveSpeed) {
+            var nextEnemy = if (dist < effectiveSpeed) {
                 enemy.copy(
                     position = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()),
                     currentPathIndex = targetIndex,
@@ -459,6 +488,49 @@ class MainViewModel @JvmOverloads constructor(
                     animationTimeMs = enemy.animationTimeMs + 32,
                     isFacingLeft = newIsFacingLeft
                 )
+            }
+
+            // Tiger Mom activation check
+            if (nextEnemy.type == EnemyType.TIGER_MOM && !nextEnemy.hasActivatedBuff && nextEnemy.currentPathIndex > enemy.currentPathIndex) {
+                if (random.nextFloat() < 0.125f) { // 1/8 chance
+                    // Find nearest non-buffed enemy
+                    val targetEnemy = state.enemies
+                        .filter { it.id != nextEnemy.id && it.buffs.none { b -> b.type == BuffType.ARMOR } && !it.isDead && !it.isGrabbed }
+                        .minByOrNull { axialDistance(nextEnemy.position, it.position) }
+
+                    if (targetEnemy != null) {
+                        buffActions.add(nextEnemy.id to targetEnemy.id)
+                        nextEnemy = nextEnemy.copy(
+                            isStopped = true,
+                            stopDurationMs = 999999L, // "Until she is fully fed"
+                            hasActivatedBuff = true,
+                            buffingTargetId = targetEnemy.id
+                        )
+                    }
+                }
+            }
+
+            nextEnemy
+        }
+
+        var finalEnemies = updatedEnemies
+        if (buffActions.isNotEmpty()) {
+            finalEnemies = finalEnemies.map { e ->
+                val buffAction = buffActions.find { it.second == e.id }
+                if (buffAction != null) {
+                    e.copy(buffs = e.buffs + Buff(BuffType.ARMOR, buffAction.first, 0.9f))
+                } else e
+            }
+        }
+
+        if (stopBuffingIds.isNotEmpty()) {
+            finalEnemies = finalEnemies.map { e ->
+                if (stopBuffingIds.contains(e.id)) {
+                    e.copy(buffingTargetId = null)
+                } else {
+                    // Also remove the buff from anyone who was being buffed by these Tiger Moms
+                    e.copy(buffs = e.buffs.filter { !stopBuffingIds.contains(it.sourceId) })
+                }
             }
         }
 
@@ -603,7 +675,7 @@ class MainViewModel @JvmOverloads constructor(
         val finalEnemies = state.enemies.map { enemy ->
             val hits = hitEnemiesDetails[enemy.id]
             if (hits != null) {
-                var currentHealth = enemy.health
+                var currentHealth = enemy.health.toFloat()
                 var maxFreezeDuration = enemy.freezeDurationMs
                 var speedBoostDuration = enemy.speedBoostDurationMs
 
@@ -611,6 +683,14 @@ class MainViewModel @JvmOverloads constructor(
                     if (currentHealth <= 0) return@forEach
 
                     var damage = proj.damage.toFloat()
+
+                    // Apply Armor Buffs
+                    enemy.buffs.forEach { buff ->
+                        if (buff.type == BuffType.ARMOR) {
+                            damage *= (1.0f - buff.value)
+                        }
+                    }
+
                     var freezeDuration = proj.freezeDurationMs
 
                     // Apply modifiers
@@ -622,8 +702,8 @@ class MainViewModel @JvmOverloads constructor(
                         if (boost > 0) speedBoostDuration = boost
                     }
 
-                    val damageDealt = damage.toInt()
-                    currentHealth = Math.max(0, currentHealth - damageDealt)
+                    val damageDealt = damage
+                    currentHealth = Math.max(0f, currentHealth - damageDealt)
                     maxFreezeDuration = Math.max(maxFreezeDuration, freezeDuration)
 
                     // Track hit and kill
@@ -656,10 +736,19 @@ class MainViewModel @JvmOverloads constructor(
                     }
                     enemy.copy(health = 0, isDead = true)
                 } else {
-                    enemy.copy(health = currentHealth, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
+                    enemy.copy(health = currentHealth.toInt(), freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
                 }
             } else enemy
-        }.filter { !it.isDead }
+        }.filter { !it.isDead }.map { e ->
+            // Clean up buffs: source must be alive, still targeting this enemy, and not grabbed
+            val validBuffs = e.buffs.filter { buff ->
+                val source = state.enemies.find { it.id == buff.sourceId }
+                source != null && source.buffingTargetId == e.id && !source.isGrabbed
+            }
+            if (validBuffs.size != e.buffs.size) {
+                e.copy(buffs = validBuffs)
+            } else e
+        }
 
         return state.copy(
             hexes = updatedHexes,
@@ -1053,7 +1142,15 @@ class MainViewModel @JvmOverloads constructor(
                     val enemy = updatedEnemies[enemyIndex]
                     if (currentTimeMs >= stall.releaseTimeMs) {
                         // Release enemy
-                        val releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
+                        var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
+                        if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
+                            // Interrupt buff
+                            releasedEnemy = releasedEnemy.copy(
+                                buffingTargetId = null,
+                                isStopped = false,
+                                stopDurationMs = 0
+                            )
+                        }
                         updatedEnemies[enemyIndex] = releasedEnemy
                         updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
                         changed = true

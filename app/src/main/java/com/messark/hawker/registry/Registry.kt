@@ -448,6 +448,15 @@ object EnemyRegistry {
             baseSpeed = 0.06f,
             reward = 100,
             spriteRow = 3
+        ),
+        EnemyType.TIGER_MOM to EnemyDefinition(
+            type = EnemyType.TIGER_MOM,
+            name = "Tiger Mom",
+            description = "She's not just here for the food; she's here to ensure success! The Tiger Mom is a formidable force who occasionally stops to give another customer an 'encouraging' lecture, providing them with a 90% armor buff until she's fully fed. Only one Tiger Mom can be on the board at a time.",
+            baseHp = 80,
+            baseSpeed = 0.05f,
+            reward = 50,
+            spriteRow = 4
         )
     )
 
