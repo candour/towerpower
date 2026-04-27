@@ -932,8 +932,7 @@ class MainViewModel @JvmOverloads constructor(
                             } else {
                                 if (kotlin.random.Random.nextBoolean() && !stall.stallType.isUtility) {
                                     currentCategoryName = "Damage"
-                                    val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
-                                    newDamage += damageIncrease
+                                    newDamage = Math.round(newDamage * 1.15f)
                                     val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
                                     if (newLevel % 10 == 0) {
                                         newDamage = Math.round(newDamage * 1.25f)
@@ -952,14 +951,26 @@ class MainViewModel @JvmOverloads constructor(
                         }
                         1 -> {
                             currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
-                            val rateReduction = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 100L else (baseStall.fireRateMs * 0.1f).toLong()
+                            val rateReduction = when (stall.stallType) {
+                                StallType.TRAY_RETURN_UNCLE -> 100L
+                                StallType.CHICKEN_RICE -> 15L
+                                StallType.DURIAN -> 50L
+                                StallType.SATAY -> 25L
+                                else -> (baseStall.fireRateMs * 0.1f).toLong()
+                            }
                             val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
                             var potentialRate = stall.fireRateMs - rateReduction
                             if (newLevel % 10 == 0) {
                                 potentialRate = Math.round(potentialRate * 0.75)
                             }
 
-                            val floor = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 10000L else 50L
+                            val floor = when (stall.stallType) {
+                                StallType.TRAY_RETURN_UNCLE -> 10000L
+                                StallType.CHICKEN_RICE -> 200L
+                                StallType.DURIAN -> 1000L
+                                StallType.SATAY -> 750L
+                                else -> 50L
+                            }
                             newFireRate = Math.max(floor, potentialRate)
                             mutableUpgrades[currentCategoryName] = newLevel
                             if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
@@ -1007,16 +1018,6 @@ class MainViewModel @JvmOverloads constructor(
                                     newEffectDuration = Math.min(cap, potentialDuration)
                                     mutableUpgrades[currentCategoryName] = newLevel
                                     mutableUpgrades["Duration"] = newLevel
-                                }
-                                StallType.CHICKEN_RICE -> {
-                                    currentCategoryName = "Damage"
-                                    val damageIncrease = stallDef.getUpgradeDamageIncrease(baseStall.damage)
-                                    newDamage += damageIncrease
-                                    val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newDamage = Math.round(newDamage * 1.25f)
-                                    }
-                                    mutableUpgrades["Damage"] = newLevel
                                 }
                                 else -> {
                                     // Fallback for any utility stalls or other types that shouldn't hit the above
