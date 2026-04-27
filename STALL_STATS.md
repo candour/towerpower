@@ -1,8 +1,8 @@
-# Hawker Rush Tower Statistics
+# Hawker Rush Stall Statistics
 
-This document provides a breakdown of the base statistics and upgrade scaling for all towers (stalls) in Hawker Rush.
+This document provides a breakdown of the base statistics and upgrade scaling for all stalls in Hawker Rush.
 
-## Tower Statistics Breakdown
+## Stall Statistics Breakdown
 
 | Stall Type | Base Damage | Fire Rate (ms) | Shots / Sec | Base DPS | Range (hexes) | Special / AOE Properties | Base Cost |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- | :---: |
@@ -11,17 +11,27 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 | **Satay** | 20 | 1500 | 0.67 | 13.33 | 2.5 | AOE Radius: 1.0 (Gas Cloud) | $200 |
 | **Ice Kachang** | 0 | 1500 | 0.67 | 0.00 | 3.5 | 0.5s Freeze duration | $250 |
 | **Durian** | 120 | 2000 | 0.50 | 60.00 | 3.0 | AOE Radius: 1.0 | $300 |
-| **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Grabs/Holds enemies for 2s | $450 |
+| **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Grabs/Holds customers for 2s | $450 |
 
+---
+
+## Targeting Options
+
+Stalls can be configured to target customers using different strategies. You can cycle through these modes by selecting a placed stall.
+
+- **FIRST:** Targets the customer that is furthest along their path (closest to the goal).
+- **CLOSEST:** Targets the customer that is physically closest to the stall.
+- **STRONGEST:** Targets the customer with the highest current health.
+- **WEAKEST:** Targets the customer with the lowest current health.
 
 ---
 
 ## Upgrade Scaling
 
-Upgrades are chosen randomly from three categories when an upgrade is purchased. Scaling is **additive** based on the tower's base stats.
+Upgrades are chosen randomly from three categories when an upgrade is purchased. Scaling is **additive** based on the stall's base stats.
 
 ### Upgrade Cost
-The cost of each upgrade increases linearly based on the tower's base price:
+The cost of each upgrade increases linearly based on the stall's base price:
 - **1st Upgrade:** 30% of base price
 - **2nd Upgrade:** 40% of base price
 - **3rd Upgrade:** 50% of base price
@@ -45,4 +55,4 @@ The cost of each upgrade increases linearly based on the tower's base price:
 ---
 
 ## Selling
-- Towers can be sold for **50% of the total investment** (base cost + all upgrade costs).
+- Stalls can be sold for **50% of the total investment** (base cost + all upgrade costs).
