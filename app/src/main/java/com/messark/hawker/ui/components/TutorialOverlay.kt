@@ -65,7 +65,7 @@ fun TutorialOverlay(
     val themeColor = when (tutorialData.type) {
         TutorialType.ENEMY -> Color(0xFFFF5252) // Light Red/Coral
         TutorialType.STALL -> Color(0xFF4CAF50) // Green
-        TutorialType.KITCHELIN_STAR -> Color.Yellow
+        TutorialType.KITCHELIN_STAR -> MaterialTheme.colorScheme.primary
     }
 
     Box(
@@ -150,7 +150,7 @@ fun TutorialOverlay(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Kitchelin Star",
-                            tint = Color.Yellow,
+                            tint = themeColor,
                             modifier = Modifier.fillMaxSize(0.6f)
                         )
                     }
@@ -176,7 +176,7 @@ fun TutorialOverlay(
                     tutorialData.signatureMove?.let { move ->
                         Text(
                             text = move.uppercase(),
-                            color = Color.Yellow,
+                            color = MaterialTheme.colorScheme.secondary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
@@ -202,7 +202,7 @@ fun TutorialOverlay(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        if (tutorialData.type == TutorialType.ENEMY || tutorialData.type == TutorialType.KITCHELIN_STAR) {
+                        if (tutorialData.type == TutorialType.ENEMY) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -214,6 +214,30 @@ fun TutorialOverlay(
                                 Checkbox(
                                     checked = showTutorialsSetting,
                                     onCheckedChange = null, // Handled by Row clickable
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = themeColor,
+                                        uncheckedColor = Color.Gray,
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                Text(
+                                    text = "Show tutorials",
+                                    color = Color.White,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        } else if (tutorialData.type == TutorialType.KITCHELIN_STAR) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable {
+                                    onTriggerHaptic()
+                                    onToggleTutorialsSetting(!showTutorialsSetting)
+                                }
+                            ) {
+                                Checkbox(
+                                    checked = showTutorialsSetting,
+                                    onCheckedChange = null,
                                     colors = CheckboxDefaults.colors(
                                         checkedColor = themeColor,
                                         uncheckedColor = Color.Gray,

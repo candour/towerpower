@@ -287,6 +287,7 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time in milliseconds.
      */
     internal fun updateGame(currentTimeMs: Long) {
+        var starAwardedOutside = false
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
             var newState = state
@@ -313,6 +314,7 @@ class MainViewModel @JvmOverloads constructor(
             // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
                 val starAwarded = newState.currentWave % 10 == 0
+                starAwardedOutside = starAwarded
                 val nextStars = if (starAwarded) newState.kitchelinStars + 1 else newState.kitchelinStars
 
                 // Decrement disabledWaves for all stalls
@@ -330,25 +332,6 @@ class MainViewModel @JvmOverloads constructor(
                     kitchelinStars = nextStars,
                     hexes = updatedHexes
                 )
-
-                if (starAwarded) {
-                    viewModelScope.launch {
-                        val settings = settingsRepository.settingsFlow.first()
-                        if (settings.showTutorials && !settings.shownTutorials.contains("kitchelin_star")) {
-                            val tutorial = TutorialData(
-                                id = "kitchelin_star",
-                                type = TutorialType.KITCHELIN_STAR,
-                                title = "You’ve got a Kitchelin star!",
-                                description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
-                            )
-                            _gameState.update { it.copy(activeTutorial = tutorial) }
-                            settingsRepository.updateSettings {
-                                it.copy(shownTutorials = it.shownTutorials + "kitchelin_star")
-                            }
-                        }
-                    }
-                }
-
                 gameStateRepository.saveGameState(newState)
             }
 
@@ -358,6 +341,10 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             newState
+        }
+
+        if (starAwardedOutside) {
+            handleStarAwardedTutorial()
         }
     }
 
@@ -1318,6 +1305,24 @@ class MainViewModel @JvmOverloads constructor(
             path = newPath,
             currentPathIndex = 0
         )
+    }
+
+    private fun handleStarAwardedTutorial() {
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.showTutorials && !settings.shownTutorials.contains("kitchelin_star")) {
+                val tutorial = TutorialData(
+                    id = "kitchelin_star",
+                    type = TutorialType.KITCHELIN_STAR,
+                    title = "You’ve got a Kitchelin star!",
+                    description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
+                )
+                _gameState.update { it.copy(activeTutorial = tutorial) }
+                settingsRepository.updateSettings {
+                    it.copy(shownTutorials = it.shownTutorials + "kitchelin_star")
+                }
+            }
+        }
     }
 
     private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
