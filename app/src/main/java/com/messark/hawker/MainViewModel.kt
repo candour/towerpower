@@ -312,7 +312,8 @@ class MainViewModel @JvmOverloads constructor(
 
             // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
-                val nextStars = if (newState.currentWave % 10 == 0) newState.kitchelinStars + 1 else newState.kitchelinStars
+                val starAwarded = newState.currentWave % 10 == 0
+                val nextStars = if (starAwarded) newState.kitchelinStars + 1 else newState.kitchelinStars
 
                 // Decrement disabledWaves for all stalls
                 val updatedHexes = newState.hexes.mapValues { (_, tile) ->
@@ -329,6 +330,25 @@ class MainViewModel @JvmOverloads constructor(
                     kitchelinStars = nextStars,
                     hexes = updatedHexes
                 )
+
+                if (starAwarded) {
+                    viewModelScope.launch {
+                        val settings = settingsRepository.settingsFlow.first()
+                        if (settings.showTutorials && !settings.shownTutorials.contains("kitchelin_star")) {
+                            val tutorial = TutorialData(
+                                id = "kitchelin_star",
+                                type = TutorialType.KITCHELIN_STAR,
+                                title = "You’ve got a Kitchelin star!",
+                                description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
+                            )
+                            _gameState.update { it.copy(activeTutorial = tutorial) }
+                            settingsRepository.updateSettings {
+                                it.copy(shownTutorials = it.shownTutorials + "kitchelin_star")
+                            }
+                        }
+                    }
+                }
+
                 gameStateRepository.saveGameState(newState)
             }
 

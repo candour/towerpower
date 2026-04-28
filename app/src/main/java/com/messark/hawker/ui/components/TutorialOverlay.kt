@@ -34,6 +34,8 @@ import com.messark.hawker.registry.EnemyRegistry
 import com.messark.hawker.registry.StallRegistry
 import com.messark.hawker.ui.constants.SpriteConstants
 import kotlinx.coroutines.delay
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 
 @Composable
 fun TutorialOverlay(
@@ -63,6 +65,7 @@ fun TutorialOverlay(
     val themeColor = when (tutorialData.type) {
         TutorialType.ENEMY -> Color(0xFFFF5252) // Light Red/Coral
         TutorialType.STALL -> Color(0xFF4CAF50) // Green
+        TutorialType.KITCHELIN_STAR -> Color.Yellow
     }
 
     Box(
@@ -143,6 +146,13 @@ fun TutorialOverlay(
                                 canvas.nativeCanvas.drawBitmap(stallBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
                             }
                         }
+                    } else if (tutorialData.type == TutorialType.KITCHELIN_STAR) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Kitchelin Star",
+                            tint = Color.Yellow,
+                            modifier = Modifier.fillMaxSize(0.6f)
+                        )
                     }
                 }
 
@@ -192,7 +202,7 @@ fun TutorialOverlay(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        if (tutorialData.type == TutorialType.ENEMY) {
+                        if (tutorialData.type == TutorialType.ENEMY || tutorialData.type == TutorialType.KITCHELIN_STAR) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
