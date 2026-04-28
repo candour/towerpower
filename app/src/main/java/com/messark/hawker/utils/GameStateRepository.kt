@@ -25,7 +25,8 @@ data class PersistentGameState(
     val startPosition: AxialCoordinate?,
     val endPosition: AxialCoordinate?,
     val currentWave: Int,
-    val score: Int
+    val score: Int,
+    val kitchelinStars: Int = 0
 )
 
 class GameStateRepository(private val context: Context) {
@@ -42,7 +43,8 @@ class GameStateRepository(private val context: Context) {
             startPosition = state.startPosition,
             endPosition = state.endPosition,
             currentWave = state.currentWave,
-            score = state.score
+            score = state.score,
+            kitchelinStars = state.kitchelinStars
         )
         file.writeText(gson.toJson(persistentState))
     }
@@ -60,6 +62,7 @@ class GameStateRepository(private val context: Context) {
                 endPosition = persistentState.endPosition,
                 currentWave = persistentState.currentWave,
                 score = persistentState.score,
+                kitchelinStars = persistentState.kitchelinStars,
                 waveActive = false
             )
         } catch (e: Exception) {

@@ -276,6 +276,17 @@ fun GameBoard(
                                 bitmap = stallsSheet
                             )
 
+                            if (stall.disabledWaves > 0) {
+                                val coneScale = wPx / 101f
+                                drawSprite(
+                                    srcRect = SpriteConstants.FX_CONE_RECT,
+                                    destCenter = screenPos,
+                                    destSize = Size(64f * coneScale, 62f * coneScale),
+                                    anchor = Offset(0.5f, 0.5f),
+                                    bitmap = spriteSheet
+                                )
+                            }
+
                             if (selectedBoardStall == coord) {
                                 val hexPath = createHexPath(screenPos, wPx, hPx)
                                 drawPath(
