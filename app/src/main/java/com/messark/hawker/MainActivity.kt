@@ -45,6 +45,7 @@ import com.messark.hawker.model.Settings
 import com.messark.hawker.ui.components.GameBoard
 import com.messark.hawker.ui.components.GameControlPanel
 import com.messark.hawker.ui.components.TutorialOverlay
+import com.messark.hawker.ui.components.UpgradeOverlay
 import com.messark.hawker.ui.constants.LayoutConstants
 import com.messark.hawker.ui.constants.SpriteConstants
 import com.messark.hawker.utils.SettingsRepository
@@ -614,17 +615,34 @@ fun GameScreen(
                     .fillMaxSize()
                     .padding(LayoutConstants.BOARD_BORDER_SIZE)
             ) {
-                GameBoard(
-                    hexes = gameState.hexes,
-                    enemies = gameState.enemies,
-                    projectiles = gameState.projectiles,
-                    puddles = gameState.puddles,
-                    visualEffects = gameState.visualEffects,
-                    selectedBoardStall = gameState.selectedBoardStall,
-                    gold = gameState.gold,
-                    onCellClick = { coord -> viewModel.onCellClick(coord) },
-                    modifier = Modifier.weight(LayoutConstants.BOARD_HEIGHT_FRACTION)
-                )
+                Box(modifier = Modifier.weight(LayoutConstants.BOARD_HEIGHT_FRACTION)) {
+                    GameBoard(
+                        hexes = gameState.hexes,
+                        enemies = gameState.enemies,
+                        projectiles = gameState.projectiles,
+                        puddles = gameState.puddles,
+                        visualEffects = gameState.visualEffects,
+                        selectedBoardStall = gameState.selectedBoardStall,
+                        gold = gameState.gold,
+                        onCellClick = { coord -> viewModel.onCellClick(coord) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Kitchelin Stars Display
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        repeat(minOf(gameState.kitchelinStars, 5)) {
+                            Text(
+                                text = "⭐",
+                                fontSize = 24.sp
+                            )
+                        }
+                    }
+                }
                 GameControlPanel(
                     gold = gameState.gold,
                     health = gameState.health,
@@ -656,6 +674,22 @@ fun GameScreen(
                     onDismiss = { viewModel.dismissTutorial() },
                     onTriggerHaptic = { viewModel.triggerHaptic() }
                 )
+            }
+
+            if (gameState.showUpgradeOverlay) {
+                gameState.selectedBoardStall?.let { coord ->
+                    gameState.hexes[coord]?.stall?.let { stall ->
+                        UpgradeOverlay(
+                            stall = stall,
+                            gold = gameState.gold,
+                            kitchelinStars = gameState.kitchelinStars,
+                            onUpgradeRandom = { viewModel.upgradeStallRandomly() },
+                            onUpgradeSpecific = { viewModel.upgradeStallSpecifically(it) },
+                            onDismiss = { viewModel.dismissUpgradeOverlay() },
+                            onTriggerHaptic = { viewModel.triggerHaptic() }
+                        )
+                    }
+                }
             }
 
             if (gameState.health <= 0) {
