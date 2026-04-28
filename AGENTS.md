@@ -43,7 +43,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Variants:** Salaryman (Fast), Tourist (Stops), Auntie (Tank), Delivery Rider (Boss).
 - **Spawning:** Uses a Difficulty Budget system. HP increases by 10% per wave (`BaseHP * 1.1^(W-1)`).
 - **Boss Waves:** Occur every 10 levels. Trigger a 2-second 'BOSS WAVE' UI overlay.
-- **Tutorial System:** Tracks seen entities (customers, etc.) globally in `Settings.shownTutorials`. Triggers during `MainViewModel.startWave()` if new types appear, pausing the game by setting `GameState.activeTutorial` and requiring dismissal via `MainViewModel.dismissTutorial()`.
+- **Tutorial System:** Tracks seen entities (customers, etc.) and key game milestones (e.g., earning the first Kitchelin Star) globally in `Settings.shownTutorials`. Triggers during `MainViewModel.startWave()` for new entities or `updateGame()` for milestones, pausing the game by setting `GameState.activeTutorial` and requiring dismissal via `MainViewModel.dismissTutorial()`.
 
 ## Asset Management
 
@@ -79,6 +79,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **AGENTS.md Maintenance:** You **MUST** update this file whenever you introduce new core mechanics, architectural changes, or complex "gotchas".
 - **Documentation Maintenance:** If changes are made to either customer or stall behavior (stats, scaling, special abilities, targeting), then `STALL_STATS.md` and `CUSTOMER_STATS.md` **MUST** be updated to reflect these changes.
 - **Visual Consistency:** All action buttons must use `SpriteButton` and reference `buttons.png`.
+- **Theming:** Avoid hardcoding colors in UI components. Always prefer `MaterialTheme.colorScheme` (e.g., `onSurface`, `surface`, `primary`) to ensure the app correctly supports both light and dark themes.
 - **Haptics:** Always trigger haptics via `viewModel.triggerHaptic()` which respects user settings.
 - **Navigation:** Screen transitions are managed in `MainActivity` using `AnimatedContent`. Use the grouped 'MENU' state for smooth transitions between Loading and Main Menu.
 - **Memory vs. Reality:** While this file provides context, always treat the current codebase as the ultimate source of truth.

@@ -97,7 +97,8 @@ data class Stall(
     val legendarySuffix: String? = null,
     val namingCategories: List<String> = emptyList(),
     val heldEnemyId: String? = null,
-    val releaseTimeMs: Long = 0L
+    val releaseTimeMs: Long = 0L,
+    val disabledWaves: Int = 0
 ) {
     fun getUpgradeCost(): Int {
         val nextUpgradeIndex = upgradeCount + 1
@@ -242,5 +243,7 @@ data class GameState(
     val bossWaveTriggerTimeMs: Long = 0L,
     val lastSpawnTimeMs: Long = 0L,
     val score: Int = 0,
-    val activeTutorial: TutorialData? = null
+    val activeTutorial: TutorialData? = null,
+    val kitchelinStars: Int = 0,
+    val showUpgradeOverlay: Boolean = false
 )

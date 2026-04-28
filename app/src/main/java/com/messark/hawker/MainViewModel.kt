@@ -287,6 +287,7 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time in milliseconds.
      */
     internal fun updateGame(currentTimeMs: Long) {
+        var starAwardedOutside = false
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
             var newState = state
@@ -312,7 +313,25 @@ class MainViewModel @JvmOverloads constructor(
 
             // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
-                newState = newState.copy(waveActive = false, isBossWave = false)
+                val starAwarded = newState.currentWave % 10 == 0
+                starAwardedOutside = starAwarded
+                val nextStars = if (starAwarded) newState.kitchelinStars + 1 else newState.kitchelinStars
+
+                // Decrement disabledWaves for all stalls
+                val updatedHexes = newState.hexes.mapValues { (_, tile) ->
+                    tile.stall?.let { stall ->
+                        if (stall.disabledWaves > 0) {
+                            tile.copy(stall = stall.copy(disabledWaves = stall.disabledWaves - 1))
+                        } else tile
+                    } ?: tile
+                }
+
+                newState = newState.copy(
+                    waveActive = false,
+                    isBossWave = false,
+                    kitchelinStars = nextStars,
+                    hexes = updatedHexes
+                )
                 gameStateRepository.saveGameState(newState)
             }
 
@@ -322,6 +341,10 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             newState
+        }
+
+        if (starAwardedOutside) {
+            handleStarAwardedTutorial()
         }
     }
 
@@ -565,7 +588,7 @@ class MainViewModel @JvmOverloads constructor(
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
-            if (stall != null && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+            if (stall != null && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
                     !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range
@@ -873,84 +896,65 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun upgradeStall() {
+        if (_gameState.value.waveActive) {
+            applyUpgrade(isSpecific = false)
+        } else {
+            _gameState.update { it.copy(showUpgradeOverlay = true) }
+        }
+    }
+
+    fun dismissUpgradeOverlay() {
+        _gameState.update { it.copy(showUpgradeOverlay = false) }
+    }
+
+    fun upgradeStallRandomly() {
+        applyUpgrade(isSpecific = false)
+        dismissUpgradeOverlay()
+    }
+
+    fun upgradeStallSpecifically(stat: String) {
+        applyUpgrade(isSpecific = true, specificStat = stat)
+        dismissUpgradeOverlay()
+    }
+
+    private fun applyUpgrade(isSpecific: Boolean, specificStat: String? = null) {
         _gameState.update { state ->
             val coord = state.selectedBoardStall ?: return@update state
             val tile = state.hexes[coord] ?: return@update state
             val stall = tile.stall ?: return@update state
 
             val baseStall = _availableStalls.value.find { it.stallType == stall.stallType } ?: stall
-            val upgradeCost = stall.getUpgradeCost()
+            val baseUpgradeCost = stall.getUpgradeCost()
+            val finalUpgradeCost = if (isSpecific) baseUpgradeCost * 2 else baseUpgradeCost
 
-            if (state.gold >= upgradeCost) {
-                val upgradeCategories = mutableListOf(0, 1, 2).apply { shuffle() }
+            if (state.gold >= finalUpgradeCost) {
                 val stallDef = StallRegistry.get(stall.stallType)
+                val mutableUpgrades = stall.upgrades.toMutableMap()
 
-                while (upgradeCategories.isNotEmpty()) {
-                    val upgradeTypeIndex = upgradeCategories.removeAt(0)
-                    val mutableUpgrades = stall.upgrades.toMutableMap()
+                var newDamage = stall.damage
+                var newRange = stall.range
+                var newFireRate = stall.fireRateMs
+                var newAoeRadius = stall.aoeRadius
+                var newEffectDuration = stall.effectDurationMs
+                var newFreezeDuration = stall.freezeDurationMs
+                var currentCategoryName = ""
 
-                    var newDamage = stall.damage
-                    var newRange = stall.range
-                    var newFireRate = stall.fireRateMs
-                    var newAoeRadius = stall.aoeRadius
-                    var newEffectDuration = stall.effectDurationMs
-                    var newFreezeDuration = stall.freezeDurationMs
-                    var currentCategoryName = ""
-
-                    when (upgradeTypeIndex) {
-                        0 -> {
-                            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                                // Split across Grab Rate and Cleaning Time
-                                if (kotlin.random.Random.nextBoolean()) {
-                                    // Path for Category 1 (Grab Rate)
-                                    currentCategoryName = "Grab Rate"
-                                    val rateReduction = 100L
-                                    val newLevel = mutableUpgrades.getOrDefault("Grab Rate", 0) + 1
-                                    var potentialRate = stall.fireRateMs - rateReduction
-                                    if (newLevel % 10 == 0) {
-                                        potentialRate = Math.round(potentialRate * 0.75)
-                                    }
-
-                                    val floor = 10000L
-                                    newFireRate = Math.max(floor, potentialRate)
-                                    mutableUpgrades["Grab Rate"] = newLevel
-                                    mutableUpgrades["Rate"] = newLevel // Also sync to standard key for internal logic
-                                } else {
-                                    // Path for Category 2 (Cleaning Time)
-                                    currentCategoryName = "Cleaning Time"
-                                    val newLevel = mutableUpgrades.getOrDefault("Cleaning Time", 0) + 1
-                                    var potentialDuration = stall.effectDurationMs + 100L
-                                    if (newLevel % 10 == 0) {
-                                        potentialDuration = Math.round(potentialDuration * 1.25)
-                                    }
-
-                                    val cap = 4000L
-                                    newEffectDuration = Math.min(cap, potentialDuration)
-                                    mutableUpgrades["Cleaning Time"] = newLevel
-                                    mutableUpgrades["Duration"] = newLevel // Also sync to standard key for internal logic
-                                }
-                            } else {
-                                if (kotlin.random.Random.nextBoolean() && !stall.stallType.isUtility) {
-                                    currentCategoryName = "Damage"
-                                    newDamage = Math.round(newDamage * 1.15f)
-                                    val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newDamage = Math.round(newDamage * 1.25f)
-                                    }
-                                    mutableUpgrades["Damage"] = newLevel
-                                } else {
-                                    currentCategoryName = "Range"
-                                    newRange += 0.5f
-                                    val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newRange *= 1.25f
-                                    }
-                                    mutableUpgrades["Range"] = newLevel
-                                }
-                            }
+                if (isSpecific && specificStat != null) {
+                    currentCategoryName = specificStat
+                    when (specificStat) {
+                        "Damage" -> {
+                            newDamage = Math.round(newDamage * 1.15f)
+                            val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                            if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
+                            mutableUpgrades["Damage"] = newLevel
                         }
-                        1 -> {
-                            currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                        "Range" -> {
+                            newRange += 0.5f
+                            val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                            if (newLevel % 10 == 0) newRange *= 1.25f
+                            mutableUpgrades["Range"] = newLevel
+                        }
+                        "Rate", "Grab Rate" -> {
                             val rateReduction = when (stall.stallType) {
                                 StallType.TRAY_RETURN_UNCLE -> 100L
                                 StallType.CHICKEN_RICE -> 15L
@@ -958,12 +962,9 @@ class MainViewModel @JvmOverloads constructor(
                                 StallType.SATAY -> 25L
                                 else -> (baseStall.fireRateMs * 0.1f).toLong()
                             }
-                            val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
+                            val newLevel = mutableUpgrades.getOrDefault(specificStat, 0) + 1
                             var potentialRate = stall.fireRateMs - rateReduction
-                            if (newLevel % 10 == 0) {
-                                potentialRate = Math.round(potentialRate * 0.75)
-                            }
-
+                            if (newLevel % 10 == 0) potentialRate = Math.round(potentialRate * 0.75)
                             val floor = when (stall.stallType) {
                                 StallType.TRAY_RETURN_UNCLE -> 10000L
                                 StallType.CHICKEN_RICE -> 200L
@@ -972,111 +973,205 @@ class MainViewModel @JvmOverloads constructor(
                                 else -> 50L
                             }
                             newFireRate = Math.max(floor, potentialRate)
-                            mutableUpgrades[currentCategoryName] = newLevel
-                            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                                mutableUpgrades["Rate"] = newLevel
-                            }
+                            mutableUpgrades[specificStat] = newLevel
+                            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) mutableUpgrades["Rate"] = newLevel
                         }
-                        2 -> {
-                            when (stall.stallType) {
-                                StallType.SATAY, StallType.DURIAN -> {
-                                    currentCategoryName = "Radius"
-                                    newAoeRadius += 0.2f
-                                    val newLevel = mutableUpgrades.getOrDefault("Radius", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newAoeRadius *= 1.25f
+                        "Radius" -> {
+                            newAoeRadius += 0.2f
+                            val newLevel = mutableUpgrades.getOrDefault("Radius", 0) + 1
+                            if (newLevel % 10 == 0) newAoeRadius *= 1.25f
+                            mutableUpgrades["Radius"] = newLevel
+                        }
+                        "Duration", "Cleaning Time" -> {
+                            val newLevel = mutableUpgrades.getOrDefault(specificStat, 0) + 1
+                            var potentialDuration = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) stall.effectDurationMs + 100L else stall.effectDurationMs + 500L
+                            if (newLevel % 10 == 0) potentialDuration = Math.round(potentialDuration * 1.25)
+                            val cap = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) 4000L else Long.MAX_VALUE
+                            newEffectDuration = Math.min(cap, potentialDuration)
+                            mutableUpgrades[specificStat] = newLevel
+                            mutableUpgrades["Duration"] = newLevel
+                        }
+                        "Effect" -> {
+                            newFreezeDuration += 100L
+                            val newLevel = mutableUpgrades.getOrDefault("Effect", 0) + 1
+                            if (newLevel % 10 == 0) newFreezeDuration = Math.round(newFreezeDuration * 1.25)
+                            mutableUpgrades["Effect"] = newLevel
+                        }
+                    }
+                } else {
+                    val upgradeCategories = mutableListOf(0, 1, 2).apply { shuffle() }
+                    var applied = false
+                    while (upgradeCategories.isNotEmpty() && !applied) {
+                        val upgradeTypeIndex = upgradeCategories.removeAt(0)
+                        when (upgradeTypeIndex) {
+                            0 -> {
+                                if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                                    if (kotlin.random.Random.nextBoolean()) {
+                                        currentCategoryName = "Grab Rate"
+                                        val rateReduction = 100L
+                                        val newLevel = mutableUpgrades.getOrDefault("Grab Rate", 0) + 1
+                                        var potentialRate = stall.fireRateMs - rateReduction
+                                        if (newLevel % 10 == 0) potentialRate = Math.round(potentialRate * 0.75)
+                                        newFireRate = Math.max(10000L, potentialRate)
+                                        mutableUpgrades["Grab Rate"] = newLevel
+                                        mutableUpgrades["Rate"] = newLevel
+                                    } else {
+                                        currentCategoryName = "Cleaning Time"
+                                        val newLevel = mutableUpgrades.getOrDefault("Cleaning Time", 0) + 1
+                                        var potentialDuration = stall.effectDurationMs + 100L
+                                        if (newLevel % 10 == 0) potentialDuration = Math.round(potentialDuration * 1.25)
+                                        newEffectDuration = Math.min(4000L, potentialDuration)
+                                        mutableUpgrades["Cleaning Time"] = newLevel
+                                        mutableUpgrades["Duration"] = newLevel
                                     }
-                                    mutableUpgrades["Radius"] = newLevel
-                                }
-                                StallType.TEH_TARIK -> {
-                                    currentCategoryName = "Duration"
-                                    newEffectDuration += 500L
-                                    val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newEffectDuration = Math.round(newEffectDuration * 1.25)
-                                    }
-                                    mutableUpgrades["Duration"] = newLevel
-                                }
-                                StallType.ICE_KACHANG -> {
-                                    currentCategoryName = "Effect"
-                                    newFreezeDuration += 100L
-                                    val newLevel = mutableUpgrades.getOrDefault("Effect", 0) + 1
-                                    if (newLevel % 10 == 0) {
-                                        newFreezeDuration = Math.round(newFreezeDuration * 1.25)
-                                    }
-                                    mutableUpgrades["Effect"] = newLevel
-                                }
-                                StallType.TRAY_RETURN_UNCLE -> {
-                                    currentCategoryName = "Cleaning Time"
-                                    val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
-                                    var potentialDuration = stall.effectDurationMs + 100L
-                                    if (newLevel % 10 == 0) {
-                                        potentialDuration = Math.round(potentialDuration * 1.25)
-                                    }
-
-                                    val cap = 4000L
-                                    newEffectDuration = Math.min(cap, potentialDuration)
-                                    mutableUpgrades[currentCategoryName] = newLevel
-                                    mutableUpgrades["Duration"] = newLevel
-                                }
-                                else -> {
-                                    // Fallback for any utility stalls or other types that shouldn't hit the above
-                                    if (stall.stallType.isUtility) {
+                                } else {
+                                    if (kotlin.random.Random.nextBoolean() && !stall.stallType.isUtility) {
+                                        currentCategoryName = "Damage"
+                                        newDamage = Math.round(newDamage * 1.15f)
+                                        val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                        if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
+                                        mutableUpgrades["Damage"] = newLevel
+                                    } else {
                                         currentCategoryName = "Range"
                                         newRange += 0.5f
                                         val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
-                                        if (newLevel % 10 == 0) {
-                                            newRange *= 1.25f
-                                        }
+                                        if (newLevel % 10 == 0) newRange *= 1.25f
                                         mutableUpgrades["Range"] = newLevel
                                     }
                                 }
+                                applied = true
+                            }
+                            1 -> {
+                                currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                                val rateReduction = when (stall.stallType) {
+                                    StallType.TRAY_RETURN_UNCLE -> 100L
+                                    StallType.CHICKEN_RICE -> 15L
+                                    StallType.DURIAN -> 50L
+                                    StallType.SATAY -> 25L
+                                    else -> (baseStall.fireRateMs * 0.1f).toLong()
+                                }
+                                val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
+                                var potentialRate = stall.fireRateMs - rateReduction
+                                if (newLevel % 10 == 0) potentialRate = Math.round(potentialRate * 0.75)
+                                val floor = when (stall.stallType) {
+                                    StallType.TRAY_RETURN_UNCLE -> 10000L
+                                    StallType.CHICKEN_RICE -> 200L
+                                    StallType.DURIAN -> 1000L
+                                    StallType.SATAY -> 750L
+                                    else -> 50L
+                                }
+                                newFireRate = Math.max(floor, potentialRate)
+                                mutableUpgrades[currentCategoryName] = newLevel
+                                if (stall.stallType == StallType.TRAY_RETURN_UNCLE) mutableUpgrades["Rate"] = newLevel
+                                applied = true
+                            }
+                            2 -> {
+                                when (stall.stallType) {
+                                    StallType.SATAY, StallType.DURIAN -> {
+                                        currentCategoryName = "Radius"
+                                        newAoeRadius += 0.2f
+                                        val newLevel = mutableUpgrades.getOrDefault("Radius", 0) + 1
+                                        if (newLevel % 10 == 0) newAoeRadius *= 1.25f
+                                        mutableUpgrades["Radius"] = newLevel
+                                    }
+                                    StallType.TEH_TARIK -> {
+                                        currentCategoryName = "Duration"
+                                        newEffectDuration += 500L
+                                        val newLevel = mutableUpgrades.getOrDefault("Duration", 0) + 1
+                                        if (newLevel % 10 == 0) newEffectDuration = Math.round(newEffectDuration * 1.25)
+                                        mutableUpgrades["Duration"] = newLevel
+                                    }
+                                    StallType.ICE_KACHANG -> {
+                                        currentCategoryName = "Effect"
+                                        newFreezeDuration += 100L
+                                        val newLevel = mutableUpgrades.getOrDefault("Effect", 0) + 1
+                                        if (newLevel % 10 == 0) newFreezeDuration = Math.round(newFreezeDuration * 1.25)
+                                        mutableUpgrades["Effect"] = newLevel
+                                    }
+                                    StallType.CHICKEN_RICE -> {
+                                        currentCategoryName = "Damage"
+                                        newDamage = Math.round(newDamage * 1.15f)
+                                        val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
+                                        if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
+                                        mutableUpgrades["Damage"] = newLevel
+                                    }
+                                    StallType.TRAY_RETURN_UNCLE -> {
+                                        currentCategoryName = "Cleaning Time"
+                                        val newLevel = mutableUpgrades.getOrDefault(currentCategoryName, 0) + 1
+                                        var potentialDuration = stall.effectDurationMs + 100L
+                                        if (newLevel % 10 == 0) potentialDuration = Math.round(potentialDuration * 1.25)
+                                        newEffectDuration = Math.min(4000L, potentialDuration)
+                                        mutableUpgrades["Cleaning Time"] = newLevel
+                                        mutableUpgrades["Duration"] = newLevel
+                                    }
+                                    else -> {
+                                        if (stall.stallType.isUtility) {
+                                            currentCategoryName = "Range"
+                                            newRange += 0.5f
+                                            val newLevel = mutableUpgrades.getOrDefault("Range", 0) + 1
+                                            if (newLevel % 10 == 0) newRange *= 1.25f
+                                            mutableUpgrades["Range"] = newLevel
+                                        }
+                                    }
+                                }
+                                applied = true
                             }
                         }
                     }
-
-                    var newPrefix = stall.legendaryPrefix
-                    var newSuffix = stall.legendarySuffix
-                    val newNamingCategories = stall.namingCategories.toMutableList()
-
-                    val levelOfUpgradedCat = mutableUpgrades[currentCategoryName] ?: 0
-                    if (levelOfUpgradedCat == 10 && !stall.namingCategories.contains(currentCategoryName)) {
-                        val legendaryCat = when(currentCategoryName) {
-                            "Grab Rate" -> "Rate"
-                            "Cleaning Time" -> "Duration"
-                            else -> currentCategoryName
-                        }
-                        if (stall.namingCategories.isEmpty()) {
-                            newSuffix = LegendaryNames.getRandomSuffix(legendaryCat)
-                            newNamingCategories.add(currentCategoryName)
-                        } else if (stall.namingCategories.size == 1) {
-                            newPrefix = LegendaryNames.getRandomPrefix(legendaryCat)
-                            newNamingCategories.add(currentCategoryName)
-                        }
-                    }
-
-                    val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
-
-                    val updatedStall = stall.copy(
-                        name = newName,
-                        damage = newDamage,
-                        range = newRange,
-                        fireRateMs = newFireRate,
-                        aoeRadius = newAoeRadius,
-                        effectDurationMs = newEffectDuration,
-                        freezeDurationMs = newFreezeDuration,
-                        upgradeCount = stall.upgradeCount + 1,
-                        totalInvestment = stall.totalInvestment + upgradeCost,
-                        upgrades = mutableUpgrades,
-                        legendaryPrefix = newPrefix,
-                        legendarySuffix = newSuffix,
-                        namingCategories = newNamingCategories
-                    )
-
-                    val newHexes = state.hexes.toMutableMap()
-                    newHexes[coord] = tile.copy(stall = updatedStall)
-                    return@update state.copy(hexes = newHexes, gold = state.gold - upgradeCost)
                 }
+
+                var newPrefix = stall.legendaryPrefix
+                var newSuffix = stall.legendarySuffix
+                val newNamingCategories = stall.namingCategories.toMutableList()
+
+                val levelOfUpgradedCat = mutableUpgrades[currentCategoryName] ?: 0
+                if (levelOfUpgradedCat == 10 && !stall.namingCategories.contains(currentCategoryName)) {
+                    val legendaryCat = when(currentCategoryName) {
+                        "Grab Rate" -> "Rate"
+                        "Cleaning Time" -> "Duration"
+                        else -> currentCategoryName
+                    }
+                    if (stall.namingCategories.isEmpty()) {
+                        newSuffix = LegendaryNames.getRandomSuffix(legendaryCat)
+                        newNamingCategories.add(currentCategoryName)
+                    } else if (stall.namingCategories.size == 1) {
+                        newPrefix = LegendaryNames.getRandomPrefix(legendaryCat)
+                        newNamingCategories.add(currentCategoryName)
+                    }
+                }
+
+                val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
+
+                var kitchelinStars = state.kitchelinStars
+                var disabledWaves = stall.disabledWaves
+                if (isSpecific) {
+                    if (kitchelinStars > 0) {
+                        kitchelinStars -= 1
+                    } else {
+                        disabledWaves += 1
+                    }
+                }
+
+                val updatedStall = stall.copy(
+                    name = newName,
+                    damage = newDamage,
+                    range = newRange,
+                    fireRateMs = newFireRate,
+                    aoeRadius = newAoeRadius,
+                    effectDurationMs = newEffectDuration,
+                    freezeDurationMs = newFreezeDuration,
+                    upgradeCount = stall.upgradeCount + 1,
+                    totalInvestment = stall.totalInvestment + finalUpgradeCost,
+                    upgrades = mutableUpgrades,
+                    legendaryPrefix = newPrefix,
+                    legendarySuffix = newSuffix,
+                    namingCategories = newNamingCategories,
+                    disabledWaves = disabledWaves
+                )
+
+                val newHexes = state.hexes.toMutableMap()
+                newHexes[coord] = tile.copy(stall = updatedStall)
+                return@update state.copy(hexes = newHexes, gold = state.gold - finalUpgradeCost, kitchelinStars = kitchelinStars)
             }
             state
         }
@@ -1210,6 +1305,24 @@ class MainViewModel @JvmOverloads constructor(
             path = newPath,
             currentPathIndex = 0
         )
+    }
+
+    private fun handleStarAwardedTutorial() {
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.showTutorials && !settings.shownTutorials.contains("kitchelin_star")) {
+                val tutorial = TutorialData(
+                    id = "kitchelin_star",
+                    type = TutorialType.KITCHELIN_STAR,
+                    title = "You’ve got a Kitchelin star!",
+                    description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
+                )
+                _gameState.update { it.copy(activeTutorial = tutorial) }
+                settingsRepository.updateSettings {
+                    it.copy(shownTutorials = it.shownTutorials + "kitchelin_star")
+                }
+            }
+        }
     }
 
     private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {

@@ -1,7 +1,7 @@
 package com.messark.hawker.model
 
 enum class TutorialType {
-    ENEMY, STALL
+    ENEMY, STALL, KITCHELIN_STAR
 }
 
 data class TutorialData(
