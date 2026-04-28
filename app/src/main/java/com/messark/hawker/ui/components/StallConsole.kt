@@ -14,7 +14,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.messark.hawker.R
@@ -110,46 +114,30 @@ fun StallConsole(
                 .width(width * 0.32f)
         ) {
             val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
+            val hungerCategory = when (stall.stallType) {
+                StallType.TEH_TARIK -> "Duration"
+                StallType.ICE_KACHANG -> "Effect"
+                StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
+                else -> "Damage"
+            }
             val hungerValue = when (stall.stallType) {
                 StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
                 StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
                 else -> "${stall.damage}"
             }
+            StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
 
-            StatLine(label = hungerWord, value = hungerValue)
-            StatLine(label = "Range", value = String.format("%.1f", stall.range))
+            StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
 
-            val rateLabel = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
-            StatLine(label = rateLabel, value = String.format("%.1fs", stall.fireRateMs / 1000f))
+            val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+            StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", stall.fireRateMs / 1000f))
+
             if (stall.aoeRadius > 0) {
-                StatLine(label = "Area", value = String.format("%.1f", stall.aoeRadius))
+                StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
             }
+
             // Reduced spacing
             Spacer(modifier = Modifier.height(2.dp))
-
-            // Upgrade details inside STATS box
-            if (stall.upgrades.isNotEmpty()) {
-                val displayUpgrades = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                    stall.upgrades.filterKeys { it != "Rate" && it != "Duration" }
-                } else {
-                    stall.upgrades
-                }
-                displayUpgrades.entries.forEach { (key, value) ->
-                    val benefit = stall.getUpgradeBenefit(key, value)
-                    val label = when(key) {
-                        "Damage" -> "Feed"
-                        else -> key
-                    }
-                    val valueText = if (benefit.isNotEmpty()) "Lvl $value ($benefit)" else "Lvl $value"
-                    StatLine(
-                        label = label,
-                        value = valueText,
-                        labelColor = Color.Blue,
-                        valueColor = Color.Blue
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-            }
 
             val (statLabel, statValue) = when (stall.stallType) {
                 StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
@@ -270,6 +258,23 @@ fun StatLine(
     value: String,
     labelColor: Color = Color.Black,
     valueColor: Color = Color.Black,
+    labelOffset: androidx.compose.ui.unit.Dp = 12.dp
+) {
+    StatLine(
+        label = buildAnnotatedString { append(label) },
+        value = value,
+        labelColor = labelColor,
+        valueColor = valueColor,
+        labelOffset = labelOffset
+    )
+}
+
+@Composable
+fun StatLine(
+    label: AnnotatedString,
+    value: String,
+    labelColor: Color = Color.Black,
+    valueColor: Color = Color.Black,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
 ) {
     Row(
@@ -278,7 +283,10 @@ fun StatLine(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "$label:",
+            text = buildAnnotatedString {
+                append(label)
+                append(":")
+            },
             color = labelColor,
             fontSize = 9.sp,
             lineHeight = 9.sp,
@@ -291,5 +299,27 @@ fun StatLine(
             lineHeight = 9.sp,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+fun buildInlinedLabel(
+    stall: Stall,
+    label: String,
+    category: String
+): AnnotatedString {
+    val level = stall.upgrades.getOrDefault(category, 0)
+    val benefit = if (level > 0) stall.getUpgradeBenefit(category, level) else ""
+
+    return buildAnnotatedString {
+        append(label)
+        if (level > 0) {
+            append(" ")
+            withStyle(style = SpanStyle(color = Color.Blue)) {
+                append("$level")
+                if (benefit.isNotEmpty()) {
+                    append(" ($benefit)")
+                }
+            }
+        }
     }
 }
