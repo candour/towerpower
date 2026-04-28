@@ -50,7 +50,7 @@ fun UpgradeOverlay(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = Color(0xFFF5F5DC), // Cream background
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .padding(32.dp)
@@ -64,7 +64,7 @@ fun UpgradeOverlay(
             ) {
                 Text(
                     text = "UPGRADE ${stall.name.uppercase()}",
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )
@@ -72,14 +72,14 @@ fun UpgradeOverlay(
                 if (kitchelinStars > 0) {
                     Text(
                         text = "You have $kitchelinStars Kitchelin Star${if (kitchelinStars > 1) "s" else ""}. Specific upgrades will consume 1 star instead of shutting down the stall.",
-                        color = Color(0xFF5D4037),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 } else {
                     Text(
                         text = "Warning: Specific upgrades will shut down this stall for the next wave!",
-                        color = Color.Red,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         fontWeight = FontWeight.Bold
@@ -98,7 +98,12 @@ fun UpgradeOverlay(
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Specific Upgrades", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    text = "Specific Upgrades",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
 
                 // Specific Upgrade Buttons
                 availableStats.forEach { stat ->
@@ -115,7 +120,7 @@ fun UpgradeOverlay(
 
                 Text(
                     text = "Tap anywhere outside to cancel",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -132,7 +137,7 @@ fun UpgradeButton(
     onClick: () -> Unit
 ) {
     Surface(
-        color = if (enabled) Color(0xFF4CAF50) else Color.Gray,
+        color = if (enabled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier
             .fillMaxWidth()
