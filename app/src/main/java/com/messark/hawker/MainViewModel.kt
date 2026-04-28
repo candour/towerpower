@@ -747,7 +747,8 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
 
-                if (currentHealth <= 0) {
+                val finalHealthInt = currentHealth.toInt()
+                if (finalHealthInt <= 0) {
                     updatedGold += enemy.reward
                     updatedScore += enemy.reward
                     val currentTime = System.currentTimeMillis()
@@ -759,7 +760,7 @@ class MainViewModel @JvmOverloads constructor(
                     }
                     enemy.copy(health = 0, isDead = true)
                 } else {
-                    enemy.copy(health = currentHealth.toInt(), freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
+                    enemy.copy(health = finalHealthInt, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
                 }
             } else enemy
         }.filter { !it.isDead }.map { e ->
