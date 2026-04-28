@@ -28,6 +28,7 @@ object SpriteConstants {
     const val ENEMY_SPRITE_FRAMES = 3
 
     val FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
+    val FX_CONE_RECT = IntRect(1150, 679, 1214, 741)
 
     // Buttons (from drawable-nodpi/buttons.png)
     val BTN_RESUME_RECT = IntRect(0, 1, 350, 96)

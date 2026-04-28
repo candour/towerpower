@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
 import com.messark.hawker.model.AppScreen
 import com.messark.hawker.model.HighScore
 import com.messark.hawker.model.Settings
@@ -636,9 +637,11 @@ fun GameScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         repeat(minOf(gameState.kitchelinStars, 5)) {
-                            Text(
-                                text = "⭐",
-                                fontSize = 24.sp
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Kitchelin Star",
+                                tint = Color.Yellow,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }

@@ -277,14 +277,9 @@ fun GameBoard(
                             )
 
                             if (stall.disabledWaves > 0) {
-                                // Orange cone sprite from sprite_sheet.png
-                                // Right to the teh tarik puddle: FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
-                                // Distance between puddles is usually constant, or it's just next to it.
-                                // I'll use the provided info: "orange cone sprite just to the right of the teh tarik puddle, same size"
-                                val coneRect = IntRect(1150, 679, 1214, 741) // Adjusted based on puddle rect
                                 val coneScale = wPx / 101f
                                 drawSprite(
-                                    srcRect = coneRect,
+                                    srcRect = SpriteConstants.FX_CONE_RECT,
                                     destCenter = screenPos,
                                     destSize = Size(64f * coneScale, 62f * coneScale),
                                     anchor = Offset(0.5f, 0.5f),
