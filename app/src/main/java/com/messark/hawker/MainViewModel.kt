@@ -749,7 +749,8 @@ class MainViewModel @JvmOverloads constructor(
 
                 val finalHealthInt = currentHealth.toInt()
                 if (finalHealthInt <= 0) {
-                    updatedGold += enemy.reward
+                    val bonusGold = (enemy.reward * (state.kitchelinStars * 0.05f)).toInt()
+                    updatedGold += enemy.reward + bonusGold
                     updatedScore += enemy.reward
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastHapticTimeMs >= 1000) {
@@ -926,7 +927,11 @@ class MainViewModel @JvmOverloads constructor(
 
             val baseStall = _availableStalls.value.find { it.stallType == stall.stallType } ?: stall
             val baseUpgradeCost = stall.getUpgradeCost()
-            val finalUpgradeCost = if (isSpecific) baseUpgradeCost * 2 else baseUpgradeCost
+            val finalUpgradeCost = if (isSpecific) {
+                if (state.kitchelinStars > 0) 0 else baseUpgradeCost * 2
+            } else {
+                baseUpgradeCost
+            }
 
             if (state.gold >= finalUpgradeCost) {
                 val stallDef = StallRegistry.get(stall.stallType)
