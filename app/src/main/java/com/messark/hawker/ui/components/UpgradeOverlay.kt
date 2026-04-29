@@ -28,7 +28,7 @@ fun UpgradeOverlay(
     onTriggerHaptic: () -> Unit
 ) {
     val baseUpgradeCost = stall.getUpgradeCost()
-    val specificUpgradeCost = baseUpgradeCost * 2
+    val specificUpgradeCost = if (kitchelinStars > 0) 0 else baseUpgradeCost * 2
 
     val availableStats = when (stall.stallType) {
         StallType.CHICKEN_RICE -> listOf("Damage", "Range", "Rate")
