@@ -74,7 +74,7 @@ class KitchelinBonusTest {
         viewModel._gameState.value = viewModel._gameState.value.copy(projectiles = listOf(projectile))
 
         // Trigger projectile handling via updateGame which calls handleProjectiles
-        viewModel.updateGame(System.currentTimeMillis())
+        viewModel.updateGame(1000L)
 
         // Reward (100) + Bonus (2 * 5% * 100 = 10) = 110
         // Initial gold (500) + 110 = 610
@@ -148,7 +148,7 @@ class KitchelinBonusTest {
         )
 
         viewModel._gameState.value = viewModel._gameState.value.copy(projectiles = listOf(projectile))
-        viewModel.updateGame(System.currentTimeMillis())
+        viewModel.updateGame(1000L)
 
         // Reward 25 + floor(25 * 0.05) = 25 + 1 = 26
         assertEquals(26, viewModel.gameState.value.gold)
