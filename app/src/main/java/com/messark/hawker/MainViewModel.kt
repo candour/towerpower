@@ -949,7 +949,7 @@ class MainViewModel @JvmOverloads constructor(
                     currentCategoryName = specificStat
                     when (specificStat) {
                         "Damage" -> {
-                            newDamage = Math.round(newDamage * 1.15f)
+                            newDamage = Math.round(newDamage * 1.2f)
                             val newLevel = mutableUpgrades.getOrDefault("Damage", 0) + 1
                             if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
                             mutableUpgrades["Damage"] = newLevel
