@@ -8,6 +8,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -39,9 +40,30 @@ class KitchelinBonusTest {
     }
 
     @Test
-    fun testGoldBonusFromKitchelinStars() {
-        // Setup state with 2 stars and 500 gold
+    fun testBudgetBonusFromStarAction() {
+        // Setup state with 1 star
         val coord = AxialCoordinate(0, 0)
+
+        viewModel._gameState.update { it.copy(
+            gold = 500,
+            kitchelinStars = 1,
+            hexes = mapOf(coord to HexTile(coord)),
+            waveActive = false,
+            enemies = emptyList(),
+            projectiles = emptyList(),
+            goldEarnedThisWave = 0,
+            activeBudgetBonuses = 0
+        ) }
+
+        // Choose Budget Bonus action
+        viewModel.chooseBudgetBonus()
+        assertEquals(0, viewModel.gameState.value.kitchelinStars)
+        assertEquals(1, viewModel.gameState.value.activeBudgetBonuses)
+
+        // Start wave
+        viewModel.startWave()
+        testDispatcher.scheduler.advanceUntilIdle()
+
         val enemy = Enemy(
             id = "test-enemy",
             health = 10,
@@ -50,13 +72,7 @@ class KitchelinBonusTest {
             reward = 100,
             path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1))
         )
-
-        viewModel._gameState.value = GameState(
-            gold = 500,
-            kitchelinStars = 2,
-            enemies = listOf(enemy),
-            hexes = mapOf(coord to HexTile(coord))
-        )
+        viewModel._gameState.update { it.copy(enemies = listOf(enemy), waveActive = true, enemiesToSpawn = 0) }
 
         // Simulate projectile hitting enemy and killing it
         val projectile = Projectile(
@@ -71,18 +87,27 @@ class KitchelinBonusTest {
             speed = 10.0f // Ensure it hits
         )
 
-        viewModel._gameState.value = viewModel._gameState.value.copy(projectiles = listOf(projectile))
+        viewModel._gameState.update { it.copy(projectiles = listOf(projectile)) }
 
-        // Trigger projectile handling via updateGame which calls handleProjectiles
+        // Trigger projectile handling
         viewModel.updateGame(1000L)
 
-        // Reward (100) + Bonus (2 * 5% * 100 = 10) = 110
-        // Initial gold (500) + 110 = 610
+        // Gold should be 600 (500 + 100) now, but bonus not yet awarded
+        assertEquals(600, viewModel.gameState.value.gold)
+        assertEquals(100, viewModel.gameState.value.goldEarnedThisWave)
+
+        // End wave
+        viewModel._gameState.update { it.copy(enemies = emptyList(), enemiesToSpawn = 0, waveActive = true) }
+        viewModel.updateGame(2000L)
+
+        // Bonus should be 10% of 100 = 10
+        // Total gold = 600 + 10 = 610
         assertEquals(610, viewModel.gameState.value.gold)
+        assertEquals(0, viewModel.gameState.value.activeBudgetBonuses)
     }
 
     @Test
-    fun testFreeSpecificUpgradeWithStar() {
+    fun testFreeSpecificUpgradeAction() {
         val coord = AxialCoordinate(2, 2)
         val stall = Stall(
             id = "stall-1",
@@ -93,64 +118,86 @@ class KitchelinBonusTest {
             totalInvestment = 100
         )
 
-        viewModel._gameState.value = GameState(
-            gold = 50, // Not enough for regular specific upgrade ($200)
-            kitchelinStars = 1,
+        viewModel._gameState.update { it.copy(
+            gold = 50,
+            kitchelinStars = 2,
             selectedBoardStall = coord,
-            hexes = mapOf(coord to HexTile(coord, stall = stall))
-        )
+            hexes = mapOf(coord to HexTile(coord, stall = stall)),
+            waveActive = false,
+            freeSpecificUpgrades = 0
+        ) }
 
-        // Apply specific upgrade
+        // Choose Free Upgrade action twice
+        viewModel.chooseFreeUpgrade()
+        viewModel.chooseFreeUpgrade()
+        assertEquals(0, viewModel.gameState.value.kitchelinStars)
+        assertEquals(2, viewModel.gameState.value.freeSpecificUpgrades)
+
+        // Apply first specific upgrade
         viewModel.upgradeStallSpecifically("Damage")
 
-        val newState = viewModel.gameState.value
-        val updatedStall = newState.hexes[coord]?.stall!!
+        var newState = viewModel.gameState.value
+        var updatedStall = newState.hexes[coord]?.stall!!
 
         // Gold should still be 50
         assertEquals(50, newState.gold)
-        // Stars should be 0
-        assertEquals(0, newState.kitchelinStars)
+        // freeSpecificUpgrades should be 1 now
+        assertEquals(1, newState.freeSpecificUpgrades)
         // Upgrade count should be 1
         assertEquals(1, updatedStall.upgradeCount)
-        // Total investment should still be 100 (since it was free)
-        assertEquals(100, updatedStall.totalInvestment)
+        // Should NOT be disabled
+        assertEquals(0, updatedStall.disabledWaves)
+
+        // Apply second specific upgrade
+        viewModel.upgradeStallSpecifically("Range")
+
+        newState = viewModel.gameState.value
+        updatedStall = newState.hexes[coord]?.stall!!
+
+        assertEquals(50, newState.gold)
+        assertEquals(0, newState.freeSpecificUpgrades)
+        assertEquals(2, updatedStall.upgradeCount)
+        assertEquals(0, updatedStall.disabledWaves)
     }
 
     @Test
-    fun testGoldBonusRoundingDown() {
-        // Reward 25, 1 star = 5% of 25 = 1.25 -> 1
-
+    fun testStackedBudgetBonuses() {
         val coord = AxialCoordinate(0, 0)
-        val enemy = Enemy(
-            id = "test-enemy",
-            health = 10,
-            maxHealth = 10,
-            position = PreciseAxialCoordinate(0f, 0f),
-            reward = 25,
-            path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1))
-        )
 
-        viewModel._gameState.value = GameState(
+        viewModel._gameState.update { it.copy(
             gold = 0,
-            kitchelinStars = 1,
-            enemies = listOf(enemy),
-            hexes = mapOf(coord to HexTile(coord))
-        )
+            kitchelinStars = 2,
+            hexes = mapOf(coord to HexTile(coord)),
+            waveActive = false,
+            enemies = emptyList(),
+            projectiles = emptyList(),
+            goldEarnedThisWave = 0,
+            activeBudgetBonuses = 0
+        ) }
 
-        val projectile = Projectile(
-            id = "test-proj",
-            position = PreciseAxialCoordinate(0f, 0f),
-            targetEnemyId = "test-enemy",
-            targetPosition = PreciseAxialCoordinate(0f, 0f),
-            damage = 100,
-            color = androidx.compose.ui.graphics.Color.Red,
-            speed = 10.0f // Ensure it hits
-        )
+        // Choose Budget Bonus twice
+        viewModel.chooseBudgetBonus()
+        viewModel.chooseBudgetBonus()
+        assertEquals(0, viewModel.gameState.value.kitchelinStars)
+        assertEquals(2, viewModel.gameState.value.activeBudgetBonuses)
 
-        viewModel._gameState.value = viewModel._gameState.value.copy(projectiles = listOf(projectile))
+        // Start wave and earn gold
+        viewModel.startWave()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val enemy = Enemy(id = "e1", health = 1, maxHealth = 1, position = PreciseAxialCoordinate(0f, 0f), reward = 100, path = listOf(AxialCoordinate(0,0)))
+        viewModel._gameState.update { it.copy(enemies = listOf(enemy), waveActive = true, enemiesToSpawn = 0) }
+
+        val projectile = Projectile(id = "p1", position = PreciseAxialCoordinate(0f, 0f), targetEnemyId = "e1", targetPosition = PreciseAxialCoordinate(0f, 0f), damage = 10, color = androidx.compose.ui.graphics.Color.Red)
+        viewModel._gameState.update { it.copy(projectiles = listOf(projectile)) }
         viewModel.updateGame(1000L)
 
-        // Reward 25 + floor(25 * 0.05) = 25 + 1 = 26
-        assertEquals(26, viewModel.gameState.value.gold)
+        assertEquals(100, viewModel.gameState.value.gold)
+
+        // End wave
+        viewModel._gameState.update { it.copy(enemies = emptyList(), enemiesToSpawn = 0, waveActive = true) }
+        viewModel.updateGame(2000L)
+
+        // Bonus: 2 * 10% * 100 = 20
+        assertEquals(120, viewModel.gameState.value.gold)
     }
 }

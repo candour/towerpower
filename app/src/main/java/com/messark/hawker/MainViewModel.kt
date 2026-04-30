@@ -122,6 +122,8 @@ class MainViewModel @JvmOverloads constructor(
         val currentState = _gameState.value
         if (currentState.waveActive || currentState.activeTutorial != null) return
 
+        _gameState.update { it.copy(goldEarnedThisWave = 0, showBonusMessage = false) }
+
         val newWave = currentState.currentWave + 1
         val enemyList = generateEnemyList(newWave)
 
@@ -288,6 +290,7 @@ class MainViewModel @JvmOverloads constructor(
      */
     internal fun updateGame(currentTimeMs: Long) {
         var starAwardedOutside = false
+        var bonusAwardedOutside = 0
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
             var newState = state
@@ -317,6 +320,11 @@ class MainViewModel @JvmOverloads constructor(
                 starAwardedOutside = starAwarded
                 val nextStars = if (starAwarded) newState.kitchelinStars + 1 else newState.kitchelinStars
 
+                val bonusBudget = if (newState.activeBudgetBonuses > 0) {
+                    (newState.goldEarnedThisWave * (0.10f * newState.activeBudgetBonuses)).toInt()
+                } else 0
+                bonusAwardedOutside = bonusBudget
+
                 // Decrement disabledWaves for all stalls
                 val updatedHexes = newState.hexes.mapValues { (_, tile) ->
                     tile.stall?.let { stall ->
@@ -330,7 +338,11 @@ class MainViewModel @JvmOverloads constructor(
                     waveActive = false,
                     isBossWave = false,
                     kitchelinStars = nextStars,
-                    hexes = updatedHexes
+                    hexes = updatedHexes,
+                    gold = newState.gold + bonusBudget,
+                    lastWaveBonusGold = bonusBudget,
+                    showBonusMessage = bonusBudget > 0,
+                    activeBudgetBonuses = 0
                 )
                 gameStateRepository.saveGameState(newState)
             }
@@ -345,6 +357,12 @@ class MainViewModel @JvmOverloads constructor(
 
         if (starAwardedOutside) {
             handleStarAwardedTutorial()
+        }
+        if (bonusAwardedOutside > 0) {
+            viewModelScope.launch {
+                delay(3000)
+                _gameState.update { it.copy(showBonusMessage = false) }
+            }
         }
     }
 
@@ -749,8 +767,7 @@ class MainViewModel @JvmOverloads constructor(
 
                 val finalHealthInt = currentHealth.toInt()
                 if (finalHealthInt <= 0) {
-                    val bonusGold = (enemy.reward * (state.kitchelinStars * 0.05f)).toInt()
-                    updatedGold += enemy.reward + bonusGold
+                    updatedGold += enemy.reward
                     updatedScore += enemy.reward
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastHapticTimeMs >= 1000) {
@@ -781,7 +798,8 @@ class MainViewModel @JvmOverloads constructor(
             projectiles = finalProjectiles,
             visualEffects = newVisualEffects,
             gold = updatedGold,
-            score = updatedScore
+            score = updatedScore,
+            goldEarnedThisWave = state.goldEarnedThisWave + (updatedGold - state.gold)
         )
     }
 
@@ -909,6 +927,40 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(showUpgradeOverlay = false) }
     }
 
+    fun openStarActionOverlay() {
+        if (!_gameState.value.waveActive && _gameState.value.kitchelinStars > 0) {
+            _gameState.update { it.copy(showStarActionOverlay = true) }
+        }
+    }
+
+    fun dismissStarActionOverlay() {
+        _gameState.update { it.copy(showStarActionOverlay = false) }
+    }
+
+    fun chooseBudgetBonus() {
+        _gameState.update {
+            if (it.kitchelinStars > 0) {
+                it.copy(
+                    kitchelinStars = it.kitchelinStars - 1,
+                    activeBudgetBonuses = it.activeBudgetBonuses + 1,
+                    showStarActionOverlay = false
+                )
+            } else it
+        }
+    }
+
+    fun chooseFreeUpgrade() {
+        _gameState.update {
+            if (it.kitchelinStars > 0) {
+                it.copy(
+                    kitchelinStars = it.kitchelinStars - 1,
+                    freeSpecificUpgrades = it.freeSpecificUpgrades + 1,
+                    showStarActionOverlay = false
+                )
+            } else it
+        }
+    }
+
     fun upgradeStallRandomly() {
         applyUpgrade(isSpecific = false)
         dismissUpgradeOverlay()
@@ -928,7 +980,7 @@ class MainViewModel @JvmOverloads constructor(
             val baseStall = _availableStalls.value.find { it.stallType == stall.stallType } ?: stall
             val baseUpgradeCost = stall.getUpgradeCost()
             val finalUpgradeCost = if (isSpecific) {
-                if (state.kitchelinStars > 0) 0 else baseUpgradeCost * 2
+                if (state.freeSpecificUpgrades > 0) 0 else baseUpgradeCost * 2
             } else {
                 baseUpgradeCost
             }
@@ -1148,11 +1200,11 @@ class MainViewModel @JvmOverloads constructor(
 
                 val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
 
-                var kitchelinStars = state.kitchelinStars
+                var freeUpgradesLeft = state.freeSpecificUpgrades
                 var disabledWaves = stall.disabledWaves
                 if (isSpecific) {
-                    if (kitchelinStars > 0) {
-                        kitchelinStars -= 1
+                    if (freeUpgradesLeft > 0) {
+                        freeUpgradesLeft -= 1
                     } else {
                         disabledWaves += 1
                     }
@@ -1177,7 +1229,11 @@ class MainViewModel @JvmOverloads constructor(
 
                 val newHexes = state.hexes.toMutableMap()
                 newHexes[coord] = tile.copy(stall = updatedStall)
-                return@update state.copy(hexes = newHexes, gold = state.gold - finalUpgradeCost, kitchelinStars = kitchelinStars)
+                return@update state.copy(
+                    hexes = newHexes,
+                    gold = state.gold - finalUpgradeCost,
+                    freeSpecificUpgrades = freeUpgradesLeft
+                )
             }
             state
         }
@@ -1321,7 +1377,7 @@ class MainViewModel @JvmOverloads constructor(
                     id = "kitchelin_star",
                     type = TutorialType.KITCHELIN_STAR,
                     title = "You’ve got a Kitchelin star!",
-                    description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
+                    description = "Kitchelin stars are awarded occasionally. Tap the stars in the top-left between waves to choose a powerful bonus action!"
                 )
                 _gameState.update { it.copy(activeTutorial = tutorial) }
                 settingsRepository.updateSettings {

@@ -45,6 +45,7 @@ import com.messark.hawker.model.HighScore
 import com.messark.hawker.model.Settings
 import com.messark.hawker.ui.components.GameBoard
 import com.messark.hawker.ui.components.GameControlPanel
+import com.messark.hawker.ui.components.StarActionOverlay
 import com.messark.hawker.ui.components.TutorialOverlay
 import com.messark.hawker.ui.components.UpgradeOverlay
 import com.messark.hawker.ui.constants.LayoutConstants
@@ -633,7 +634,11 @@ fun GameScreen(
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(16.dp),
+                            .padding(16.dp)
+                            .clickable(enabled = !gameState.waveActive && gameState.kitchelinStars > 0) {
+                                viewModel.triggerHaptic()
+                                viewModel.openStarActionOverlay()
+                            },
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         repeat(minOf(gameState.kitchelinStars, 5)) {
@@ -643,6 +648,44 @@ fun GameScreen(
                                 tint = Color.Yellow,
                                 modifier = Modifier.size(24.dp)
                             )
+                        }
+                    }
+
+                    // Bonus Gold Message
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = gameState.showBonusMessage,
+                        enter = fadeIn() + slideInVertically(),
+                        exit = fadeOut() + slideOutVertically(),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                repeat(3) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color.Yellow,
+                                        modifier = Modifier.size(20.dp).padding(2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "+$${gameState.lastWaveBonusGold} Star Bonus!",
+                                color = Color.Yellow,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 32.sp,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                repeat(3) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color.Yellow,
+                                        modifier = Modifier.size(20.dp).padding(2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -686,6 +729,7 @@ fun GameScreen(
                             stall = stall,
                             gold = gameState.gold,
                             kitchelinStars = gameState.kitchelinStars,
+                            freeUpgradeCount = gameState.freeSpecificUpgrades,
                             onUpgradeRandom = { viewModel.upgradeStallRandomly() },
                             onUpgradeSpecific = { viewModel.upgradeStallSpecifically(it) },
                             onDismiss = { viewModel.dismissUpgradeOverlay() },
@@ -693,6 +737,16 @@ fun GameScreen(
                         )
                     }
                 }
+            }
+
+            if (gameState.showStarActionOverlay) {
+                StarActionOverlay(
+                    kitchelinStars = gameState.kitchelinStars,
+                    onChooseBudgetBonus = { viewModel.chooseBudgetBonus() },
+                    onChooseFreeUpgrade = { viewModel.chooseFreeUpgrade() },
+                    onDismiss = { viewModel.dismissStarActionOverlay() },
+                    onTriggerHaptic = { viewModel.triggerHaptic() }
+                )
             }
 
             if (gameState.health <= 0) {
