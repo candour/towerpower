@@ -114,8 +114,9 @@ fun StallConsole(
                 .offset(x = (width * 0.08f), y = (height * 0.42f))
                 .width(width * 0.32f)
         ) {
-            if (stall.stallType == StallType.ATM) {
-                StatLine(label = "Pays", value = "$100")
+             val stallDef = StallRegistry.get(stall.stallType)
+             if (stallDef.passiveIncome > 0) {
+                 StatLine(label = "Pays", value = "$${stallDef.passiveIncome}")
             } else {
                 val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
                 val hungerCategory = when (stall.stallType) {

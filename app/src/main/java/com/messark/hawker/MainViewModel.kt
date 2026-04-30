@@ -338,18 +338,22 @@ class MainViewModel @JvmOverloads constructor(
                 var atmGold = 0
                 val atmEffects = mutableListOf<VisualEffect>()
                 updatedHexes.forEach { (coord, tile) ->
-                    if (tile.stall?.stallType == StallType.ATM) {
-                        atmGold += 100
-                        atmEffects.add(
-                            VisualEffect(
-                                id = UUID.randomUUID().toString(),
-                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
-                                color = Color.Green,
-                                startTimeMs = currentTimeMs,
-                                durationMs = 1000L,
-                                type = VisualEffectType.MONEY_SPRAY
+                    val stall = tile.stall
+                    if (stall != null) {
+                        val stallDef = StallRegistry.get(stall.stallType)
+                        if (stallDef.passiveIncome > 0) {
+                            atmGold += stallDef.passiveIncome
+                            atmEffects.add(
+                                VisualEffect(
+                                    id = UUID.randomUUID().toString(),
+                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    color = Color.Green,
+                                    startTimeMs = currentTimeMs,
+                                    durationMs = 1000L,
+                                    type = VisualEffectType.MONEY_SPRAY
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
