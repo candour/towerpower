@@ -1377,7 +1377,7 @@ class MainViewModel @JvmOverloads constructor(
                     id = "kitchelin_star",
                     type = TutorialType.KITCHELIN_STAR,
                     title = "You’ve got a Kitchelin star!",
-                    description = "Kitchelin stars are awarded occasionally and can be used to upgrade stalls between waves without having to spend a wave being renovated."
+                    description = "Kitchelin stars are awarded occasionally. Tap the stars in the top-left between waves to choose a powerful bonus action!"
                 )
                 _gameState.update { it.copy(activeTutorial = tutorial) }
                 settingsRepository.updateSettings {
