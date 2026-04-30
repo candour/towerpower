@@ -334,15 +334,39 @@ class MainViewModel @JvmOverloads constructor(
                     } ?: tile
                 }
 
+                // Collect ATM income
+                var atmGold = 0
+                val atmEffects = mutableListOf<VisualEffect>()
+                updatedHexes.forEach { (coord, tile) ->
+                    val stall = tile.stall
+                    if (stall != null) {
+                        val stallDef = StallRegistry.get(stall.stallType)
+                        if (stallDef.passiveIncome > 0) {
+                            atmGold += stallDef.passiveIncome
+                            atmEffects.add(
+                                VisualEffect(
+                                    id = UUID.randomUUID().toString(),
+                                    position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                    color = Color.Green,
+                                    startTimeMs = currentTimeMs,
+                                    durationMs = 1000L,
+                                    type = VisualEffectType.MONEY_SPRAY
+                                )
+                            )
+                        }
+                    }
+                }
+
                 newState = newState.copy(
                     waveActive = false,
                     isBossWave = false,
                     kitchelinStars = nextStars,
                     hexes = updatedHexes,
-                    gold = newState.gold + bonusBudget,
+                    gold = newState.gold + bonusBudget + atmGold,
                     lastWaveBonusGold = bonusBudget,
                     showBonusMessage = bonusBudget > 0,
-                    activeBudgetBonuses = 0
+                    activeBudgetBonuses = 0,
+                    visualEffects = newState.visualEffects + atmEffects
                 )
                 gameStateRepository.saveGameState(newState)
             }
@@ -606,7 +630,7 @@ class MainViewModel @JvmOverloads constructor(
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
-            if (stall != null && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+            if (stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
                     !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range

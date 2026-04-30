@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -59,7 +60,7 @@ fun StallConsole(
         // BUDGET
         OutlinedText(
             text = "$gold",
-            fillColor = Color(0xFF00FF00), // Bright Green
+            fillColor = Color(0xFF00FF00), // Bright Green - budget is usually highlighted this way in game UIs
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
@@ -98,7 +99,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = stall.name.uppercase(),
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -113,39 +114,44 @@ fun StallConsole(
                 .offset(x = (width * 0.08f), y = (height * 0.42f))
                 .width(width * 0.32f)
         ) {
-            val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
-            val hungerCategory = when (stall.stallType) {
-                StallType.TEH_TARIK -> "Duration"
-                StallType.ICE_KACHANG -> "Effect"
-                StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
-                else -> "Damage"
+             val stallDef = StallRegistry.get(stall.stallType)
+             if (stallDef.passiveIncome > 0) {
+                 StatLine(label = "Pays", value = "$${stallDef.passiveIncome}")
+            } else {
+                val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
+                val hungerCategory = when (stall.stallType) {
+                    StallType.TEH_TARIK -> "Duration"
+                    StallType.ICE_KACHANG -> "Effect"
+                    StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
+                    else -> "Damage"
+                }
+                val hungerValue = when (stall.stallType) {
+                    StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
+                    StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
+                    else -> "${stall.damage}"
+                }
+                StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
+
+                StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
+
+                val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", stall.fireRateMs / 1000f))
+
+                if (stall.aoeRadius > 0) {
+                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
+                }
+
+                // Reduced spacing
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val (statLabel, statValue) = when (stall.stallType) {
+                    StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
+                    StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
+                    StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
+                    else -> "People Fed" to stall.kills
+                }
+                StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF4CAF50)) // Themed Green
             }
-            val hungerValue = when (stall.stallType) {
-                StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
-                StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
-                else -> "${stall.damage}"
-            }
-            StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
-
-            StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
-
-            val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
-            StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", stall.fireRateMs / 1000f))
-
-            if (stall.aoeRadius > 0) {
-                StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
-            }
-
-            // Reduced spacing
-            Spacer(modifier = Modifier.height(2.dp))
-
-            val (statLabel, statValue) = when (stall.stallType) {
-                StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
-                StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
-                StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
-                else -> "People Fed" to stall.kills
-            }
-            StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF00AA00))
         }
 
         // BUTTONS (Transparent Clickables)
@@ -167,7 +173,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = "$${(stall.totalInvestment * 0.5f).toInt()}",
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
@@ -182,7 +188,7 @@ fun StallConsole(
                 .width(width * 0.46f)
                 .height(height * 0.13f)
                 .clickable(
-                    enabled = canAffordUpgrade,
+                    enabled = canAffordUpgrade && stall.stallType != StallType.ATM,
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
@@ -190,13 +196,23 @@ fun StallConsole(
                     onUpgrade()
                 }
         ) {
-            OutlinedText(
-                text = "$$upgradeCost",
-                fillColor = if (canAffordUpgrade) Color(0xFF00FF00) else Color.Red,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
-            )
+            if (stall.stallType != StallType.ATM) {
+                OutlinedText(
+                    text = "$$upgradeCost",
+                    fillColor = if (canAffordUpgrade) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                )
+            } else {
+                OutlinedText(
+                    text = "MAXED",
+                    fillColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                )
+            }
         }
 
         // TARGET BUTTON
@@ -216,7 +232,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = stall.targetMode.name,
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -256,8 +272,8 @@ fun StallConsole(
 fun StatLine(
     label: String,
     value: String,
-    labelColor: Color = Color.Black,
-    valueColor: Color = Color.Black,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp
 ) {
     StatLine(
@@ -273,8 +289,8 @@ fun StatLine(
 fun StatLine(
     label: AnnotatedString,
     value: String,
-    labelColor: Color = Color.Black,
-    valueColor: Color = Color.Black,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
 ) {
     Row(

@@ -12,6 +12,7 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 | **Ice Kachang** | 0 | 1500 | 0.67 | 0.00 | 3.5 | 0.5s Freeze duration | $250 |
 | **Durian** | 150 | 2000 | 0.50 | 75.00 | 3.0 | AOE Radius: 1.0 | $300 |
 | **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Grabs/Holds customers for 2s | $450 |
+| **ATM** | 0 | N/A | 0.00 | 0.00 | 0.0 | Provides $100 every wave | $1000 |
 
 ---
 
