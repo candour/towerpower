@@ -405,7 +405,7 @@ fun GameBoard(
                                 val random = kotlin.random.Random(effect.id.hashCode().toLong())
                                 drawIntoCanvas { canvas ->
                                     val paint = android.graphics.Paint().apply {
-                                        color = android.graphics.Color.GREEN
+                                        color = effect.color.toArgb()
                                         textSize = 18.dp.toPx()
                                         alpha = (fraction * 255).toInt()
                                         isFakeBoldText = true

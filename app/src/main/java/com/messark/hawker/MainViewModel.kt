@@ -626,7 +626,7 @@ class MainViewModel @JvmOverloads constructor(
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
-            if (stall != null && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
+            if (stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
                     !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range

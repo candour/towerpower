@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -59,7 +60,7 @@ fun StallConsole(
         // BUDGET
         OutlinedText(
             text = "$gold",
-            fillColor = Color(0xFF00FF00), // Bright Green
+            fillColor = Color(0xFF00FF00), // Bright Green - budget is usually highlighted this way in game UIs
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
@@ -98,7 +99,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = stall.name.uppercase(),
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -148,7 +149,7 @@ fun StallConsole(
                     StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
                     else -> "People Fed" to stall.kills
                 }
-                StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF00AA00))
+                StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF4CAF50)) // Themed Green
             }
         }
 
@@ -171,7 +172,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = "$${(stall.totalInvestment * 0.5f).toInt()}",
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
@@ -197,7 +198,7 @@ fun StallConsole(
             if (stall.stallType != StallType.ATM) {
                 OutlinedText(
                     text = "$$upgradeCost",
-                    fillColor = if (canAffordUpgrade) Color(0xFF00FF00) else Color.Red,
+                    fillColor = if (canAffordUpgrade) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
@@ -205,7 +206,7 @@ fun StallConsole(
             } else {
                 OutlinedText(
                     text = "MAXED",
-                    fillColor = Color.Gray,
+                    fillColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
@@ -230,7 +231,7 @@ fun StallConsole(
         ) {
             OutlinedText(
                 text = stall.targetMode.name,
-                fillColor = Color.White,
+                fillColor = MaterialTheme.colorScheme.onSurface,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -270,8 +271,8 @@ fun StallConsole(
 fun StatLine(
     label: String,
     value: String,
-    labelColor: Color = Color.Black,
-    valueColor: Color = Color.Black,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp
 ) {
     StatLine(
@@ -287,8 +288,8 @@ fun StatLine(
 fun StatLine(
     label: AnnotatedString,
     value: String,
-    labelColor: Color = Color.Black,
-    valueColor: Color = Color.Black,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
 ) {
     Row(
