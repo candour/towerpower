@@ -113,39 +113,43 @@ fun StallConsole(
                 .offset(x = (width * 0.08f), y = (height * 0.42f))
                 .width(width * 0.32f)
         ) {
-            val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
-            val hungerCategory = when (stall.stallType) {
-                StallType.TEH_TARIK -> "Duration"
-                StallType.ICE_KACHANG -> "Effect"
-                StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
-                else -> "Damage"
+            if (stall.stallType == StallType.ATM) {
+                StatLine(label = "Pays", value = "$100")
+            } else {
+                val hungerWord = if (stall.stallType.isUtility) "Effect" else "Feed"
+                val hungerCategory = when (stall.stallType) {
+                    StallType.TEH_TARIK -> "Duration"
+                    StallType.ICE_KACHANG -> "Effect"
+                    StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
+                    else -> "Damage"
+                }
+                val hungerValue = when (stall.stallType) {
+                    StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
+                    StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
+                    else -> "${stall.damage}"
+                }
+                StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
+
+                StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
+
+                val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", stall.fireRateMs / 1000f))
+
+                if (stall.aoeRadius > 0) {
+                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
+                }
+
+                // Reduced spacing
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val (statLabel, statValue) = when (stall.stallType) {
+                    StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
+                    StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
+                    StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
+                    else -> "People Fed" to stall.kills
+                }
+                StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF00AA00))
             }
-            val hungerValue = when (stall.stallType) {
-                StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
-                StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
-                else -> "${stall.damage}"
-            }
-            StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
-
-            StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
-
-            val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
-            StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", stall.fireRateMs / 1000f))
-
-            if (stall.aoeRadius > 0) {
-                StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
-            }
-
-            // Reduced spacing
-            Spacer(modifier = Modifier.height(2.dp))
-
-            val (statLabel, statValue) = when (stall.stallType) {
-                StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
-                StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
-                StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
-                else -> "People Fed" to stall.kills
-            }
-            StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF00AA00))
         }
 
         // BUTTONS (Transparent Clickables)
@@ -182,7 +186,7 @@ fun StallConsole(
                 .width(width * 0.46f)
                 .height(height * 0.13f)
                 .clickable(
-                    enabled = canAffordUpgrade,
+                    enabled = canAffordUpgrade && stall.stallType != StallType.ATM,
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
@@ -190,13 +194,23 @@ fun StallConsole(
                     onUpgrade()
                 }
         ) {
-            OutlinedText(
-                text = "$$upgradeCost",
-                fillColor = if (canAffordUpgrade) Color(0xFF00FF00) else Color.Red,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
-            )
+            if (stall.stallType != StallType.ATM) {
+                OutlinedText(
+                    text = "$$upgradeCost",
+                    fillColor = if (canAffordUpgrade) Color(0xFF00FF00) else Color.Red,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                )
+            } else {
+                OutlinedText(
+                    text = "MAXED",
+                    fillColor = Color.Gray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                )
+            }
         }
 
         // TARGET BUTTON

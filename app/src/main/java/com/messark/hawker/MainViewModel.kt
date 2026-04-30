@@ -334,15 +334,35 @@ class MainViewModel @JvmOverloads constructor(
                     } ?: tile
                 }
 
+                // Collect ATM income
+                var atmGold = 0
+                val atmEffects = mutableListOf<VisualEffect>()
+                updatedHexes.forEach { (coord, tile) ->
+                    if (tile.stall?.stallType == StallType.ATM) {
+                        atmGold += 100
+                        atmEffects.add(
+                            VisualEffect(
+                                id = UUID.randomUUID().toString(),
+                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat()),
+                                color = Color.Green,
+                                startTimeMs = currentTimeMs,
+                                durationMs = 1000L,
+                                type = VisualEffectType.MONEY_SPRAY
+                            )
+                        )
+                    }
+                }
+
                 newState = newState.copy(
                     waveActive = false,
                     isBossWave = false,
                     kitchelinStars = nextStars,
                     hexes = updatedHexes,
-                    gold = newState.gold + bonusBudget,
+                    gold = newState.gold + bonusBudget + atmGold,
                     lastWaveBonusGold = bonusBudget,
                     showBonusMessage = bonusBudget > 0,
-                    activeBudgetBonuses = 0
+                    activeBudgetBonuses = 0,
+                    visualEffects = newState.visualEffects + atmEffects
                 )
                 gameStateRepository.saveGameState(newState)
             }

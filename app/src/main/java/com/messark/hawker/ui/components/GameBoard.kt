@@ -382,29 +382,50 @@ fun GameBoard(
                         val progress = (elapsed.toFloat() / effect.durationMs).coerceIn(0f, 1f)
                         val fraction = 1.0f - progress
 
-                        if (effect.type == VisualEffectType.GAS_CLOUD) {
-                            // Pseudo-random patchy gas effect seeded by effect ID
-                            val random = kotlin.random.Random(effect.id.hashCode().toLong())
-                            val baseRadius = wPx * 0.4f
-                            for (i in 0 until 8) {
-                                val offsetX = (random.nextFloat() - 0.5f) * wPx * 1.5f
-                                val offsetY = (random.nextFloat() - 0.5f) * wPx * 1.5f
-                                val individualScale = 0.8f + random.nextFloat() * 0.4f
-                                val driftX = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
-                                val driftY = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
+                        when (effect.type) {
+                            VisualEffectType.GAS_CLOUD -> {
+                                // Pseudo-random patchy gas effect seeded by effect ID
+                                val random = kotlin.random.Random(effect.id.hashCode().toLong())
+                                val baseRadius = wPx * 0.4f
+                                for (i in 0 until 8) {
+                                    val offsetX = (random.nextFloat() - 0.5f) * wPx * 1.5f
+                                    val offsetY = (random.nextFloat() - 0.5f) * wPx * 1.5f
+                                    val individualScale = 0.8f + random.nextFloat() * 0.4f
+                                    val driftX = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
+                                    val driftY = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
 
+                                    drawCircle(
+                                        color = effect.color.copy(alpha = effect.color.alpha * fraction),
+                                        radius = baseRadius * individualScale * (1f + progress * 0.5f),
+                                        center = Offset(screenPos.x + offsetX + driftX, screenPos.y + offsetY + driftY)
+                                    )
+                                }
+                            }
+                            VisualEffectType.MONEY_SPRAY -> {
+                                val random = kotlin.random.Random(effect.id.hashCode().toLong())
+                                drawIntoCanvas { canvas ->
+                                    val paint = android.graphics.Paint().apply {
+                                        color = android.graphics.Color.GREEN
+                                        textSize = 18.dp.toPx()
+                                        alpha = (fraction * 255).toInt()
+                                        isFakeBoldText = true
+                                    }
+                                    for (i in 0 until 5) {
+                                        val angle = (random.nextFloat() * 2 * Math.PI).toFloat()
+                                        val dist = progress * wPx * 1.5f
+                                        val offsetX = Math.cos(angle.toDouble()).toFloat() * dist
+                                        val offsetY = Math.sin(angle.toDouble()).toFloat() * dist
+                                        canvas.nativeCanvas.drawText("$", screenPos.x + offsetX, screenPos.y + offsetY, paint)
+                                    }
+                                }
+                            }
+                            else -> {
                                 drawCircle(
                                     color = effect.color.copy(alpha = effect.color.alpha * fraction),
-                                    radius = baseRadius * individualScale * (1f + progress * 0.5f),
-                                    center = Offset(screenPos.x + offsetX + driftX, screenPos.y + offsetY + driftY)
+                                    radius = wPx * 1.2f, // Slightly larger than a hex
+                                    center = screenPos
                                 )
                             }
-                        } else {
-                            drawCircle(
-                                color = effect.color.copy(alpha = effect.color.alpha * fraction),
-                                radius = wPx * 1.2f, // Slightly larger than a hex
-                                center = screenPos
-                            )
                         }
                     }
                 ))

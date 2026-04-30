@@ -38,6 +38,7 @@ fun UpgradeOverlay(
         StallType.DURIAN -> listOf("Damage", "Range", "Rate", "Radius")
         StallType.ICE_KACHANG -> listOf("Range", "Rate", "Effect")
         StallType.TRAY_RETURN_UNCLE -> listOf("Grab Rate", "Cleaning Time")
+        StallType.ATM -> emptyList()
     }
 
     Box(
