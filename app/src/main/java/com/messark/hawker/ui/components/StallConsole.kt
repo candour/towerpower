@@ -150,7 +150,12 @@ fun StallConsole(
                     StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
                     else -> "People Fed" to stall.kills
                 }
-                StatLine(label = statLabel, value = "$statValue", valueColor = Color(0xFF4CAF50)) // Themed Green
+                StatLine(
+                    label = statLabel,
+                    value = "$statValue",
+                    valueColor = Color(0xFF4CAF50), // Themed Green
+                    outlineColor = Color.Black
+                )
             }
         }
 
@@ -272,8 +277,10 @@ fun StallConsole(
 fun StatLine(
     label: String,
     value: String,
-    labelColor: Color = MaterialTheme.colorScheme.onSurface,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    // DO NOT CHANGE THESE COLORS: They must be black or blue for the cream background (light/dark mode)
+    labelColor: Color = Color.Black,
+    valueColor: Color = Color.Black,
+    outlineColor: Color? = null,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp
 ) {
     StatLine(
@@ -281,6 +288,7 @@ fun StatLine(
         value = value,
         labelColor = labelColor,
         valueColor = valueColor,
+        outlineColor = outlineColor,
         labelOffset = labelOffset
     )
 }
@@ -289,8 +297,10 @@ fun StatLine(
 fun StatLine(
     label: AnnotatedString,
     value: String,
-    labelColor: Color = MaterialTheme.colorScheme.onSurface,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    // DO NOT CHANGE THESE COLORS: They must be black or blue for the cream background (light/dark mode)
+    labelColor: Color = Color.Black,
+    valueColor: Color = Color.Black,
+    outlineColor: Color? = null,
     labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
 ) {
     Row(
@@ -308,13 +318,24 @@ fun StatLine(
             lineHeight = 9.sp,
             modifier = Modifier.padding(start = labelOffset)
         )
-        Text(
-            text = value,
-            color = valueColor,
-            fontSize = 9.sp,
-            lineHeight = 9.sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (outlineColor != null) {
+            OutlinedText(
+                text = value,
+                fillColor = valueColor,
+                outlineColor = outlineColor,
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Text(
+                text = value,
+                color = valueColor,
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
