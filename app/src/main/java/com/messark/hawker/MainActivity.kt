@@ -729,7 +729,7 @@ fun GameScreen(
                             stall = stall,
                             gold = gameState.gold,
                             kitchelinStars = gameState.kitchelinStars,
-                            hasFreeUpgrade = gameState.hasFreeSpecificUpgrade,
+                            freeUpgradeCount = gameState.freeSpecificUpgrades,
                             onUpgradeRandom = { viewModel.upgradeStallRandomly() },
                             onUpgradeSpecific = { viewModel.upgradeStallSpecifically(it) },
                             onDismiss = { viewModel.dismissUpgradeOverlay() },

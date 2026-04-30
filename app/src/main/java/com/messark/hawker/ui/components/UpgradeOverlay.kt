@@ -22,14 +22,14 @@ fun UpgradeOverlay(
     stall: Stall,
     gold: Int,
     kitchelinStars: Int,
-    hasFreeUpgrade: Boolean,
+    freeUpgradeCount: Int,
     onUpgradeRandom: () -> Unit,
     onUpgradeSpecific: (String) -> Unit,
     onDismiss: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
     val baseUpgradeCost = stall.getUpgradeCost()
-    val specificUpgradeCost = if (hasFreeUpgrade) 0 else baseUpgradeCost * 2
+    val specificUpgradeCost = if (freeUpgradeCount > 0) 0 else baseUpgradeCost * 2
 
     val availableStats = when (stall.stallType) {
         StallType.CHICKEN_RICE -> listOf("Damage", "Range", "Rate")
@@ -70,9 +70,9 @@ fun UpgradeOverlay(
                     fontSize = 20.sp
                 )
 
-                if (hasFreeUpgrade) {
+                if (freeUpgradeCount > 0) {
                     Text(
-                        text = "Free specific upgrade active! This upgrade will cost $0 and will not cause a shutdown.",
+                        text = "Free specific upgrade active ($freeUpgradeCount remaining)! This upgrade will cost $0 and will not cause a shutdown.",
                         color = Color(0xFF4CAF50),
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,

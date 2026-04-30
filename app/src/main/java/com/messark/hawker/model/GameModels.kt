@@ -248,7 +248,7 @@ data class GameState(
     val showUpgradeOverlay: Boolean = false,
     val goldEarnedThisWave: Int = 0,
     val activeBudgetBonuses: Int = 0,
-    val hasFreeSpecificUpgrade: Boolean = false,
+    val freeSpecificUpgrades: Int = 0,
     val showStarActionOverlay: Boolean = false,
     val lastWaveBonusGold: Int = 0,
     val showBonusMessage: Boolean = false

@@ -120,33 +120,43 @@ class KitchelinBonusTest {
 
         viewModel._gameState.update { it.copy(
             gold = 50,
-            kitchelinStars = 1,
+            kitchelinStars = 2,
             selectedBoardStall = coord,
             hexes = mapOf(coord to HexTile(coord, stall = stall)),
             waveActive = false,
-            hasFreeSpecificUpgrade = false
+            freeSpecificUpgrades = 0
         ) }
 
-        // Choose Free Upgrade action
+        // Choose Free Upgrade action twice
+        viewModel.chooseFreeUpgrade()
         viewModel.chooseFreeUpgrade()
         assertEquals(0, viewModel.gameState.value.kitchelinStars)
-        assertEquals(true, viewModel.gameState.value.hasFreeSpecificUpgrade)
+        assertEquals(2, viewModel.gameState.value.freeSpecificUpgrades)
 
-        // Apply specific upgrade
+        // Apply first specific upgrade
         viewModel.upgradeStallSpecifically("Damage")
 
-        val newState = viewModel.gameState.value
-        val updatedStall = newState.hexes[coord]?.stall!!
+        var newState = viewModel.gameState.value
+        var updatedStall = newState.hexes[coord]?.stall!!
 
         // Gold should still be 50
         assertEquals(50, newState.gold)
-        // hasFreeSpecificUpgrade should be false now
-        assertEquals(false, newState.hasFreeSpecificUpgrade)
+        // freeSpecificUpgrades should be 1 now
+        assertEquals(1, newState.freeSpecificUpgrades)
         // Upgrade count should be 1
         assertEquals(1, updatedStall.upgradeCount)
-        // Total investment should still be 100 (since it was free)
-        assertEquals(100, updatedStall.totalInvestment)
         // Should NOT be disabled
+        assertEquals(0, updatedStall.disabledWaves)
+
+        // Apply second specific upgrade
+        viewModel.upgradeStallSpecifically("Range")
+
+        newState = viewModel.gameState.value
+        updatedStall = newState.hexes[coord]?.stall!!
+
+        assertEquals(50, newState.gold)
+        assertEquals(0, newState.freeSpecificUpgrades)
+        assertEquals(2, updatedStall.upgradeCount)
         assertEquals(0, updatedStall.disabledWaves)
     }
 

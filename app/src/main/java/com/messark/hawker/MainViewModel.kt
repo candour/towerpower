@@ -954,7 +954,7 @@ class MainViewModel @JvmOverloads constructor(
             if (it.kitchelinStars > 0) {
                 it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
-                    hasFreeSpecificUpgrade = true,
+                    freeSpecificUpgrades = it.freeSpecificUpgrades + 1,
                     showStarActionOverlay = false
                 )
             } else it
@@ -980,7 +980,7 @@ class MainViewModel @JvmOverloads constructor(
             val baseStall = _availableStalls.value.find { it.stallType == stall.stallType } ?: stall
             val baseUpgradeCost = stall.getUpgradeCost()
             val finalUpgradeCost = if (isSpecific) {
-                if (state.hasFreeSpecificUpgrade) 0 else baseUpgradeCost * 2
+                if (state.freeSpecificUpgrades > 0) 0 else baseUpgradeCost * 2
             } else {
                 baseUpgradeCost
             }
@@ -1200,11 +1200,11 @@ class MainViewModel @JvmOverloads constructor(
 
                 val newName = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix)
 
-                var hasFreeUpgrade = state.hasFreeSpecificUpgrade
+                var freeUpgradesLeft = state.freeSpecificUpgrades
                 var disabledWaves = stall.disabledWaves
                 if (isSpecific) {
-                    if (hasFreeUpgrade) {
-                        hasFreeUpgrade = false
+                    if (freeUpgradesLeft > 0) {
+                        freeUpgradesLeft -= 1
                     } else {
                         disabledWaves += 1
                     }
@@ -1232,7 +1232,7 @@ class MainViewModel @JvmOverloads constructor(
                 return@update state.copy(
                     hexes = newHexes,
                     gold = state.gold - finalUpgradeCost,
-                    hasFreeSpecificUpgrade = hasFreeUpgrade
+                    freeSpecificUpgrades = freeUpgradesLeft
                 )
             }
             state
