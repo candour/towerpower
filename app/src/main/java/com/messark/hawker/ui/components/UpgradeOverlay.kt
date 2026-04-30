@@ -22,13 +22,14 @@ fun UpgradeOverlay(
     stall: Stall,
     gold: Int,
     kitchelinStars: Int,
+    hasFreeUpgrade: Boolean,
     onUpgradeRandom: () -> Unit,
     onUpgradeSpecific: (String) -> Unit,
     onDismiss: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
     val baseUpgradeCost = stall.getUpgradeCost()
-    val specificUpgradeCost = if (kitchelinStars > 0) 0 else baseUpgradeCost * 2
+    val specificUpgradeCost = if (hasFreeUpgrade) 0 else baseUpgradeCost * 2
 
     val availableStats = when (stall.stallType) {
         StallType.CHICKEN_RICE -> listOf("Damage", "Range", "Rate")
@@ -69,21 +70,30 @@ fun UpgradeOverlay(
                     fontSize = 20.sp
                 )
 
-                if (kitchelinStars > 0) {
+                if (hasFreeUpgrade) {
                     Text(
-                        text = "You have $kitchelinStars Kitchelin Star${if (kitchelinStars > 1) "s" else ""}. Specific upgrades will consume 1 star instead of shutting down the stall.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "Free specific upgrade active! This upgrade will cost $0 and will not cause a shutdown.",
+                        color = Color(0xFF4CAF50),
                         fontSize = 12.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
-                        text = "Warning: Specific upgrades will shut down this stall for the next wave!",
+                        text = "Warning: Specific upgrades cost 2x and will shut down this stall for the next wave!",
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         fontWeight = FontWeight.Bold
                     )
+                    if (kitchelinStars > 0) {
+                        Text(
+                            text = "Tip: Click the stars in the top-left to use a star for a free upgrade action.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
 
                 // Random Upgrade Button

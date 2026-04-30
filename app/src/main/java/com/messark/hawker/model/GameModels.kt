@@ -245,5 +245,11 @@ data class GameState(
     val score: Int = 0,
     val activeTutorial: TutorialData? = null,
     val kitchelinStars: Int = 0,
-    val showUpgradeOverlay: Boolean = false
+    val showUpgradeOverlay: Boolean = false,
+    val goldEarnedThisWave: Int = 0,
+    val activeBudgetBonuses: Int = 0,
+    val hasFreeSpecificUpgrade: Boolean = false,
+    val showStarActionOverlay: Boolean = false,
+    val lastWaveBonusGold: Int = 0,
+    val showBonusMessage: Boolean = false
 )
