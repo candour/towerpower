@@ -164,16 +164,16 @@ data class StallDefinition(
                 var currentRate = baseStall.fireRateMs
                 val rateReduction = when (baseStall.type) {
                     StallType.TRAY_RETURN_UNCLE -> 100L
-                    StallType.CHICKEN_RICE -> 15L
-                    StallType.DURIAN -> 50L
-                    StallType.SATAY -> 25L
-                    else -> (baseStall.fireRateMs * 0.1f).toLong()
+                    StallType.CHICKEN_RICE -> 30L
+                    StallType.DURIAN -> 75L
+                    StallType.SATAY -> 50L
+                    else -> (baseStall.fireRateMs * 0.3f).toLong()
                 }
                 val floor = when (baseStall.type) {
-                    StallType.TRAY_RETURN_UNCLE -> 10000L
+                    StallType.TRAY_RETURN_UNCLE -> 6000L
                     StallType.CHICKEN_RICE -> 200L
-                    StallType.DURIAN -> 1000L
-                    StallType.SATAY -> 750L
+                    StallType.DURIAN -> 500L
+                    StallType.SATAY -> 500L
                     else -> 50L
                 }
 
