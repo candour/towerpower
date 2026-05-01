@@ -13,6 +13,7 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 | **Durian** | 150 | 2000 | 0.50 | 75.00 | 3.0 | AOE Radius: 1.0 | $300 |
 | **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Grabs/Holds customers for 2s | $450 |
 | **ATM** | 0 | N/A | 0.00 | 0.00 | 0.0 | Provides $100 every wave | $1000 |
+| **Bak Kut Teh** | 0 | N/A | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 20% | $300 |
 
 ---
 
@@ -54,6 +55,7 @@ The cost of each upgrade increases linearly based on the stall's base price:
 - **Slowing Duration (Teh Tarik):** +500ms per level.
 - **Freeze Duration (Ice Kachang):** +100ms per level.
 - **Cleaning Time (Tray Return Uncle):** +100ms per level (maximum duration: 4s).
+- **Boost Percentage (Bak Kut Teh):** +20% per level.
 
 ---
 
@@ -75,6 +77,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Ice Kachang** | 0 | 300 | 3.33 | 0.00 | 7.5 | 1.3s Freeze duration | $8,950 | 0.0000 |
 | **Durian** | 263 | 1600 | 0.63 | 164.38 | 5.0 | AOE Radius: 2.6 | $10,740 | 0.0153 |
 | **Tray Return Uncle** | 0 | 14200 | 0.07 | 0.00 | 5.1 | Grabs/Holds customers for 2.80s | $16,110 | 0.0000 |
+| **Bak Kut Teh** | 0 | N/A | 0.00 | 0.00 | 5.1 | Boosts adjacent stalls' stats by 180% | $10,740 | 0.0000 |
 
 ### Level 36 Average Stall Comparison
 | Stall Type | Damage | Fire Rate (ms) | Shots / Sec | DPS | Range (hexes) | Special / AOE Properties | Total Cost | DPS / $ |
@@ -85,6 +88,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Ice Kachang** | 0 | 50 | 20.00 | 0.00 | 11.6 | 2.1s Freeze duration | $18,700 | 0.0000 |
 | **Durian** | 347 | 1025 | 0.98 | 338.54 | 6.0 | AOE Radius: 4.4 | $22,440 | 0.0151 |
 | **Tray Return Uncle** | 0 | 10300 | 0.10 | 0.00 | 8.6 | Grabs/Holds customers for 3.95s | $33,660 | 0.0000 |
+| **Bak Kut Teh** | 0 | N/A | 0.00 | 0.00 | 8.6 | Boosts adjacent stalls' stats by 260% | $22,440 | 0.0000 |
 
 ### Level 48 Average Stall Comparison
 | Stall Type | Damage | Fire Rate (ms) | Shots / Sec | DPS | Range (hexes) | Special / AOE Properties | Total Cost | DPS / $ |
@@ -95,6 +99,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Ice Kachang** | 0 | 50 | 20.00 | 0.00 | 13.6 | 2.5s Freeze duration | $32,050 | 0.0000 |
 | **Durian** | 459 | 1000 | 1.00 | 459.00 | 7.0 | AOE Radius: 5.2 | $38,460 | 0.0119 |
 | **Tray Return Uncle** | 0 | 10000 | 0.10 | 0.00 | 10.6 | Grabs/Holds customers for 4.00s | $57,690 | 0.0000 |
+| **Bak Kut Teh** | 0 | N/A | 0.00 | 0.00 | 10.6 | Boosts adjacent stalls' stats by 340% | $38,460 | 0.0000 |
 
 *Note: DPS is calculated for single-target impact. AOE stalls (Satay/Durian) deal damage to all enemies within their radius. Total Cost includes base price and the cumulative cost of upgrades.*
 
@@ -105,6 +110,6 @@ To ensure a fair "average" comparison, 24 upgrades were distributed across the a
 - **Standard Distribution:** 8 upgrades were allocated to each of the three categories:
     - **Category 0 (Utility/Basic):** Split 4/4 between Damage and Range (if applicable), or 8 into Range for utility stalls.
     - **Category 1 (Fire Rate):** 8 upgrades into Fire Rate (or Grab Rate).
-    - **Category 2 (Specialization):** 8 upgrades into the stall's specific special stat (AOE Radius, Slow/Freeze Duration, or extra Damage for Chicken Rice).
+    - **Category 2 (Specialization):** 8 upgrades into the stall's specific special stat (AOE Radius, Slow/Freeze Duration, Boost %, or extra Damage for Chicken Rice).
 - **Milestone Boosts:** Statistics include the +25% bonus applied at Level 10 for any individual stat that reached or exceeded that level (e.g., Chicken Rice Damage L12, Tray Return Uncle stats L12).
 - **Total Investment:** Calculated as `Base Cost + (Base Cost * 34.8)`, reflecting the linear price progression of 24 upgrades.
