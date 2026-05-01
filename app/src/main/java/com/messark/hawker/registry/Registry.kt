@@ -242,10 +242,11 @@ data class StallDefinition(
                 for (l in 1..level) {
                     currentBoost += 20f
                     if (l % 10 == 0) {
-                        currentBoost *= 1.25f
+                        currentBoost = Math.round(currentBoost * 1.25f).toFloat()
                     }
                 }
                 "+${Math.round(currentBoost - baseStall.damage)}%"
+            }
             }
             else -> ""
         }
