@@ -406,7 +406,7 @@ fun GameBoard(
                             }
                             VisualEffectType.MONEY_SPRAY -> {
                                 val random = kotlin.random.Random(effect.id.hashCode().toLong())
-                                val noteWidth = 32.dp.toPx()
+                                val noteWidth = 64.dp.toPx()
                                 val scale = noteWidth / SpriteConstants.DOLLAR_NOTE_RECT.width
                                 val noteHeight = SpriteConstants.DOLLAR_NOTE_RECT.height * scale
 
