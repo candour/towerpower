@@ -153,7 +153,8 @@ fun GameBoard(
                         val paint = android.graphics.Paint().apply {
                             isAntiAlias = true
                             isFilterBitmap = true
-                            this.alpha = (alpha * 255).toInt()
+                            val safeAlpha = alpha.coerceIn(0f, 1f)
+                            this.alpha = (safeAlpha * 255f).toInt()
                         }
                         val androidSrc = Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
                         val androidDst = RectF(topLeft.x, topLeft.y, topLeft.x + destSize.width, topLeft.y + destSize.height)
