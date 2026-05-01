@@ -247,7 +247,6 @@ data class StallDefinition(
                 }
                 "+${Math.round(currentBoost - baseStall.damage)}%"
             }
-            }
             else -> ""
         }
     }
