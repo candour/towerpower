@@ -39,6 +39,13 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Targeting:** Supports FIRST, CLOSEST, STRONGEST, and WEAKEST strategies.
 - **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10. These names are managed via `LegendaryNames.kt`.
 
+### Kitchelin Stars
+- **Awards:** Awarded every 10th wave.
+- **Actions:** Between waves, players can spend stars on:
+  - **Budget Bonus:** 10% bonus of gold earned from enemies, awarded at end of round (stackable).
+  - **Free Specific Upgrade:** Next specific upgrade is free ($0) and bypasses renovation time.
+- **Trigger:** Accessible via clicking star icons in the top-left between waves.
+
 ### Customers & Difficulty
 - **Variants:** Salaryman (Fast), Tourist (Stops), Auntie (Tank), Delivery Rider (Boss).
 - **Spawning:** Uses a Difficulty Budget system. HP increases by 10% per wave (`BaseHP * 1.1^(W-1)`).

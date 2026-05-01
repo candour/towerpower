@@ -32,10 +32,10 @@ data class HexTile(
 )
 
 enum class StallType {
-    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG, TRAY_RETURN_UNCLE;
+    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG, TRAY_RETURN_UNCLE, ATM;
 
     val isUtility: Boolean
-        get() = this == TEH_TARIK || this == ICE_KACHANG || this == TRAY_RETURN_UNCLE
+        get() = this == TEH_TARIK || this == ICE_KACHANG || this == TRAY_RETURN_UNCLE || this == ATM
 }
 
 enum class TargetMode {
@@ -191,7 +191,7 @@ data class Projectile(
 )
 
 enum class VisualEffectType {
-    EXPANDING_CIRCLE, GAS_CLOUD
+    EXPANDING_CIRCLE, GAS_CLOUD, MONEY_SPRAY
 }
 
 /**
@@ -245,5 +245,11 @@ data class GameState(
     val score: Int = 0,
     val activeTutorial: TutorialData? = null,
     val kitchelinStars: Int = 0,
-    val showUpgradeOverlay: Boolean = false
+    val showUpgradeOverlay: Boolean = false,
+    val goldEarnedThisWave: Int = 0,
+    val activeBudgetBonuses: Int = 0,
+    val freeSpecificUpgrades: Int = 0,
+    val showStarActionOverlay: Boolean = false,
+    val lastWaveBonusGold: Int = 0,
+    val showBonusMessage: Boolean = false
 )

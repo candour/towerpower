@@ -29,6 +29,7 @@ data class StallDefinition(
     val projectileSpeed: Float = 0.2f,
     val isArc: Boolean = false,
     val projectileColor: Color = color,
+    val passiveIncome: Int = 0,
     val visualEffectType: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE,
     val visualEffectColor: Color? = null,
     val visualEffectDuration: Long = 150L
@@ -163,16 +164,16 @@ data class StallDefinition(
                 var currentRate = baseStall.fireRateMs
                 val rateReduction = when (baseStall.type) {
                     StallType.TRAY_RETURN_UNCLE -> 100L
-                    StallType.CHICKEN_RICE -> 15L
-                    StallType.DURIAN -> 50L
-                    StallType.SATAY -> 25L
-                    else -> (baseStall.fireRateMs * 0.1f).toLong()
+                    StallType.CHICKEN_RICE -> 30L
+                    StallType.DURIAN -> 75L
+                    StallType.SATAY -> 50L
+                    else -> (baseStall.fireRateMs * 0.3f).toLong()
                 }
                 val floor = when (baseStall.type) {
-                    StallType.TRAY_RETURN_UNCLE -> 10000L
+                    StallType.TRAY_RETURN_UNCLE -> 6000L
                     StallType.CHICKEN_RICE -> 200L
-                    StallType.DURIAN -> 1000L
-                    StallType.SATAY -> 750L
+                    StallType.DURIAN -> 500L
+                    StallType.SATAY -> 500L
                     else -> 50L
                 }
 
@@ -398,6 +399,21 @@ object StallRegistry {
             tutorialDescription = "Don't leave your trays behind, or this Uncle might just clear YOU! The Tray Return Uncle is the master of order in the hawker center. Every 15 seconds, he spots an enemy and decides they need a good cleaning. He'll grab them, pull them into his stall for a few seconds of 'intensive tray-training', and then place them back on the floor in a random nearby spot. While they're being 'cleaned', they're off the board and can't be touched. Efficient, orderly, and slightly terrifying.",
             spriteRect = IntRect(14, 3041, 322, 3471),
             effectDurationMs = 2000L // Cleaning time
+        ),
+        StallType.ATM to StallDefinition(
+            type = StallType.ATM,
+            name = "ATM",
+            cost = 1000,
+            color = Color(0xFF4CAF50), // Green
+            range = 0f,
+            damage = 0,
+            fireRateMs = 0L,
+            description = "Provides $100 every wave",
+            tutorialTitle = "The Reliable ATM (Passive Income)",
+            signatureMove = "The High-Interest Payday",
+            tutorialDescription = "Need a bit more budget for your hawker empire? The ATM is here to help! While it doesn't serve food or clear trays, it provides a steady stream of income. At the end of every wave, the ATM dispenses a crisp $100 directly into your budget. It's the perfect long-term investment for savvy hawker masters.",
+            spriteRect = IntRect(14, 3041, 322, 3471),
+            passiveIncome = 100
         )
     )
 
