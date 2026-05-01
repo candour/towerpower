@@ -332,7 +332,7 @@ class MainViewModel @JvmOverloads constructor(
                             tile.copy(stall = stall.copy(disabledWaves = stall.disabledWaves - 1))
                         } else tile
                     } ?: tile
-                }
+                }.toMutableMap()
 
                 // Collect ATM income
                 var atmGold = 0
@@ -342,7 +342,20 @@ class MainViewModel @JvmOverloads constructor(
                     if (stall != null) {
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
-                            atmGold += stallDef.passiveIncome
+                            val (boost, providers) = calculateStatBoost(coord, newState)
+                            atmGold += (stallDef.passiveIncome * boost).toInt()
+
+                            // Update Bak Kut Teh stats
+                            providers.forEach { providerCoord ->
+                                val providerTile = updatedHexes[providerCoord]
+                                if (providerTile?.stall != null) {
+                                    val updatedBkt = providerTile.stall.copy(
+                                        uniqueTargetIds = providerTile.stall.uniqueTargetIds + stall.id
+                                    )
+                                    updatedHexes[providerCoord] = providerTile.copy(stall = updatedBkt)
+                                }
+                            }
+
                             atmEffects.add(
                                 VisualEffect(
                                     id = UUID.randomUUID().toString(),
@@ -644,19 +657,50 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (target != null) {
+                    val (boost, providers) = calculateStatBoost(coord, state)
+
+                    // Update Bak Kut Teh stats
+                    providers.forEach { providerCoord ->
+                        val providerTile = updatedHexes[providerCoord]
+                        if (providerTile?.stall != null) {
+                            val updatedBkt = providerTile.stall.copy(
+                                uniqueTargetIds = providerTile.stall.uniqueTargetIds + stall.id
+                            )
+                            updatedHexes[providerCoord] = providerTile.copy(stall = updatedBkt)
+                        }
+                    }
+
                     if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                        val boostedDuration = (stall.effectDurationMs * boost).toLong()
                         val updatedStall = stall.copy(
                             lastFiredMs = currentTimeMs,
                             heldEnemyId = target.id,
-                            releaseTimeMs = currentTimeMs + stall.effectDurationMs,
+                            releaseTimeMs = currentTimeMs + boostedDuration,
                             uniqueTargetIds = stall.uniqueTargetIds + target.id
                         )
                         updatedHexes[coord] = tile.copy(stall = updatedStall)
                     } else {
                         val stallDef = StallRegistry.get(stall.stallType)
-                        val fireResult = stallDef.fire(stall, coord, target, currentTimeMs)
+                        val boostedStall = if (boost > 1.0f) {
+                            stall.copy(
+                                damage = (stall.damage * boost).toInt(),
+                                effectDurationMs = (stall.effectDurationMs * boost).toLong(),
+                                freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
+                            )
+                        } else stall
+
+                        val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
                         var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
-                        updatedStall = updatedStall.copy(lastFiredMs = currentTimeMs)
+
+                        // CRITICAL: We must NOT save the boosted damage/durations back to the state.
+                        // We take the updatedStall (which might have new rotation or releaseTimeMs)
+                        // and reset its stats back to the original stall's unboosted stats.
+                        updatedStall = updatedStall.copy(
+                            lastFiredMs = currentTimeMs,
+                            damage = stall.damage,
+                            effectDurationMs = stall.effectDurationMs,
+                            freezeDurationMs = stall.freezeDurationMs
+                        )
 
                         when (fireResult) {
                             is FireResult.NewProjectile -> {
@@ -1079,6 +1123,12 @@ class MainViewModel @JvmOverloads constructor(
                             if (newLevel % 10 == 0) newFreezeDuration = Math.round(newFreezeDuration * 1.25)
                             mutableUpgrades["Effect"] = newLevel
                         }
+                        "Boost" -> {
+                            newDamage += 20
+                            val newLevel = mutableUpgrades.getOrDefault("Boost", 0) + 1
+                            if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
+                            mutableUpgrades["Boost"] = newLevel
+                        }
                     }
                 } else {
                     val upgradeCategories = mutableListOf(0, 1, 2).apply { shuffle() }
@@ -1087,6 +1137,10 @@ class MainViewModel @JvmOverloads constructor(
                         val upgradeTypeIndex = upgradeCategories.removeAt(0)
                         when (upgradeTypeIndex) {
                             0 -> {
+                                if (stall.stallType == StallType.BAK_KUT_TEH) {
+                                    // Bak Kut Teh doesn't use standard Category 0
+                                    continue
+                                }
                                 if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
                                     if (kotlin.random.Random.nextBoolean()) {
                                         currentCategoryName = "Grab Rate"
@@ -1124,6 +1178,10 @@ class MainViewModel @JvmOverloads constructor(
                                 applied = true
                             }
                             1 -> {
+                                if (stall.stallType == StallType.BAK_KUT_TEH) {
+                                    // Bak Kut Teh doesn't use standard Category 1
+                                    continue
+                                }
                                 currentCategoryName = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
                                 val rateReduction = when (stall.stallType) {
                                     StallType.TRAY_RETURN_UNCLE -> 100L
@@ -1185,6 +1243,14 @@ class MainViewModel @JvmOverloads constructor(
                                         newEffectDuration = Math.min(4000L, potentialDuration)
                                         mutableUpgrades["Cleaning Time"] = newLevel
                                         mutableUpgrades["Duration"] = newLevel
+                                    }
+                                    StallType.BAK_KUT_TEH -> {
+                                        currentCategoryName = "Boost"
+                                        newDamage += 20
+                                        val newLevel = mutableUpgrades.getOrDefault("Boost", 0) + 1
+                                        if (newLevel % 10 == 0) newDamage = Math.round(newDamage * 1.25f)
+                                        mutableUpgrades["Boost"] = newLevel
+                                        applied = true // Bak Kut Teh only has Boost category
                                     }
                                     else -> {
                                         if (stall.stallType.isUtility) {
@@ -1409,6 +1475,22 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
+
+    private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
+        val adjacentCoords = getAdjacentCoordinates(coord)
+        var totalBoostPercent = 0
+        val providers = mutableListOf<AxialCoordinate>()
+        adjacentCoords.forEach { adj ->
+            val tile = state.hexes[adj]
+            if (tile?.stall?.stallType == StallType.BAK_KUT_TEH && tile.stall.disabledWaves == 0) {
+                totalBoostPercent += tile.stall.damage // Bak Kut Teh damage field stores its current boost %
+                providers.add(adj)
+            }
+        }
+        return BoostResult(1.0f + (totalBoostPercent / 100f), providers)
     }
 
     private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {

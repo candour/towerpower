@@ -123,14 +123,17 @@ fun StallConsole(
                     StallType.TEH_TARIK -> "Duration"
                     StallType.ICE_KACHANG -> "Effect"
                     StallType.TRAY_RETURN_UNCLE -> "Cleaning Time"
+                    StallType.BAK_KUT_TEH -> "Boost"
                     else -> "Damage"
                 }
                 val hungerValue = when (stall.stallType) {
                     StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
                     StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
+                    StallType.BAK_KUT_TEH -> "+${stall.damage}%"
                     else -> "${stall.damage}"
                 }
-                StatLine(label = buildInlinedLabel(stall, hungerWord, hungerCategory), value = hungerValue)
+                val hungerLabel = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost" else hungerWord
+                StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerValue)
 
                 StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
 
@@ -148,6 +151,7 @@ fun StallConsole(
                     StallType.TEH_TARIK -> "Targets Slowed" to stall.uniqueTargetIds.size
                     StallType.ICE_KACHANG -> "Targets Frozen" to stall.uniqueTargetIds.size
                     StallType.TRAY_RETURN_UNCLE -> "People Cleaned" to stall.uniqueTargetIds.size
+                    StallType.BAK_KUT_TEH -> "Stalls Boosted" to stall.uniqueTargetIds.size
                     else -> "People Fed" to stall.kills
                 }
                 StatLine(

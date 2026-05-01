@@ -32,10 +32,10 @@ data class HexTile(
 )
 
 enum class StallType {
-    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG, TRAY_RETURN_UNCLE, ATM;
+    TEH_TARIK, SATAY, CHICKEN_RICE, DURIAN, ICE_KACHANG, TRAY_RETURN_UNCLE, ATM, BAK_KUT_TEH;
 
     val isUtility: Boolean
-        get() = this == TEH_TARIK || this == ICE_KACHANG || this == TRAY_RETURN_UNCLE || this == ATM
+        get() = this == TEH_TARIK || this == ICE_KACHANG || this == TRAY_RETURN_UNCLE || this == ATM || this == BAK_KUT_TEH
 }
 
 enum class TargetMode {

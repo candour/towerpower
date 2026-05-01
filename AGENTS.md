@@ -33,8 +33,8 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Sorting Logic:** Within a zOrder group, sort by `r` (row), then `zOrder`, then `q` (column) to ensure correct isometric depth.
 
 ### Stalls & Upgrades
-- **Stall Types:** Teh Tarik (Slow), Satay (AOE), Chicken Rice (Single Target), Durian (High Damage/Slow Fire), Ice Kachang (Freeze).
-- **Upgrades:** Additive scaling based on base stats. Costs increase linearly (+10% of base cost per level).
+- **Stall Types:** Teh Tarik (Slow), Satay (AOE), Chicken Rice (Single Target), Durian (High Damage/Slow Fire), Ice Kachang (Freeze), Bak Kut Teh (Booster).
+- **Upgrades:** Additive scaling based on base stats. Costs increase linearly (+10% of base cost per level). Bak Kut Teh only upgrades its Boost percentage.
 - **Selling:** Provides a 50% refund of the total investment (base cost + upgrades).
 - **Targeting:** Supports FIRST, CLOSEST, STRONGEST, and WEAKEST strategies.
 - **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10. These names are managed via `LegendaryNames.kt`.
@@ -81,6 +81,11 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Build:** `./gradlew assembleDebug`
 - **Unit Tests:** `./gradlew test` (Note: `MainViewModel` tests require mocking `application.applicationContext`).
 - **Instrumented Tests:** `./gradlew connectedAndroidTest`
+
+### Bak Kut Teh Boost Mechanic
+- **Function:** Boosts the primary stat (Damage, Duration, Freeze, or ATM Income) of all adjacent stalls.
+- **Stacking:** Boosts from multiple Bak Kut Teh stalls stack additively.
+- **Implementation:** The `damage` field of the Bak Kut Teh stall is repurposed to store the current boost percentage (starts at 20%). Adjacency is calculated using `GridUtils.getAdjacentCoordinates`.
 
 ## Agent "Gotchas" & Conventions
 - **AGENTS.md Maintenance:** You **MUST** update this file whenever you introduce new core mechanics, architectural changes, or complex "gotchas".
