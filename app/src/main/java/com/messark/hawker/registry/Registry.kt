@@ -150,7 +150,7 @@ data class StallDefinition(
             "Damage" -> {
                 var currentDamage = baseStall.damage.toFloat()
                 for (l in 1..level) {
-                    currentDamage = Math.round(currentDamage * 1.15f).toFloat()
+                    currentDamage = Math.round(currentDamage * 1.25f).toFloat()
                     if (l % 10 == 0) {
                         currentDamage = Math.round(currentDamage * 1.25f).toFloat()
                     }
@@ -163,11 +163,11 @@ data class StallDefinition(
             "Grab Rate", "Rate" -> {
                 var currentRate = baseStall.fireRateMs
                 val rateReduction = when (baseStall.type) {
-                    StallType.TRAY_RETURN_UNCLE -> 100L
-                    StallType.CHICKEN_RICE -> 30L
-                    StallType.DURIAN -> 75L
+                    StallType.TRAY_RETURN_UNCLE -> 200L
+                    StallType.CHICKEN_RICE -> 50L
+                    StallType.DURIAN -> 100L
                     StallType.SATAY -> 50L
-                    else -> (baseStall.fireRateMs * 0.3f).toLong()
+                    else -> (baseStall.fireRateMs * 0.1f).toLong()
                 }
                 val floor = when (baseStall.type) {
                     StallType.TRAY_RETURN_UNCLE -> 6000L
@@ -332,7 +332,7 @@ object StallRegistry {
             signatureMove = "The Chili Conflagration",
             tutorialDescription = "Wah, smells so shiok! Behind this unassuming grill, the Satay Uncle is fanning a fiery revolution. Watch out for his signature Chili Conflagration—the chili isn't just spicy; it's explosive. He loads up a massive spoon and, with a precision usually reserved for satay-counting, launches a gigantic splash of his secret, explosive chili sauce. When it hits, it covers a wide circle, dousing groups of enemies in a sticky, burning chili storm that eats away at their health (and their willpower). If you need a crowd-control burn, this Uncle is the OG.",
             spriteRect = IntRect(14, 1541, 322, 1951),
-            aoeRadius = 1.0f,
+            aoeRadius = 2.0f,
             projectileSpeed = 0.3f,
             isArc = true,
             projectileColor = Color.White,
@@ -388,7 +388,7 @@ object StallRegistry {
         StallType.TRAY_RETURN_UNCLE to StallDefinition(
             type = StallType.TRAY_RETURN_UNCLE,
             name = "Tray Return Uncle",
-            cost = 450,
+            cost = 250,
             color = Color.Gray,
             range = 1.1f,
             damage = 0,
@@ -412,7 +412,7 @@ object StallRegistry {
             tutorialTitle = "The Reliable ATM (Passive Income)",
             signatureMove = "The High-Interest Payday",
             tutorialDescription = "Need a bit more budget for your hawker empire? The ATM is here to help! While it doesn't serve food or clear trays, it provides a steady stream of income. At the end of every wave, the ATM dispenses a crisp $100 directly into your budget. It's the perfect long-term investment for savvy hawker masters.",
-            spriteRect = IntRect(14, 3041, 322, 3471),
+            spriteRect = IntRect(14, 3541, 322, 3971),
             passiveIncome = 100
         )
     )
@@ -429,7 +429,7 @@ object EnemyRegistry {
             description = "The fast-paced office worker. They move quickly across the grid, eager to reach their destination. Their high speed makes them difficult to hit, but they don't have much health.",
             baseHp = 50,
             baseSpeed = 0.08f,
-            reward = 20,
+            reward = 10,
             spriteRow = 2
         ),
         EnemyType.TOURIST to EnemyDefinition(
@@ -447,16 +447,16 @@ object EnemyRegistry {
             description = "A veteran of the hawker scene. She moves slowly and deliberately, but possesses high health. It takes sustained fire from multiple stalls to stop her progress.",
             baseHp = 150,
             baseSpeed = 0.03f,
-            reward = 20,
+            reward = 30,
             spriteRow = 0
         ),
         EnemyType.DELIVERY_RIDER to EnemyDefinition(
             type = EnemyType.DELIVERY_RIDER,
             name = "Delivery Rider",
             description = "A formidable boss on two wheels. He has massive health and moves at a significant speed. He is particularly cautious on wet surfaces, slowing down considerably when passing through sticky puddles.",
-            baseHp = 500,
+            baseHp = 300,
             baseSpeed = 0.06f,
-            reward = 100,
+            reward = 60,
             spriteRow = 3
         ),
         EnemyType.TIGER_MOM to EnemyDefinition(
@@ -465,7 +465,7 @@ object EnemyRegistry {
             description = "She's not just here for the food; she's here to ensure success! The Tiger Mom is a formidable force who occasionally stops to give another customer an 'encouraging' lecture, providing them with a 90% armor buff until she's fully fed. Only one Tiger Mom can be on the board at a time.",
             baseHp = 80,
             baseSpeed = 0.05f,
-            reward = 50,
+            reward = 40,
             spriteRow = 4
         )
     )

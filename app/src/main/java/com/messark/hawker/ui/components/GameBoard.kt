@@ -140,7 +140,8 @@ fun GameBoard(
                 anchor: Offset = Offset(0.5f, 0.5f),
                 clipHex: Boolean = false,
                 bitmap: ImageBitmap = spriteSheet,
-                flipHorizontal: Boolean = false
+                flipHorizontal: Boolean = false,
+                alpha: Float = 1f
             ) {
                 val topLeft = Offset(
                     destCenter.x - destSize.width * anchor.x,
@@ -152,6 +153,8 @@ fun GameBoard(
                         val paint = android.graphics.Paint().apply {
                             isAntiAlias = true
                             isFilterBitmap = true
+                            val safeAlpha = alpha.coerceIn(0f, 1f)
+                            this.alpha = (safeAlpha * 255f).toInt()
                         }
                         val androidSrc = Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
                         val androidDst = RectF(topLeft.x, topLeft.y, topLeft.x + destSize.width, topLeft.y + destSize.height)
@@ -403,20 +406,22 @@ fun GameBoard(
                             }
                             VisualEffectType.MONEY_SPRAY -> {
                                 val random = kotlin.random.Random(effect.id.hashCode().toLong())
-                                drawIntoCanvas { canvas ->
-                                    val paint = android.graphics.Paint().apply {
-                                        color = effect.color.toArgb()
-                                        textSize = 18.dp.toPx()
-                                        alpha = (fraction * 255).toInt()
-                                        isFakeBoldText = true
-                                    }
-                                    for (i in 0 until 5) {
-                                        val angle = (random.nextFloat() * 2 * Math.PI).toFloat()
-                                        val dist = progress * wPx * 1.5f
-                                        val offsetX = Math.cos(angle.toDouble()).toFloat() * dist
-                                        val offsetY = Math.sin(angle.toDouble()).toFloat() * dist
-                                        canvas.nativeCanvas.drawText("$", screenPos.x + offsetX, screenPos.y + offsetY, paint)
-                                    }
+                                val noteWidth = 32.dp.toPx()
+                                val scale = noteWidth / SpriteConstants.DOLLAR_NOTE_RECT.width
+                                val noteHeight = SpriteConstants.DOLLAR_NOTE_RECT.height * scale
+
+                                for (i in 0 until 5) {
+                                    val angle = (random.nextFloat() * 2 * Math.PI).toFloat()
+                                    val dist = progress * wPx * 1.5f
+                                    val offsetX = Math.cos(angle.toDouble()).toFloat() * dist
+                                    val offsetY = Math.sin(angle.toDouble()).toFloat() * dist
+
+                                    drawSprite(
+                                        srcRect = SpriteConstants.DOLLAR_NOTE_RECT,
+                                        destCenter = Offset(screenPos.x + offsetX, screenPos.y + offsetY),
+                                        destSize = Size(noteWidth, noteHeight),
+                                        alpha = fraction
+                                    )
                                 }
                             }
                             else -> {

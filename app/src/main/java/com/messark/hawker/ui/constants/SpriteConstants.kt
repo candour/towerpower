@@ -29,6 +29,7 @@ object SpriteConstants {
 
     val FX_PUDDLE_RECT = IntRect(1078, 679, 1142, 741)
     val FX_CONE_RECT = IntRect(1150, 679, 1214, 741)
+    val DOLLAR_NOTE_RECT = IntRect(6, 256, 272, 310)
 
     // Buttons (from drawable-nodpi/buttons.png)
     val BTN_RESUME_RECT = IntRect(0, 1, 350, 96)
