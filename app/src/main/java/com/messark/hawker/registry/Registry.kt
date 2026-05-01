@@ -412,7 +412,7 @@ object StallRegistry {
             tutorialTitle = "The Reliable ATM (Passive Income)",
             signatureMove = "The High-Interest Payday",
             tutorialDescription = "Need a bit more budget for your hawker empire? The ATM is here to help! While it doesn't serve food or clear trays, it provides a steady stream of income. At the end of every wave, the ATM dispenses a crisp $100 directly into your budget. It's the perfect long-term investment for savvy hawker masters.",
-            spriteRect = IntRect(14, 3041, 322, 3471),
+            spriteRect = IntRect(14, 3541, 322, 3971),
             passiveIncome = 100
         )
     )
