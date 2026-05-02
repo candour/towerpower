@@ -4,6 +4,7 @@ import com.messark.hawker.model.Stall
 import com.messark.hawker.model.StallType
 import com.messark.hawker.registry.StallDefinition
 import com.messark.hawker.registry.StallRegistry
+import com.messark.hawker.utils.LegendaryNames
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -193,8 +194,9 @@ object StallUpgradeManager {
                 }
 
                 for (l in 1..level) {
-                    currentRate = max(floor, currentRate - rateReduction)
-                    if (l % 10 == 0) currentRate = max(floor, (currentRate * 0.75).roundToLong())
+                    var potentialRate = currentRate - rateReduction
+                    if (l % 10 == 0) potentialRate = (potentialRate * 0.75).roundToLong()
+                    currentRate = max(floor, potentialRate)
                 }
                 if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
                     "-${baseStall.fireRateMs - currentRate}ms"

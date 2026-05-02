@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.messark.hawker.model.*
 import com.messark.hawker.registry.*
 import com.messark.hawker.utils.*
+import com.messark.hawker.utils.StallUpgradeManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.Instant
