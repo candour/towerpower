@@ -62,6 +62,16 @@ object LegendaryNames {
             "of Infinite Perch",
             "the Surveyor",
             "of The Eagle-Heart"
+        ),
+        "Boost" to listOf(
+            "of Herbal Invigoration",
+            "the Essence-Binder",
+            "of Supreme Vitality",
+            "the Spirit-Lifter",
+            "of Eternal Resonance",
+            "the Aura-Master",
+            "of The Primordial Brew",
+            "the Catalyst-King"
         )
     )
 
@@ -125,6 +135,16 @@ object LegendaryNames {
             "The-Distant-",
             "Endless-Horizon",
             "Eagle-Eyed"
+        ),
+        "Boost" to listOf(
+            "Invigorating",
+            "Herbal-",
+            "Resonant",
+            "Transcendent",
+            "Empowering",
+            "The-Sacred-",
+            "Vitalizing",
+            "Aura-of-"
         )
     )
 

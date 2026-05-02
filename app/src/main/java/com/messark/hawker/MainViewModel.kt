@@ -40,7 +40,7 @@ class MainViewModel @JvmOverloads constructor(
     )
     val availableStalls: StateFlow<List<Stall>> = _availableStalls.asStateFlow()
 
-    private var gameJob: Job? = null
+    internal var gameJob: Job? = null
     private var lastHapticTimeMs = 0L
 
     private val _hapticEvents = MutableSharedFlow<Unit>()
@@ -1050,10 +1050,12 @@ class MainViewModel @JvmOverloads constructor(
             val finalUpgradeCost = StallUpgradeManager.calculateUpgradeCost(stall, isSpecific, hasFreeUpgrade)
 
             if (state.gold >= finalUpgradeCost) {
+                val availableStats = StallUpgradeManager.getAvailableUpgradeStats(stall)
                 val statToUpgrade = if (isSpecific && specificStat != null) {
+                    if (!availableStats.contains(specificStat)) return@update state
                     specificStat
                 } else {
-                    StallUpgradeManager.getAvailableUpgradeStats(stall).random()
+                    availableStats.random(this@MainViewModel.random)
                 }
 
                 val updatedStall = StallUpgradeManager.applyUpgrade(stall, statToUpgrade, finalUpgradeCost, isSpecific)
