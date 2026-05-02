@@ -3,6 +3,7 @@ package com.messark.hawker.registry
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntRect
 import com.messark.hawker.model.*
+import com.messark.hawker.utils.StallUpgradeManager
 import java.util.*
 
 sealed class FireResult {
@@ -144,111 +145,7 @@ data class StallDefinition(
     }
 
     fun getUpgradeBenefit(category: String, level: Int, baseStall: StallDefinition): String {
-        if (level <= 0) return ""
-
-        return when (category) {
-            "Damage" -> {
-                var currentDamage = baseStall.damage.toFloat()
-                for (l in 1..level) {
-                    currentDamage = Math.round(currentDamage * 1.25f).toFloat()
-                    if (l % 10 == 0) {
-                        currentDamage = Math.round(currentDamage * 1.25f).toFloat()
-                    }
-                }
-                val percentage = if (baseStall.damage > 0) {
-                    Math.round(((currentDamage - baseStall.damage) / baseStall.damage) * 100)
-                } else 0
-                "+$percentage%"
-            }
-            "Grab Rate", "Rate" -> {
-                var currentRate = baseStall.fireRateMs
-                val rateReduction = when (baseStall.type) {
-                    StallType.TRAY_RETURN_UNCLE -> 200L
-                    StallType.CHICKEN_RICE -> 50L
-                    StallType.DURIAN -> 100L
-                    StallType.SATAY -> 50L
-                    else -> (baseStall.fireRateMs * 0.1f).toLong()
-                }
-                val floor = when (baseStall.type) {
-                    StallType.TRAY_RETURN_UNCLE -> 6000L
-                    StallType.CHICKEN_RICE -> 200L
-                    StallType.DURIAN -> 500L
-                    StallType.SATAY -> 500L
-                    else -> 50L
-                }
-
-                for (l in 1..level) {
-                    currentRate = Math.max(floor, currentRate - rateReduction)
-                    if (l % 10 == 0) {
-                        currentRate = Math.max(floor, Math.round(currentRate * 0.75))
-                    }
-                }
-                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                    "-${baseStall.fireRateMs - currentRate}ms"
-                } else {
-                    val percentage = Math.round(((baseStall.fireRateMs - currentRate).toFloat() / baseStall.fireRateMs) * 100)
-                    "+$percentage%"
-                }
-            }
-            "Range" -> {
-                var currentRange = baseStall.range
-                for (l in 1..level) {
-                    currentRange += 0.5f
-                    if (l % 10 == 0) {
-                        currentRange *= 1.25f
-                    }
-                }
-                "+${String.format("%.1f", currentRange - baseStall.range)}"
-            }
-            "Radius" -> {
-                var currentRadius = baseStall.aoeRadius
-                for (l in 1..level) {
-                    currentRadius += 0.2f
-                    if (l % 10 == 0) {
-                        currentRadius *= 1.25f
-                    }
-                }
-                "+${String.format("%.1f", currentRadius - baseStall.aoeRadius)}"
-            }
-            "Cleaning Time", "Duration" -> {
-                var currentDuration = baseStall.effectDurationMs
-                for (l in 1..level) {
-                    if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                        currentDuration = Math.min(4000L, currentDuration + 100)
-                    } else {
-                        currentDuration += 500
-                    }
-                    if (l % 10 == 0) {
-                        currentDuration = Math.round(currentDuration * 1.25f).toLong()
-                    }
-                }
-                if (baseStall.type == StallType.TRAY_RETURN_UNCLE) {
-                    currentDuration = Math.min(4000L, currentDuration)
-                }
-                "+${currentDuration - baseStall.effectDurationMs}ms"
-            }
-            "Effect" -> {
-                var currentEffect = baseStall.freezeDurationMs
-                for (l in 1..level) {
-                    currentEffect += 100
-                    if (l % 10 == 0) {
-                        currentEffect = Math.round(currentEffect * 1.25f).toLong()
-                    }
-                }
-                "+${currentEffect - baseStall.freezeDurationMs}ms"
-            }
-            "Boost" -> {
-                var currentBoost = baseStall.damage.toFloat()
-                for (l in 1..level) {
-                    currentBoost += 20f
-                    if (l % 10 == 0) {
-                        currentBoost = Math.round(currentBoost * 1.25f).toFloat()
-                    }
-                }
-                "+${Math.round(currentBoost - baseStall.damage)}%"
-            }
-            else -> ""
-        }
+        return StallUpgradeManager.getBenefitString(category, level, baseStall)
     }
 }
 
