@@ -34,7 +34,7 @@ class MainViewModelTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
         val state = viewModel.gameState.first()
 
         assertTrue(state.hexes.isNotEmpty())

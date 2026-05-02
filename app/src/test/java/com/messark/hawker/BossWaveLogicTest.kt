@@ -37,7 +37,7 @@ class BossWaveLogicTest {
             com.messark.hawker.model.Settings(showTutorials = false)
         )
 
-        viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
         viewModel.gameJob?.cancel()
     }
 

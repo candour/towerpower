@@ -31,7 +31,7 @@ class KitchelinBonusTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
 
-        viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
         viewModel.gameJob?.cancel()
     }
 

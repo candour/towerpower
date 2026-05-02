@@ -17,12 +17,11 @@ import java.util.*
 class MainViewModel @JvmOverloads constructor(
     application: Application,
     private val settingsRepository: SettingsRepository = SettingsRepository(application),
-    private val gameStateRepository: GameStateRepository = GameStateRepository(application)
+    private val gameStateRepository: GameStateRepository = GameStateRepository(application),
+    private val random: kotlin.random.Random = kotlin.random.Random(System.currentTimeMillis())
 ) : AndroidViewModel(application) {
     internal val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
-
-    private val random = kotlin.random.Random(System.currentTimeMillis())
 
     private val _logoVisible = MutableStateFlow(true)
     val logoVisible: StateFlow<Boolean> = _logoVisible.asStateFlow()

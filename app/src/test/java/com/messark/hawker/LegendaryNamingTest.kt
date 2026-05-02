@@ -31,7 +31,7 @@ class LegendaryNamingTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
         viewModel.gameJob?.cancel()
 
         // Initial state
@@ -82,7 +82,7 @@ class LegendaryNamingTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
         viewModel.gameJob?.cancel()
 
         viewModel.resetGame()
