@@ -31,7 +31,8 @@ class LegendaryNamingTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
+        viewModel.gameJob?.cancel()
 
         // Initial state
         viewModel.resetGame()
@@ -60,7 +61,7 @@ class LegendaryNamingTest {
         var namingCategories = emptyList<String>()
         var iterations = 0
         while (namingCategories.isEmpty() && iterations < 500) {
-            viewModel.upgradeStall()
+            viewModel.upgradeStallRandomly()
             state = viewModel.gameState.first()
             namingCategories = state.hexes[placedStallCoord]?.stall?.namingCategories ?: emptyList()
             iterations++
@@ -81,7 +82,8 @@ class LegendaryNamingTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
+        viewModel.gameJob?.cancel()
 
         viewModel.resetGame()
         var state = viewModel.gameState.first()
@@ -101,7 +103,7 @@ class LegendaryNamingTest {
         var namingCategories = emptyList<String>()
         var iterations = 0
         while (namingCategories.size < 2 && iterations < 2000) {
-            viewModel.upgradeStall()
+            viewModel.upgradeStallRandomly()
             state = viewModel.gameState.first()
             namingCategories = state.hexes[coord]?.stall?.namingCategories ?: emptyList()
             iterations++

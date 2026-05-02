@@ -40,7 +40,7 @@ class StallStatsTest {
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
-        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
 
         // Initial state with one stall and one enemy
         val stallCoord = AxialCoordinate(0, 0)
