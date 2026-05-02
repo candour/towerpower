@@ -1050,10 +1050,12 @@ class MainViewModel @JvmOverloads constructor(
             val finalUpgradeCost = StallUpgradeManager.calculateUpgradeCost(stall, isSpecific, hasFreeUpgrade)
 
             if (state.gold >= finalUpgradeCost) {
+                val availableStats = StallUpgradeManager.getAvailableUpgradeStats(stall)
                 val statToUpgrade = if (isSpecific && specificStat != null) {
+                    if (!availableStats.contains(specificStat)) return@update state
                     specificStat
                 } else {
-                    StallUpgradeManager.getAvailableUpgradeStats(stall).random(this@MainViewModel.random)
+                    availableStats.random(this@MainViewModel.random)
                 }
 
                 val updatedStall = StallUpgradeManager.applyUpgrade(stall, statToUpgrade, finalUpgradeCost, isSpecific)
