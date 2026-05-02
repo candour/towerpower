@@ -38,6 +38,7 @@ class BossWaveLogicTest {
         )
 
         viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.gameJob?.cancel()
     }
 
     @Test

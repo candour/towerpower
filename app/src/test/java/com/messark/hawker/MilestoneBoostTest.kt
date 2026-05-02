@@ -14,7 +14,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -43,15 +42,14 @@ class MilestoneBoostTest {
             damage = 15
         )
 
-        // Level 9: 15 + 9 * ( (15*0.3).toInt() + 2 ) = 15 + 9 * 6 = 69
-        // Increase is 54. 54/15 = 3.6 -> 360%
+        // Benefit calculation uses StallRegistry.get(stallType). Chicken Rice base damage is 10.
+        // Level 9: 10 + 9 * 6 = 64 -> (64-10)/10 = 5.4 -> 540%
         val benefit9 = baseStall.getUpgradeBenefit("Damage", 9)
-        assertEquals("+360%", benefit9)
+        assertEquals("+540%", benefit9)
 
-        // Level 10: (15 + 10 * 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
-        // Increase is 94 - 15 = 79. 79/15 = 5.266... -> 527%
+        // Level 10: (10 + 10 * 6) * 1.25 = 70 * 1.25 = 87.5 -> 88. (88-10)/10 = 7.8 -> 780%
         val benefit10 = baseStall.getUpgradeBenefit("Damage", 10)
-        assertEquals("+527%", benefit10)
+        assertEquals("+780%", benefit10)
     }
 
     @Test
@@ -62,17 +60,16 @@ class MilestoneBoostTest {
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
         val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.gameJob?.cancel()
 
         val stallCoord = AxialCoordinate(0, 0)
-        // Base damage 15. Increase per level 6.
-        // Damage at level 9 = 15 + 9 * 6 = 69.
         val stall = Stall(
             id = "s1",
             name = "Chicken Rice",
             cost = 100,
             color = Color.Yellow,
             stallType = StallType.CHICKEN_RICE,
-            damage = 69,
+            damage = 64, // (10 + 9*6)
             upgrades = mapOf("Damage" to 9),
             upgradeCount = 9
         )
@@ -83,19 +80,16 @@ class MilestoneBoostTest {
             selectedBoardStall = stallCoord
         )
 
-        // We might need to call it multiple times since category selection is random
-        // but since we only care about Damage reaching 10, and it's 1/3 chance roughly.
-        // Actually, let's just loop until Damage is upgraded to 10.
         var attempts = 0
         while (viewModel.gameState.value.hexes[stallCoord]?.stall?.upgrades?.get("Damage") == 9 && attempts < 100) {
-            viewModel.upgradeStall()
+            viewModel.upgradeStallRandomly()
             attempts++
         }
 
         val upgradedStall = viewModel.gameState.value.hexes[stallCoord]?.stall!!
         assertEquals(10, upgradedStall.upgrades["Damage"])
-        // (69 + 6) * 1.25 = 75 * 1.25 = 93.75 -> 94
-        assertEquals(94, upgradedStall.damage)
+        // (64 + 6) * 1.25 = 87.5 -> 88
+        assertEquals(88, upgradedStall.damage)
     }
 
     @Test
@@ -106,17 +100,16 @@ class MilestoneBoostTest {
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
 
         val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.gameJob?.cancel()
 
         val stallCoord = AxialCoordinate(0, 0)
-        // Chicken Rice base rate 700ms. Reduction 70ms.
-        // At level 10: 50ms.
-        // Level 11 should be allowed and cap at 50ms.
+        // Teh Tarik base rate 1000ms. Reduction 100ms. Floor 50ms.
         val stall = Stall(
             id = "s1",
-            name = "Chicken Rice",
-            cost = 100,
-            color = Color.Yellow,
-            stallType = StallType.CHICKEN_RICE,
+            name = "Teh Tarik",
+            cost = 150,
+            color = Color.Blue,
+            stallType = StallType.TEH_TARIK,
             fireRateMs = 50,
             upgrades = mapOf("Rate" to 10),
             upgradeCount = 10
@@ -130,7 +123,7 @@ class MilestoneBoostTest {
 
         var attempts = 0
         while (viewModel.gameState.value.hexes[stallCoord]?.stall?.upgrades?.get("Rate") == 10 && attempts < 100) {
-            viewModel.upgradeStall()
+            viewModel.upgradeStallRandomly()
             attempts++
         }
 
