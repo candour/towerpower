@@ -59,7 +59,7 @@ class TrayUncleRuleTest {
             AxialCoordinate(-1, 0) to HexTile(AxialCoordinate(-1, 0), TileType.PILLAR),
             AxialCoordinate(-1, 1) to HexTile(AxialCoordinate(-1, 1), TileType.PILLAR),
             AxialCoordinate(1, 1) to HexTile(AxialCoordinate(1, 1), TileType.FLOOR),
-            AxialCoordinate(10, 10) to HexTile(AxialCoordinate(10, 10), TileType.END)
+            AxialCoordinate(10, 10) to HexTile(AxialCoordinate(10, 10), TileType.GOAL_TABLE)
         )
         // Fill some more floor tiles to ensure path
         for (q in 0..10) {

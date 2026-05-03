@@ -917,10 +917,10 @@ class MainViewModel @JvmOverloads constructor(
                 for ((uncleCoord, _) in trayUncles) {
                     val uncleNeighbors = getAdjacentCoordinates(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
-                        currentState.hexes.containsKey(it) && !blocked.contains(it) && it != coord &&
-                                (currentState.hexes[it]?.type == TileType.FLOOR ||
-                                        currentState.hexes[it]?.type == TileType.START ||
-                                        currentState.hexes[it]?.type == TileType.END)
+                        val neighborTile = currentState.hexes[it] ?: return@filter false
+                        it != coord && (neighborTile.type == TileType.FLOOR && !blocked.contains(it) ||
+                                neighborTile.type == TileType.START ||
+                                neighborTile.type == TileType.GOAL_TABLE)
                     }
                     if (freeUncleNeighbors.isEmpty()) {
                         violatesTrayUncleRule = true
@@ -1179,7 +1179,9 @@ class MainViewModel @JvmOverloads constructor(
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
-            hexes.containsKey(adj) && !blocked.contains(adj) && hexes[adj]?.type != TileType.PILLAR && hexes[adj]?.type != TileType.GOAL_TABLE && hexes[adj]?.type?.name?.startsWith("EDGE_") == false
+            val tile = hexes[adj] ?: return@filter false
+            val isStandardWalkable = !blocked.contains(adj) && tile.type != TileType.PILLAR && !tile.type.name.startsWith("EDGE_")
+            isStandardWalkable || tile.type == TileType.START || tile.type == TileType.GOAL_TABLE
         }
 
         val releaseCoord = if (validTiles.isNotEmpty()) {
