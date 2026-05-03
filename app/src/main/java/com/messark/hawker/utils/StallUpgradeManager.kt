@@ -123,6 +123,18 @@ object StallUpgradeManager {
 
     fun applyUpgrade(stall: Stall, statName: String, upgradeCost: Int, isSpecific: Boolean): Stall {
         val mutableUpgrades = stall.upgrades.toMutableMap()
+
+        // Normalize: Ensure any existing aliased levels are synced to their canonical keys
+        // before we recalculate. This prevents "stat resetting" when canonical keys are missing.
+        listOf("Grab Rate", "Cleaning Time").forEach { alias ->
+            val canonical = getCanonicalStat(alias)
+            val level = max(mutableUpgrades.getOrDefault(alias, 0), mutableUpgrades.getOrDefault(canonical, 0))
+            if (level > 0) {
+                mutableUpgrades[alias] = level
+                mutableUpgrades[canonical] = level
+            }
+        }
+
         val canonicalStat = getCanonicalStat(statName)
 
         // Record the upgrade level
