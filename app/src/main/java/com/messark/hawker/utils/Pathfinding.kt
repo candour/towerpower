@@ -4,6 +4,15 @@ import com.messark.hawker.model.AxialCoordinate
 import java.util.*
 
 object Pathfinding {
+    private val NEIGHBOR_OFFSETS = arrayOf(
+        AxialCoordinate(1, 0), AxialCoordinate(1, -1), AxialCoordinate(0, -1),
+        AxialCoordinate(-1, 0), AxialCoordinate(-1, 1), AxialCoordinate(0, 1)
+    )
+
+    /**
+     * Finds the shortest path between two axial coordinates using the A* algorithm.
+     * Optimized to avoid O(N) removals from the priority queue and minimize allocations.
+     */
     fun findPath(
         start: AxialCoordinate,
         end: AxialCoordinate,
@@ -12,43 +21,33 @@ object Pathfinding {
     ): List<AxialCoordinate>? {
         if (start == end) return listOf(start)
 
-        val openSet = PriorityQueue<Node>(compareBy { it.fScore })
-        val openSetPositions = mutableSetOf<AxialCoordinate>()
+        val openSet = PriorityQueue<ScoredCoordinate>()
+        val gScores = mutableMapOf<AxialCoordinate, Int>()
+        val parents = mutableMapOf<AxialCoordinate, AxialCoordinate>()
         val closedSet = mutableSetOf<AxialCoordinate>()
-        val nodes = mutableMapOf<AxialCoordinate, Node>()
 
-        val startNode = Node(start, gScore = 0, hScore = heuristic(start, end))
-        openSet.add(startNode)
-        openSetPositions.add(start)
-        nodes[start] = startNode
+        gScores[start] = 0
+        openSet.add(ScoredCoordinate(heuristic(start, end), start))
 
         while (openSet.isNotEmpty()) {
-            val current = openSet.poll() ?: break
-            openSetPositions.remove(current.coordinate)
+            val current = openSet.poll()?.coordinate ?: break
 
-            if (current.coordinate == end) {
-                return reconstructPath(current)
-            }
+            if (current == end) return reconstructPath(end, parents)
+            if (!closedSet.add(current)) continue
 
-            closedSet.add(current.coordinate)
+            val currentG = gScores[current] ?: continue
 
-            for (neighborPos in getNeighbors(current.coordinate)) {
-                // The destination 'end' should not be considered blocked for the purpose of finding a path to it.
+            for (offset in NEIGHBOR_OFFSETS) {
+                val neighborPos = AxialCoordinate(current.q + offset.q, current.r + offset.r)
+
+                // End is never blocked for pathfinding purposes
                 if (neighborPos !in allCoordinates || (neighborPos in blockedPositions && neighborPos != end) || neighborPos in closedSet) continue
 
-                val tentativeGScore = current.gScore + 1
-                val neighborNode = nodes.getOrPut(neighborPos) { Node(neighborPos) }
-
-                if (tentativeGScore < neighborNode.gScore) {
-                    neighborNode.parent = current
-                    neighborNode.gScore = tentativeGScore
-                    neighborNode.hScore = heuristic(neighborPos, end)
-
-                    if (neighborPos in openSetPositions) {
-                        openSet.remove(neighborNode)
-                    }
-                    openSet.add(neighborNode)
-                    openSetPositions.add(neighborPos)
+                val tentativeGScore = currentG + 1
+                if (tentativeGScore < (gScores[neighborPos] ?: Int.MAX_VALUE)) {
+                    gScores[neighborPos] = tentativeGScore
+                    parents[neighborPos] = current
+                    openSet.add(ScoredCoordinate(tentativeGScore + heuristic(neighborPos, end), neighborPos))
                 }
             }
         }
@@ -60,35 +59,17 @@ object Pathfinding {
         return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2
     }
 
-    private fun getNeighbors(coord: AxialCoordinate): List<AxialCoordinate> {
-        // Axial neighbors:
-        // (q+1, r), (q+1, r-1), (q, r-1), (q-1, r), (q-1, r+1), (q, r+1)
-        return listOf(
-            AxialCoordinate(coord.q + 1, coord.r),
-            AxialCoordinate(coord.q + 1, coord.r - 1),
-            AxialCoordinate(coord.q, coord.r - 1),
-            AxialCoordinate(coord.q - 1, coord.r),
-            AxialCoordinate(coord.q - 1, coord.r + 1),
-            AxialCoordinate(coord.q, coord.r + 1)
-        )
-    }
-
-    private fun reconstructPath(node: Node): List<AxialCoordinate> {
+    private fun reconstructPath(end: AxialCoordinate, parents: Map<AxialCoordinate, AxialCoordinate>): List<AxialCoordinate> {
         val path = mutableListOf<AxialCoordinate>()
-        var current: Node? = node
+        var current: AxialCoordinate? = end
         while (current != null) {
-            path.add(current.coordinate)
-            current = current.parent
+            path.add(current)
+            current = parents[current]
         }
         return path.reversed()
     }
 
-    private class Node(
-        val coordinate: AxialCoordinate,
-        var parent: Node? = null,
-        var gScore: Int = Int.MAX_VALUE,
-        var hScore: Int = 0
-    ) {
-        val fScore: Int get() = gScore + hScore
+    private class ScoredCoordinate(val fScore: Int, val coordinate: AxialCoordinate) : Comparable<ScoredCoordinate> {
+        override fun compareTo(other: ScoredCoordinate): Int = fScore.compareTo(other.fScore)
     }
 }
