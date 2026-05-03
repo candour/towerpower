@@ -917,7 +917,10 @@ class MainViewModel @JvmOverloads constructor(
                 for ((uncleCoord, _) in trayUncles) {
                     val uncleNeighbors = getAdjacentCoordinates(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
-                        currentState.hexes.containsKey(it) && !blocked.contains(it) && it != coord && currentState.hexes[it]?.type == TileType.FLOOR
+                        currentState.hexes.containsKey(it) && !blocked.contains(it) && it != coord &&
+                                (currentState.hexes[it]?.type == TileType.FLOOR ||
+                                        currentState.hexes[it]?.type == TileType.START ||
+                                        currentState.hexes[it]?.type == TileType.END)
                     }
                     if (freeUncleNeighbors.isEmpty()) {
                         violatesTrayUncleRule = true
