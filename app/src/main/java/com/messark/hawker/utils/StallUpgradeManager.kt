@@ -74,6 +74,7 @@ object StallUpgradeManager {
                 "Range" -> {
                     current += 0.5
                     if (isMilestone) current *= 1.25
+                    current = (current * 10).roundToInt() / 10.0
                 }
                 "Rate", "Grab Rate" -> {
                     val rateReduction = when (stallType) {
@@ -100,6 +101,7 @@ object StallUpgradeManager {
                 "Radius" -> {
                     current += 0.2
                     if (isMilestone) current *= 1.25
+                    current = (current * 10).roundToInt() / 10.0
                 }
                 "Duration", "Cleaning Time" -> {
                     val increment = if (stallType == StallType.TRAY_RETURN_UNCLE) 100.0 else 500.0
