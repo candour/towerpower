@@ -33,11 +33,21 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Sorting Logic:** Within a zOrder group, sort by `r` (row), then `zOrder`, then `q` (column) to ensure correct isometric depth.
 
 ### Stalls & Upgrades
-- **Stall Types:** Teh Tarik (Slow), Satay (AOE), Chicken Rice (Single Target), Durian (High Damage/Slow Fire), Ice Kachang (Freeze), Bak Kut Teh (Booster).
-- **Upgrades:** Additive scaling based on base stats. Costs increase linearly (+10% of base cost per level). Bak Kut Teh only upgrades its Boost percentage.
+- **Stall Types:** Teh Tarik (Slow), Satay (AOE), Chicken Rice (Single Target), Durian (High Damage/Slow Fire), Ice Kachang (Freeze), Bak Kut Teh (Booster), ATM (Income).
+- **Upgrade Model:** Derivation-based $O(\text{level})$ scaling. All stat values are recalculated from the base definition using the current upgrade levels in the `upgrades` map. This prevents precision drift and ensures consistency between UI previews and the engine.
+- **Scaling Rules:**
+  - **Damage:** Multiplicative (1.15x per level). Chicken Rice (cost $100 variant) uses a flat +6 per level.
+  - **Range:** Additive (+0.5 per level).
+  - **Radius:** Additive (+0.2 per level).
+  - **Fire Rate:** Linear reduction with stall-specific floors (e.g., Chicken Rice -15ms floor 200ms).
+  - **Duration/Effect:** Additive (Duration +500ms, Effect +100ms, Uncle Duration +100ms).
+  - **Boost (Bak Kut Teh):** Additive (+20% per level).
+- **Milestone Boost:** Every 10th level applies a 1.25x multiplier (or 0.75x for rate) to the value.
+- **Stat Aliasing:** Some UI stats are aliased (e.g., "Grab Rate" $\rightarrow$ "Rate"). `StallUpgradeManager` normalizes these mappings upfront to prevent state-resetting bugs.
+- **Costs:** Costs increase linearly: $\text{Base} \times (0.2 + \text{next\_level} \times 0.1)$. Specific upgrades cost double and apply a `disabledWaves` penalty unless a Kitchelin Star is used.
 - **Selling:** Provides a 50% refund of the total investment (base cost + upgrades).
 - **Targeting:** Supports FIRST, CLOSEST, STRONGEST, and WEAKEST strategies.
-- **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10. These names are managed via `LegendaryNames.kt`.
+- **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10.
 
 ### Kitchelin Stars
 - **Awards:** Awarded every 10th wave.
