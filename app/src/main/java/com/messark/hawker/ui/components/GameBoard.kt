@@ -517,7 +517,7 @@ fun GameBoard(
                                 moveTo(shieldX + shieldSize / 2f, shieldY) // Top center
                                 lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.3f) // Right top
                                 lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.7f) // Right bottom
-                                quadraticBezierTo(
+                                quadraticTo(
                                     shieldX + shieldSize / 2f, shieldY + shieldSize, // Bottom center control
                                     shieldX, shieldY + shieldSize * 0.7f // Left bottom
                                 )

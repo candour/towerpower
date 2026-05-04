@@ -1053,6 +1053,7 @@ class MainViewModel @JvmOverloads constructor(
 
             if (state.gold >= finalUpgradeCost) {
                 val availableStats = StallUpgradeManager.getAvailableUpgradeStats(stall)
+                if (availableStats.isEmpty()) return@update state
                 val statToUpgrade = if (isSpecific && specificStat != null) {
                     if (!availableStats.contains(specificStat)) return@update state
                     specificStat

@@ -30,6 +30,7 @@ object StallUpgradeManager {
             StallType.ICE_KACHANG -> listOf("Range", "Rate", "Effect")
             StallType.SATAY, StallType.DURIAN -> listOf("Damage", "Range", "Rate", "Radius")
             StallType.CHICKEN_RICE -> listOf("Damage", "Range", "Rate")
+            StallType.ATM -> emptyList()
             else -> if (stall.stallType.isUtility) listOf("Range", "Rate") else listOf("Damage", "Range", "Rate")
         }
     }
