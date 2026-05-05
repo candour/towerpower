@@ -45,7 +45,7 @@ fun StallConsole(
     val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
     val backgroundImage = ImageBitmap.imageResource(id = R.drawable.control_panel_selected)
 
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().aspectRatio(1080f/720f)) {
+    BoxWithConstraints(modifier = modifier) {
         val width = maxWidth
         val height = maxHeight
 

@@ -615,9 +615,17 @@ fun GameScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(LayoutConstants.BOARD_BORDER_SIZE)
             ) {
-                Box(modifier = Modifier.weight(LayoutConstants.BOARD_HEIGHT_FRACTION)) {
+                Box(
+                    modifier = Modifier
+                        .weight(LayoutConstants.BOARD_HEIGHT_FRACTION)
+                        .padding(
+                            top = LayoutConstants.BOARD_BORDER_SIZE,
+                            start = LayoutConstants.BOARD_BORDER_SIZE,
+                            end = LayoutConstants.BOARD_BORDER_SIZE,
+                            bottom = LayoutConstants.BOARD_BORDER_SIZE
+                        )
+                ) {
                     GameBoard(
                         hexes = gameState.hexes,
                         enemies = gameState.enemies,
@@ -706,7 +714,9 @@ fun GameScreen(
                     onShowStallTutorial = { viewModel.showStallTutorial(it) },
                     onTriggerHaptic = { viewModel.triggerHaptic() },
                     waveActive = gameState.waveActive,
-                    modifier = Modifier.weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
                 )
             }
 
