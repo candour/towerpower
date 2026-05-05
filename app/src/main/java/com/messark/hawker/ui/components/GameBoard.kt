@@ -41,12 +41,14 @@ fun GameBoard(
     visualEffects: List<VisualEffect>,
     selectedBoardStall: AxialCoordinate?,
     gold: Int,
+    health: Int,
     onCellClick: (AxialCoordinate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
     val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
     val enemiesSheet = ImageBitmap.imageResource(id = R.drawable.enemies)
+    val endTableSheet = ImageBitmap.imageResource(id = R.drawable.end_table)
 
     val upgradePaint = remember {
         android.graphics.Paint().apply {
@@ -222,7 +224,7 @@ fun GameBoard(
 
                     val srcRect = when (tile.type) {
                         TileType.PILLAR -> SpriteConstants.PILLAR_RECT
-                        TileType.GOAL_TABLE -> SpriteConstants.GOAL_TABLE_RECT
+                        TileType.GOAL_TABLE -> null
                         TileType.EDGE_NW -> SpriteConstants.EDGE_NW_RECT
                         TileType.EDGE_NE -> SpriteConstants.EDGE_NE_RECT
                         TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
@@ -244,7 +246,6 @@ fun GameBoard(
                                 val dSize = Size(rect.width * scale, rect.height * scale)
                                 val anchor = when (tile.type) {
                                     TileType.PILLAR -> Offset(0.5f, 0.8f)
-                                    TileType.GOAL_TABLE -> Offset(0.5f, 0.75f)
                                     else -> Offset(0.5f, 0.5f)
                                 }
                                 drawSprite(
@@ -253,6 +254,34 @@ fun GameBoard(
                                     destSize = dSize,
                                     anchor = anchor,
                                     clipHex = isEdge
+                                )
+                            }
+                        ))
+                    }
+
+                    if (tile.type == TileType.GOAL_TABLE) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 2,
+                            draw = {
+                                val scale = wPx / 101f
+                                val index = (10 - health).coerceIn(0, 9)
+                                val srcRect = IntRect(
+                                    0,
+                                    index * SpriteConstants.END_TABLE_SPRITE_HEIGHT,
+                                    SpriteConstants.END_TABLE_SPRITE_WIDTH,
+                                    (index + 1) * SpriteConstants.END_TABLE_SPRITE_HEIGHT
+                                )
+                                // Target width based on original goal table width (263)
+                                val targetWidth = 263f * scale
+                                val targetHeight = targetWidth * SpriteConstants.END_TABLE_SPRITE_HEIGHT / SpriteConstants.END_TABLE_SPRITE_WIDTH
+                                drawSprite(
+                                    srcRect = srcRect,
+                                    destCenter = screenPos,
+                                    destSize = Size(targetWidth, targetHeight),
+                                    anchor = Offset(0.5f, 0.75f),
+                                    bitmap = endTableSheet
                                 )
                             }
                         ))

@@ -22,6 +22,9 @@ object SpriteConstants {
     val PILLAR_RECT = IntRect(31, 501, 101, 627)
     val GOAL_TABLE_RECT = IntRect(1100, 430, 1363, 628)
 
+    const val END_TABLE_SPRITE_WIDTH = 600
+    const val END_TABLE_SPRITE_HEIGHT = 450
+
     // Enemies (from drawable-nodpi/enemies.png)
     const val ENEMY_SPRITE_WIDTH = 172
     const val ENEMY_SPRITE_HEIGHT = 218

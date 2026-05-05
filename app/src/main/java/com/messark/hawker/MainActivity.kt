@@ -626,6 +626,7 @@ fun GameScreen(
                         visualEffects = gameState.visualEffects,
                         selectedBoardStall = gameState.selectedBoardStall,
                         gold = gameState.gold,
+                        health = gameState.health,
                         onCellClick = { coord -> viewModel.onCellClick(coord) },
                         modifier = Modifier.fillMaxSize()
                     )
