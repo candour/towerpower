@@ -465,31 +465,26 @@ class MainViewModel @JvmOverloads constructor(
 
             val enemyDef = EnemyRegistry.get(enemy.type)
 
-            var freezeDuration = enemy.freezeDurationMs
-            if (freezeDuration > 0) {
-                freezeDuration = Math.max(0, freezeDuration - 32)
-            }
-
-            var speedBoostDuration = enemy.speedBoostDurationMs
-            if (speedBoostDuration > 0) {
-                speedBoostDuration = Math.max(0, speedBoostDuration - 32)
-            }
+            var freezeDuration = Math.max(0, enemy.freezeDurationMs - 32)
+            var speedBoostDuration = Math.max(0, enemy.speedBoostDurationMs - 32)
 
             val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(enemy, currentTimeMs)
             var isStopped = behaviorUpdatedEnemy.isStopped
             var stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
             var lastStopMs = behaviorUpdatedEnemy.lastStopMs
 
+            var speedMultiplier = 1.0f
             state.puddles.forEach { puddle ->
-                if (axialDistance(enemy.position, puddle.position) < 0.8 &&
-                    puddle.sourceStallCoord != null &&
-                    puddle.sourceStallId != null
-                ) {
-                    affectingStalls
-                        .getOrPut(puddle.sourceStallCoord to puddle.sourceStallId) { mutableSetOf() }
-                        .add(enemy.id)
+                if (GridUtils.axialDistance(enemy.position, puddle.position) < 0.8) {
+                    speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
+                    if (puddle.sourceStallCoord != null && puddle.sourceStallId != null) {
+                        affectingStalls
+                            .getOrPut(puddle.sourceStallCoord to puddle.sourceStallId) { mutableSetOf() }
+                            .add(enemy.id)
+                    }
                 }
             }
+
             if (isStopped || freezeDuration > 0) {
                 if (enemy.type == EnemyType.TIGER_MOM && enemy.buffingTargetId != null) {
                     val targetExists = state.enemies.any { it.id == enemy.buffingTargetId && !it.isDead }
@@ -508,13 +503,6 @@ class MainViewModel @JvmOverloads constructor(
                 )
             }
 
-            var speedMultiplier = 1.0f
-            state.puddles.forEach { puddle ->
-                if (axialDistance(enemy.position, puddle.position) < 0.8) {
-                    speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
-                }
-            }
-
             if (speedBoostDuration > 0) {
                 speedMultiplier *= 1.5f
             }
@@ -528,19 +516,20 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             val target = enemy.path[targetIndex]
-            val dq = target.q - enemy.position.q
-            val dr = target.r - enemy.position.r
-            val dist = axialDistance(enemy.position, PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()))
+            val targetPrecise = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat())
+            val dq = targetPrecise.q - enemy.position.q
+            val dr = targetPrecise.r - enemy.position.r
+            val dist = GridUtils.axialDistance(enemy.position, targetPrecise)
 
-            val newIsFacingLeft = if (target.q + target.r / 2f != enemy.position.q + enemy.position.r / 2f) {
-                target.q + target.r / 2f < enemy.position.q + enemy.position.r / 2f
+            val newIsFacingLeft = if (targetPrecise.q + targetPrecise.r / 2f != enemy.position.q + enemy.position.r / 2f) {
+                targetPrecise.q + targetPrecise.r / 2f < enemy.position.q + enemy.position.r / 2f
             } else {
                 enemy.isFacingLeft
             }
 
             var nextEnemy = if (dist < effectiveSpeed) {
                 enemy.copy(
-                    position = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat()),
+                    position = targetPrecise,
                     currentPathIndex = targetIndex,
                     currentSpeed = effectiveSpeed,
                     isStopped = isStopped,
@@ -574,7 +563,7 @@ class MainViewModel @JvmOverloads constructor(
                     // Find nearest non-buffed enemy
                     val targetEnemy = state.enemies
                         .filter { it.id != nextEnemy.id && it.buffs.none { b -> b.type == BuffType.ARMOR } && !it.isDead && !it.isGrabbed }
-                        .minByOrNull { axialDistance(nextEnemy.position, it.position) }
+                        .minByOrNull { GridUtils.axialDistance(nextEnemy.position, it.position) }
 
                     if (targetEnemy != null) {
                         buffActions.add(nextEnemy.id to targetEnemy.id)
@@ -646,12 +635,12 @@ class MainViewModel @JvmOverloads constructor(
             if (stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
-                    !enemy.isGrabbed && axialDistance(enemy.position, stallPos) <= stall.range
+                    !enemy.isGrabbed && GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
                 }
 
                 val target = when (stall.targetMode) {
                     TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { axialDistance(it.position, stallPos) }
+                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
                     TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
                     TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
                 }
@@ -740,7 +729,7 @@ class MainViewModel @JvmOverloads constructor(
 
             val dq = targetPos.q - proj.position.q
             val dr = targetPos.r - proj.position.r
-            val dist = axialDistance(proj.position, targetPos)
+            val dist = GridUtils.axialDistance(proj.position, targetPos)
 
             if (dist < proj.speed) {
                 // Visual Effect
@@ -760,7 +749,7 @@ class MainViewModel @JvmOverloads constructor(
                 state.enemies.forEach { enemy ->
                     if (enemy.isGrabbed) return@forEach
                     val isDirectTarget = proj.targetEnemyId == enemy.id
-                    val isWithinAoe = proj.aoeRadius > 0 && axialDistance(enemy.position, targetPos) <= proj.aoeRadius
+                    val isWithinAoe = proj.aoeRadius > 0 && GridUtils.axialDistance(enemy.position, targetPos) <= proj.aoeRadius
                     if (isDirectTarget || isWithinAoe) {
                         hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
                     }
@@ -888,10 +877,6 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun axialDistance(a: PreciseAxialCoordinate, b: PreciseAxialCoordinate): Float {
-        return GridUtils.axialDistance(a, b)
-    }
-
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
         val tile = currentState.hexes[coord] ?: return
@@ -915,7 +900,7 @@ class MainViewModel @JvmOverloads constructor(
 
                 var violatesTrayUncleRule = false
                 for ((uncleCoord, _) in trayUncles) {
-                    val uncleNeighbors = getAdjacentCoordinates(uncleCoord)
+                    val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
                         val neighborTile = currentState.hexes[it] ?: return@filter false
                         it != coord && (neighborTile.type == TileType.FLOOR && !blocked.contains(it) ||
@@ -1176,7 +1161,7 @@ class MainViewModel @JvmOverloads constructor(
         hexes: Map<AxialCoordinate, HexTile>,
         endPos: AxialCoordinate?
     ): Enemy {
-        val adjacentCoords = getAdjacentCoordinates(stallCoord)
+        val adjacentCoords = GridUtils.getNeighbors(stallCoord)
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
@@ -1229,7 +1214,7 @@ class MainViewModel @JvmOverloads constructor(
     data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
 
     private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
-        val adjacentCoords = getAdjacentCoordinates(coord)
+        val adjacentCoords = GridUtils.getNeighbors(coord)
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
@@ -1240,16 +1225,5 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
         return BoostResult(1.0f + (totalBoostPercent / 100f), providers)
-    }
-
-    private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
-        return listOf(
-            AxialCoordinate(coord.q + 1, coord.r),
-            AxialCoordinate(coord.q + 1, coord.r - 1),
-            AxialCoordinate(coord.q, coord.r - 1),
-            AxialCoordinate(coord.q - 1, coord.r),
-            AxialCoordinate(coord.q - 1, coord.r + 1),
-            AxialCoordinate(coord.q, coord.r + 1)
-        )
     }
 }

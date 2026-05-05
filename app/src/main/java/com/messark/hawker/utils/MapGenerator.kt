@@ -95,15 +95,4 @@ object MapGenerator {
             1 + Random.nextInt(6) // floor01 to floor10 (20% total)
         }
     }
-
-    private fun getNeighbors(coord: AxialCoordinate): List<AxialCoordinate> {
-        return listOf(
-            AxialCoordinate(coord.q + 1, coord.r),
-            AxialCoordinate(coord.q + 1, coord.r - 1),
-            AxialCoordinate(coord.q, coord.r - 1),
-            AxialCoordinate(coord.q - 1, coord.r),
-            AxialCoordinate(coord.q - 1, coord.r + 1),
-            AxialCoordinate(coord.q, coord.r + 1)
-        )
-    }
 }
