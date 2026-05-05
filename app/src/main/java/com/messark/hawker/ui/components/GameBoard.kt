@@ -280,7 +280,7 @@ fun GameBoard(
                                     srcRect = srcRect,
                                     destCenter = screenPos,
                                     destSize = Size(targetWidth, targetHeight),
-                                    anchor = Offset(0.5f, 0.75f),
+                                    anchor = Offset(0.5f, 1.0f),
                                     bitmap = endTableSheet
                                 )
                             }
