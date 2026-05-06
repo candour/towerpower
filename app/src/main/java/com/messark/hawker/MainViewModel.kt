@@ -1213,14 +1213,15 @@ class MainViewModel @JvmOverloads constructor(
 
     data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
 
-    private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
+    private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
             val tile = hexes[adj]
-            if (tile?.stall?.stallType == StallType.BAK_KUT_TEH && tile.stall.disabledWaves == 0) {
-                totalBoostPercent += tile.stall.damage // Bak Kut Teh damage field stores its current boost %
+            val stall = tile?.stall
+            if (stall?.stallType == StallType.BAK_KUT_TEH && stall.disabledWaves == 0) {
+                totalBoostPercent += stall.damage // Bak Kut Teh damage field stores its current boost %
                 providers.add(adj)
             }
         }
