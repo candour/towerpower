@@ -2,17 +2,12 @@ package com.messark.hawker.utils
 
 import com.messark.hawker.model.AxialCoordinate
 import java.util.*
-import kotlin.math.abs
 
 /**
  * Finds the shortest path between two axial coordinates using the A* algorithm.
- * Optimized to avoid O(N) removals from the priority queue and minimize allocations.
+ * Optimized for performance and idiomatic Kotlin.
  */
 object Pathfinding {
-    private val NEIGHBOR_OFFSETS = arrayOf(
-        AxialCoordinate(1, 0), AxialCoordinate(1, -1), AxialCoordinate(0, -1),
-        AxialCoordinate(-1, 0), AxialCoordinate(-1, 1), AxialCoordinate(0, 1)
-    )
 
     fun findPath(
         start: AxialCoordinate,
@@ -22,30 +17,32 @@ object Pathfinding {
     ): List<AxialCoordinate>? {
         if (start == end) return listOf(start)
 
-        val gScores = mutableMapOf(start to 0)
+        // Maps to track scores and parent nodes for path reconstruction
+        val gScores = mutableMapOf<AxialCoordinate, Int>().apply { this[start] = 0 }
         val parents = mutableMapOf<AxialCoordinate, AxialCoordinate>()
-        // We allow duplicates in the priority queue to avoid O(N) removals.
-        // A coordinate is only processed once because of the closedSet.
+
+        // Priority queue for A* search, prioritized by fScore (gScore + heuristic)
         val openSet = PriorityQueue<Node>(compareBy { it.fScore })
         val closedSet = mutableSetOf<AxialCoordinate>()
 
-        openSet.add(Node(heuristic(start, end), start))
+        openSet.add(Node(start, GridUtils.axialDistance(start, end)))
 
         while (openSet.isNotEmpty()) {
             val current = openSet.poll()?.coordinate ?: break
 
+            // Goal reached: reconstruct and return path
             if (current == end) {
-                return generateSequence(end) { parents[it] }.toList().reversed()
+                return reconstructPath(parents, end)
             }
 
+            // Skip if already processed (A* optimization with PriorityQueue duplicates)
             if (!closedSet.add(current)) continue
 
             val currentG = gScores[current] ?: continue
 
-            for (offset in NEIGHBOR_OFFSETS) {
-                val neighbor = AxialCoordinate(current.q + offset.q, current.r + offset.r)
-
-                // End is never blocked for pathfinding purposes
+            for (neighbor in GridUtils.getNeighbors(current)) {
+                // Bounds and collision checks
+                // Note: The destination 'end' is always considered walkable for pathfinding.
                 val isBlocked = neighbor in blockedPositions && neighbor != end
                 if (neighbor !in allCoordinates || isBlocked || neighbor in closedSet) continue
 
@@ -53,7 +50,8 @@ object Pathfinding {
                 if (tentativeG < (gScores[neighbor] ?: Int.MAX_VALUE)) {
                     gScores[neighbor] = tentativeG
                     parents[neighbor] = current
-                    openSet.add(Node(tentativeG + heuristic(neighbor, end), neighbor))
+                    val fScore = tentativeG + GridUtils.axialDistance(neighbor, end)
+                    openSet.add(Node(neighbor, fScore))
                 }
             }
         }
@@ -61,8 +59,18 @@ object Pathfinding {
         return null // No path found
     }
 
-    private fun heuristic(a: AxialCoordinate, b: AxialCoordinate): Int =
-        (abs(a.q - b.q) + abs(a.q + a.r - b.q - b.r) + abs(a.r - b.r)) / 2
+    private fun reconstructPath(
+        parents: Map<AxialCoordinate, AxialCoordinate>,
+        end: AxialCoordinate
+    ): List<AxialCoordinate> {
+        val path = mutableListOf(end)
+        var current = end
+        while (parents.containsKey(current)) {
+            current = parents[current]!!
+            path.add(current)
+        }
+        return path.asReversed()
+    }
 
-    private class Node(val fScore: Int, val coordinate: AxialCoordinate)
+    private class Node(val coordinate: AxialCoordinate, val fScore: Int)
 }

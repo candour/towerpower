@@ -1,27 +1,17 @@
 package com.messark.hawker.utils
 
 import androidx.compose.ui.geometry.Offset
+import com.messark.hawker.model.AxialCoordinate
+import com.messark.hawker.model.PreciseAxialCoordinate
+import kotlin.math.abs
 
 import com.messark.hawker.model.AxialCoordinate
 
 object GridUtils {
-    private val NEIGHBOR_OFFSETS = listOf(
-        AxialCoordinate(1, 0),
-        AxialCoordinate(1, -1),
-        AxialCoordinate(0, -1),
-        AxialCoordinate(-1, 0),
-        AxialCoordinate(-1, 1),
-        AxialCoordinate(0, 1)
+    val NEIGHBOR_OFFSETS = listOf(
+        AxialCoordinate(1, 0), AxialCoordinate(1, -1), AxialCoordinate(0, -1),
+        AxialCoordinate(-1, 0), AxialCoordinate(-1, 1), AxialCoordinate(0, 1)
     )
-
-    /**
-     * Returns all adjacent axial coordinates for a given coordinate.
-     */
-    fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
-        return NEIGHBOR_OFFSETS.map { offset ->
-            AxialCoordinate(coord.q + offset.q, coord.r + offset.r)
-        }
-    }
 
     /**
      * Converts axial coordinates (q, r) to screen coordinates.
@@ -42,7 +32,23 @@ object GridUtils {
     /**
      * Calculates axial distance between two precise coordinates.
      */
-    fun axialDistance(a: com.messark.hawker.model.PreciseAxialCoordinate, b: com.messark.hawker.model.PreciseAxialCoordinate): Float {
-        return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2f
+    fun axialDistance(a: PreciseAxialCoordinate, b: PreciseAxialCoordinate): Float {
+        return (abs(a.q - b.q) + abs(a.q + a.r - b.q - b.r) + abs(a.r - b.r)) / 2f
+    }
+
+    /**
+     * Calculates axial distance between two integer coordinates.
+     */
+    fun axialDistance(a: AxialCoordinate, b: AxialCoordinate): Int {
+        return (abs(a.q - b.q) + abs(a.q + a.r - b.q - b.r) + abs(a.r - b.r)) / 2
+    }
+
+    /**
+     * Returns neighbors of an axial coordinate.
+     */
+    fun getNeighbors(coord: AxialCoordinate): List<AxialCoordinate> {
+        return NEIGHBOR_OFFSETS.map { offset ->
+            AxialCoordinate(coord.q + offset.q, coord.r + offset.r)
+        }
     }
 }
