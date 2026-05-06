@@ -44,9 +44,11 @@ object StallUpgradeManager {
         }
     }
 
-    private fun getCanonicalStat(statName: String): String = when (statName) {
+    private fun getCanonicalStat(statName: String, stallType: StallType): String = when (statName) {
         "Grab Rate" -> "Rate"
         "Cleaning Time" -> "Duration"
+        "Damage" -> if (stallType == StallType.BAK_KUT_TEH) "Boost" else "Damage"
+        "Boost" -> "Boost"
         else -> statName
     }
 
@@ -57,7 +59,7 @@ object StallUpgradeManager {
         stallType: StallType
     ): Double {
         if (level <= 0) return baseValue
-        val canonical = getCanonicalStat(statName)
+        val canonical = getCanonicalStat(statName, stallType)
         val cacheKey = CacheKey(stallType, canonical, baseValue, level)
 
         return valueCache.getOrPut(cacheKey) {
@@ -126,37 +128,40 @@ object StallUpgradeManager {
     fun applyUpgrade(stall: Stall, statName: String, upgradeCost: Int, isSpecific: Boolean): Stall {
         val mutableUpgrades = stall.upgrades.toMutableMap()
 
-        // Normalize aliases
-        listOf("Grab Rate", "Cleaning Time").forEach { alias ->
-            val canonical = getCanonicalStat(alias)
-            val level = max(mutableUpgrades.getOrDefault(alias, 0), mutableUpgrades.getOrDefault(canonical, 0))
-            if (level > 0) {
-                mutableUpgrades[alias] = level
-                mutableUpgrades[canonical] = level
+        // Normalize all possible stat keys (including aliases and stall-specific ones)
+        val allStatKeys = (mutableUpgrades.keys + getAvailableUpgradeStats(stall)).toSet()
+        allStatKeys.forEach { key ->
+            val canonical = getCanonicalStat(key, stall.stallType)
+            if (canonical != key) {
+                val level = max(mutableUpgrades.getOrDefault(key, 0), mutableUpgrades.getOrDefault(canonical, 0))
+                if (level > 0) {
+                    mutableUpgrades[key] = level
+                    mutableUpgrades[canonical] = level
+                }
             }
         }
 
-        val canonicalStat = getCanonicalStat(statName)
+        val canonicalStat = getCanonicalStat(statName, stall.stallType)
         val newLevelForStat = mutableUpgrades.getOrDefault(statName, 0) + 1
         mutableUpgrades[statName] = newLevelForStat
         if (canonicalStat != statName) mutableUpgrades[canonicalStat] = newLevelForStat
 
         val baseDef = StallRegistry.get(stall.stallType)
-        val damageStat = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost" else "Damage"
+        val damageStat = getCanonicalStat("Damage", stall.stallType)
 
         // Legendary Naming
         var newPrefix = stall.legendaryPrefix
         var newSuffix = stall.legendarySuffix
-        val newNamingCategories = stall.namingCategories.toMutableList()
+        val newNamingCategories = stall.namingCategories.map { getCanonicalStat(it, stall.stallType) }.toMutableList()
 
-        if (newLevelForStat == 10 && !stall.namingCategories.contains(statName)) {
+        if (newLevelForStat == 10 && !newNamingCategories.contains(canonicalStat)) {
             val legendaryCat = canonicalStat
-            if (stall.namingCategories.isEmpty()) {
+            if (newNamingCategories.isEmpty()) {
                 newSuffix = LegendaryNames.getRandomSuffix(legendaryCat)
-                newNamingCategories.add(statName)
-            } else if (stall.namingCategories.size == 1) {
+                newNamingCategories.add(canonicalStat)
+            } else if (newNamingCategories.size == 1) {
                 newPrefix = LegendaryNames.getRandomPrefix(legendaryCat)
-                newNamingCategories.add(statName)
+                newNamingCategories.add(canonicalStat)
             }
         }
 
@@ -181,7 +186,7 @@ object StallUpgradeManager {
     fun getBenefitString(category: String, level: Int, baseStall: StallDefinition): String {
         if (level <= 0) return ""
 
-        val canonicalStat = getCanonicalStat(category)
+        val canonicalStat = getCanonicalStat(category, baseStall.type)
         val baseValue = when (canonicalStat) {
             "Damage", "Boost" -> baseStall.damage.toDouble()
             "Range" -> baseStall.range.toDouble()

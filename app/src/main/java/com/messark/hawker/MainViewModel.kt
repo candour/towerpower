@@ -1217,9 +1217,9 @@ class MainViewModel @JvmOverloads constructor(
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
-            val tile = hexes[adj]
-            if (tile?.stall?.stallType == StallType.BAK_KUT_TEH && tile.stall.disabledWaves == 0) {
-                totalBoostPercent += tile.stall.damage // Bak Kut Teh damage field stores its current boost %
+            val stall = hexes[adj]?.stall
+            if (stall != null && stall.stallType == StallType.BAK_KUT_TEH && stall.disabledWaves == 0) {
+                totalBoostPercent += stall.damage // Bak Kut Teh damage field stores its current boost %
                 providers.add(adj)
             }
         }
