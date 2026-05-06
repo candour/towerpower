@@ -465,8 +465,8 @@ class MainViewModel @JvmOverloads constructor(
 
             val enemyDef = EnemyRegistry.get(enemy.type)
 
-            var freezeDuration = Math.max(0, enemy.freezeDurationMs - 32)
-            var speedBoostDuration = Math.max(0, enemy.speedBoostDurationMs - 32)
+            var freezeDuration = maxOf(0, enemy.freezeDurationMs - 32)
+            var speedBoostDuration = maxOf(0, enemy.speedBoostDurationMs - 32)
 
             val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(enemy, currentTimeMs)
             var isStopped = behaviorUpdatedEnemy.isStopped
@@ -511,7 +511,7 @@ class MainViewModel @JvmOverloads constructor(
 
             val targetIndex = enemy.currentPathIndex + 1
             if (targetIndex >= enemy.path.size) {
-                mutableState = mutableState.copy(health = Math.max(0, mutableState.health - 1))
+                mutableState = mutableState.copy(health = maxOf(0, mutableState.health - 1))
                 return@mapNotNull null
             }
 
@@ -801,8 +801,8 @@ class MainViewModel @JvmOverloads constructor(
                     }
 
                     val damageDealt = damage
-                    currentHealth = Math.max(0f, currentHealth - damageDealt)
-                    maxFreezeDuration = Math.max(maxFreezeDuration, freezeDuration)
+                    currentHealth = maxOf(0f, currentHealth - damageDealt)
+                    maxFreezeDuration = maxOf(maxFreezeDuration, freezeDuration)
 
                     // Track hit and kill
                     if (proj.sourceStallCoord != null && proj.sourceStallId != null) {
