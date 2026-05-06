@@ -1220,7 +1220,7 @@ class MainViewModel @JvmOverloads constructor(
         adjacentCoords.forEach { adj ->
             val tile = hexes[adj]
             val stall = tile?.stall
-            if (stall?.stallType == StallType.BAK_KUT_TEH && stall.disabledWaves == 0) {
+            if (stall != null && stall.stallType == StallType.BAK_KUT_TEH && stall.disabledWaves == 0) {
                 totalBoostPercent += stall.damage // Bak Kut Teh damage field stores its current boost %
                 providers.add(adj)
             }
