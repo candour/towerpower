@@ -21,3 +21,4 @@ This document tracks identified and resolved bugs in the Hawker Rush codebase.
 | ID | Date | Description | Status |
 | :--- | :--- | :--- | :--- |
 | FIX-001 | 2025-05-15 | Updated `calculateStatBoost` in `MainViewModel.kt` to accept a hex map instead of `GameState`. This ensures that Bak Kut Teh stalls re-enabled during wave completion correctly provide bonuses to adjacent ATMs in the same wave. | Resolved |
+| REF-001 | 2025-05-16 | Refactored `StallUpgradeManager.kt` to optimize stat calculation by introducing a cache and replacing iterative loops with idiomatic `fold` operations. This improves efficiency and maintainability of the upgrade logic. | Resolved |

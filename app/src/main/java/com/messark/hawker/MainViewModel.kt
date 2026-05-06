@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.messark.hawker.model.*
 import com.messark.hawker.registry.*
 import com.messark.hawker.utils.*
-import com.messark.hawker.utils.StallUpgradeManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.Instant
@@ -1213,7 +1212,7 @@ class MainViewModel @JvmOverloads constructor(
 
     data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
 
-    private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
+    private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
