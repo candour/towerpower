@@ -2,7 +2,27 @@ package com.messark.hawker.utils
 
 import androidx.compose.ui.geometry.Offset
 
+import com.messark.hawker.model.AxialCoordinate
+
 object GridUtils {
+    private val NEIGHBOR_OFFSETS = listOf(
+        AxialCoordinate(1, 0),
+        AxialCoordinate(1, -1),
+        AxialCoordinate(0, -1),
+        AxialCoordinate(-1, 0),
+        AxialCoordinate(-1, 1),
+        AxialCoordinate(0, 1)
+    )
+
+    /**
+     * Returns all adjacent axial coordinates for a given coordinate.
+     */
+    fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
+        return NEIGHBOR_OFFSETS.map { offset ->
+            AxialCoordinate(coord.q + offset.q, coord.r + offset.r)
+        }
+    }
+
     /**
      * Converts axial coordinates (q, r) to screen coordinates.
      */

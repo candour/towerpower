@@ -342,7 +342,7 @@ class MainViewModel @JvmOverloads constructor(
                     if (stall != null) {
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
-                            val (boost, providers) = calculateStatBoost(coord, newState)
+                            val (boost, providers) = calculateStatBoost(coord, updatedHexes)
                             atmGold += (stallDef.passiveIncome * boost).toInt()
 
                             // Update Bak Kut Teh stats
@@ -657,7 +657,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (target != null) {
-                    val (boost, providers) = calculateStatBoost(coord, state)
+                    val (boost, providers) = calculateStatBoost(coord, state.hexes)
 
                     // Update Bak Kut Teh stats
                     providers.forEach { providerCoord ->
@@ -915,7 +915,7 @@ class MainViewModel @JvmOverloads constructor(
 
                 var violatesTrayUncleRule = false
                 for ((uncleCoord, _) in trayUncles) {
-                    val uncleNeighbors = getAdjacentCoordinates(uncleCoord)
+                    val uncleNeighbors = GridUtils.getAdjacentCoordinates(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
                         val neighborTile = currentState.hexes[it] ?: return@filter false
                         it != coord && (neighborTile.type == TileType.FLOOR && !blocked.contains(it) ||
@@ -1176,7 +1176,7 @@ class MainViewModel @JvmOverloads constructor(
         hexes: Map<AxialCoordinate, HexTile>,
         endPos: AxialCoordinate?
     ): Enemy {
-        val adjacentCoords = getAdjacentCoordinates(stallCoord)
+        val adjacentCoords = GridUtils.getAdjacentCoordinates(stallCoord)
 
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
@@ -1228,12 +1228,12 @@ class MainViewModel @JvmOverloads constructor(
 
     data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
 
-    private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
-        val adjacentCoords = getAdjacentCoordinates(coord)
+    private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
+        val adjacentCoords = GridUtils.getAdjacentCoordinates(coord)
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
-            val tile = state.hexes[adj]
+            val tile = hexes[adj]
             if (tile?.stall?.stallType == StallType.BAK_KUT_TEH && tile.stall.disabledWaves == 0) {
                 totalBoostPercent += tile.stall.damage // Bak Kut Teh damage field stores its current boost %
                 providers.add(adj)
@@ -1242,14 +1242,4 @@ class MainViewModel @JvmOverloads constructor(
         return BoostResult(1.0f + (totalBoostPercent / 100f), providers)
     }
 
-    private fun getAdjacentCoordinates(coord: AxialCoordinate): List<AxialCoordinate> {
-        return listOf(
-            AxialCoordinate(coord.q + 1, coord.r),
-            AxialCoordinate(coord.q + 1, coord.r - 1),
-            AxialCoordinate(coord.q, coord.r - 1),
-            AxialCoordinate(coord.q - 1, coord.r),
-            AxialCoordinate(coord.q - 1, coord.r + 1),
-            AxialCoordinate(coord.q, coord.r + 1)
-        )
-    }
 }
