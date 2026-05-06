@@ -342,7 +342,7 @@ class MainViewModel @JvmOverloads constructor(
                     if (stall != null) {
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
-                            val (boost, providers) = calculateStatBoost(coord, newState)
+                            val (boost, providers) = calculateStatBoost(coord, updatedHexes)
                             atmGold += (stallDef.passiveIncome * boost).toInt()
 
                             // Update Bak Kut Teh stats
@@ -657,7 +657,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (target != null) {
-                    val (boost, providers) = calculateStatBoost(coord, state)
+                    val (boost, providers) = calculateStatBoost(coord, state.hexes)
 
                     // Update Bak Kut Teh stats
                     providers.forEach { providerCoord ->
@@ -1228,12 +1228,12 @@ class MainViewModel @JvmOverloads constructor(
 
     data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
 
-    private fun calculateStatBoost(coord: AxialCoordinate, state: GameState): BoostResult {
+    private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
         val adjacentCoords = getAdjacentCoordinates(coord)
         var totalBoostPercent = 0
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
-            val tile = state.hexes[adj]
+            val tile = hexes[adj]
             if (tile?.stall?.stallType == StallType.BAK_KUT_TEH && tile.stall.disabledWaves == 0) {
                 totalBoostPercent += tile.stall.damage // Bak Kut Teh damage field stores its current boost %
                 providers.add(adj)
