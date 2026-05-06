@@ -615,7 +615,7 @@ class MainViewModel @JvmOverloads constructor(
             mutableState = mutableState.copy(hexes = updatedHexes)
         }
 
-        return Pair(mutableState, updatedEnemies)
+        return Pair(mutableState, finalEnemies)
     }
 
     /**
