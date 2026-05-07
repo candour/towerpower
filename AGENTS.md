@@ -51,9 +51,11 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 
 ### Kitchelin Stars
 - **Awards:** Awarded every 10th wave.
+- **Passive Bonus:** Each Kitchelin Star held at the end of a wave (excluding any new star awarded that wave) provides a 1% gold bonus on `goldEarnedThisWave`.
 - **Actions:** Between waves, players can spend stars on:
-  - **Budget Bonus:** 10% bonus of gold earned from enemies, awarded at end of round (stackable).
-  - **Free Specific Upgrade:** Next specific upgrade is free ($0) and bypasses renovation time.
+  - **Budget Bonus:** 100% bonus of gold earned from enemies, awarded at the end of the next round. This is cumulative with the passive bonus and other active bonuses.
+  - **Free Specific Upgrade:** Next specific stall upgrade is free ($0) and bypasses renovation time.
+  - **Restore Health:** Increases health by 1 (max 10). Only available if health is less than 10.
 - **Trigger:** Accessible via clicking star icons in the top-left between waves.
 
 ### Customers & Difficulty
