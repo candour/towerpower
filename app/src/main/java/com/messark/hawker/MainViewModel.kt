@@ -50,7 +50,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun initializeGame() {
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
 
         _gameState.update { it.copy(
             hexes = hexes,
@@ -100,7 +100,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun resetGame() {
         gameStateRepository.deleteGameState()
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
         _gameState.update {
             GameState(
                 currentScreen = AppScreen.GAME,
