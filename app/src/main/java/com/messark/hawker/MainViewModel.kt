@@ -628,13 +628,14 @@ class MainViewModel @JvmOverloads constructor(
         val newProjectiles = state.projectiles.toMutableList()
         val newPuddles = state.puddles.toMutableList()
         val updatedHexes = state.hexes.toMutableMap()
+        val newlyGrabbedEnemyIds = mutableSetOf<String>()
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
             if (stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
                 val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                 val potentialTargets = state.enemies.filter { enemy ->
-                    !enemy.isGrabbed && GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
+                    !enemy.isGrabbed && !newlyGrabbedEnemyIds.contains(enemy.id) && GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
                 }
 
                 val target = when (stall.targetMode) {
@@ -659,6 +660,7 @@ class MainViewModel @JvmOverloads constructor(
                     }
 
                     if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                        newlyGrabbedEnemyIds.add(target.id)
                         val boostedDuration = (stall.effectDurationMs * boost).toLong()
                         val updatedStall = stall.copy(
                             lastFiredMs = currentTimeMs,
