@@ -5,8 +5,6 @@ import com.messark.hawker.model.AxialCoordinate
 import com.messark.hawker.model.PreciseAxialCoordinate
 import kotlin.math.abs
 
-import com.messark.hawker.model.AxialCoordinate
-
 object GridUtils {
     val NEIGHBOR_OFFSETS = listOf(
         AxialCoordinate(1, 0), AxialCoordinate(1, -1), AxialCoordinate(0, -1),
