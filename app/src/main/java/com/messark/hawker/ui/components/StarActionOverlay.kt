@@ -19,8 +19,10 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun StarActionOverlay(
     kitchelinStars: Int,
+    health: Int,
     onChooseBudgetBonus: () -> Unit,
     onChooseFreeUpgrade: () -> Unit,
+    onRestoreHealth: () -> Unit,
     onDismiss: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
@@ -74,7 +76,7 @@ fun StarActionOverlay(
 
                 StarActionButton(
                     title = "Budget Bonus",
-                    description = "Earn a 10% bonus on all gold from customers at the end of the next round. (Can stack!)",
+                    description = "Earn a 100% bonus on all gold from customers at the end of the next round. (Can stack!)",
                     onClick = {
                         onTriggerHaptic()
                         onChooseBudgetBonus()
@@ -87,6 +89,16 @@ fun StarActionOverlay(
                     onClick = {
                         onTriggerHaptic()
                         onChooseFreeUpgrade()
+                    }
+                )
+
+                StarActionButton(
+                    title = "Restore Health",
+                    description = "Replace one of the customers at the end table with an empty chair (+1 health).",
+                    enabled = health < 10,
+                    onClick = {
+                        onTriggerHaptic()
+                        onRestoreHealth()
                     }
                 )
 
@@ -105,14 +117,15 @@ fun StarActionOverlay(
 fun StarActionButton(
     title: String,
     description: String,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Surface(
-        color = Color(0xFFFFD700), // Gold color
+        color = if (enabled) Color(0xFFFFD700) else Color.Gray, // Gold or Gray
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

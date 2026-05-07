@@ -753,8 +753,10 @@ fun GameScreen(
             if (gameState.showStarActionOverlay) {
                 StarActionOverlay(
                     kitchelinStars = gameState.kitchelinStars,
+                    health = gameState.health,
                     onChooseBudgetBonus = { viewModel.chooseBudgetBonus() },
                     onChooseFreeUpgrade = { viewModel.chooseFreeUpgrade() },
+                    onRestoreHealth = { viewModel.restoreHealth() },
                     onDismiss = { viewModel.dismissStarActionOverlay() },
                     onTriggerHaptic = { viewModel.triggerHaptic() }
                 )

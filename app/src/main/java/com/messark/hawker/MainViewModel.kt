@@ -317,11 +317,10 @@ class MainViewModel @JvmOverloads constructor(
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
                 val starAwarded = newState.currentWave % 10 == 0
                 starAwardedOutside = starAwarded
+                val preNewStarCount = newState.kitchelinStars
                 val nextStars = if (starAwarded) newState.kitchelinStars + 1 else newState.kitchelinStars
 
-                val bonusBudget = if (newState.activeBudgetBonuses > 0) {
-                    (newState.goldEarnedThisWave * (0.10f * newState.activeBudgetBonuses)).toInt()
-                } else 0
+                val bonusBudget = (newState.goldEarnedThisWave * (0.01f * preNewStarCount + 1.00f * newState.activeBudgetBonuses)).toInt()
                 bonusAwardedOutside = bonusBudget
 
                 // Decrement disabledWaves for all stalls
@@ -998,6 +997,18 @@ class MainViewModel @JvmOverloads constructor(
                 it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     activeBudgetBonuses = it.activeBudgetBonuses + 1,
+                    showStarActionOverlay = false
+                )
+            } else it
+        }
+    }
+
+    fun restoreHealth() {
+        _gameState.update {
+            if (it.kitchelinStars > 0 && it.health < 10) {
+                it.copy(
+                    kitchelinStars = it.kitchelinStars - 1,
+                    health = it.health + 1,
                     showStarActionOverlay = false
                 )
             } else it
