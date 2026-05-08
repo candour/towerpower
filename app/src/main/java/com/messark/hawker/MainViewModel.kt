@@ -829,7 +829,7 @@ class MainViewModel @JvmOverloads constructor(
                     val coord = proj.sourceStallCoord
                     updatedHexes[coord]?.stall?.let { stall ->
                         if (stall.id == proj.sourceStallId) {
-                            val isKill = currentHealth <= 0
+                            val isKill = currentHealth < 1.0f
                             val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
                             updatedHexes[coord] = updatedHexes[coord]!!.copy(
                                 stall = stall.copy(
