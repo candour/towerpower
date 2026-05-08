@@ -7,64 +7,76 @@ import kotlin.random.Random
 
 object MapGenerator {
 
-    fun generateRandomVerticalMap(width: Int = 8, height: Int = 16): Triple<Map<AxialCoordinate, HexTile>, AxialCoordinate, AxialCoordinate> {
-        while (true) {
-            val hexes = mutableMapOf<AxialCoordinate, HexTile>()
-            val startQOffset = Random.nextInt(width)
-            val endQOffset = Random.nextInt(width)
+    private fun offsetToAxial(qOffset: Int, r: Int): AxialCoordinate {
+        val q = qOffset - (r - (r and 1)) / 2
+        return AxialCoordinate(q, r)
+    }
 
-            val startR = height - 1
-            val startQ = startQOffset - (startR - (startR and 1)) / 2
-            val startPos = AxialCoordinate(startQ, startR)
+    fun generateRandomVerticalMap(
+        width: Int = 8,
+        height: Int = 16,
+        random: Random = Random.Default
+    ): Triple<Map<AxialCoordinate, HexTile>, AxialCoordinate, AxialCoordinate> {
+        val hexes = mutableMapOf<AxialCoordinate, HexTile>()
+        val startQOffset = random.nextInt(width)
+        val endQOffset = random.nextInt(width)
 
-            val endR = 0
-            val endQ = endQOffset - (endR - (endR and 1)) / 2
-            val endPos = AxialCoordinate(endQ, endR)
+        val startR = height - 1
+        val startPos = offsetToAxial(startQOffset, startR)
 
-            val allCoords = mutableSetOf<AxialCoordinate>()
+        val endR = 0
+        val endPos = offsetToAxial(endQOffset, endR)
 
-            for (r in 0 until height) {
-                for (q_offset in 0 until width) {
-                    val q = q_offset - (r - (r and 1)) / 2
-                    val coord = AxialCoordinate(q, r)
-                    allCoords.add(coord)
+        val allCoords = mutableSetOf<AxialCoordinate>()
+        for (r in 0 until height) {
+            for (q_offset in 0 until width) {
+                allCoords.add(offsetToAxial(q_offset, r))
+            }
+        }
 
-                    val type = when (coord) {
-                        startPos -> TileType.START
-                        endPos -> TileType.GOAL_TABLE
-                        else -> {
-                            if (Random.nextFloat() < 0.10f) TileType.PILLAR else TileType.FLOOR
-                        }
+        // Guaranteed path carving: use A* on an empty grid to find a baseline path
+        val guaranteedPath = Pathfinding.findPath(startPos, endPos, emptySet(), allCoords)?.toSet() ?: emptySet()
+
+        // Fallback or warning if no path is found (should not happen on an empty grid)
+        if (guaranteedPath.isEmpty()) {
+            android.util.Log.e("MapGenerator", "Failed to carve a guaranteed path from $startPos to $endPos")
+        }
+
+        allCoords.forEach { coord ->
+            val type = when (coord) {
+                startPos -> TileType.START
+                endPos -> TileType.GOAL_TABLE
+                else -> {
+                    // Only place pillars if not on the guaranteed path
+                    if (coord !in guaranteedPath && random.nextFloat() < 0.12f) {
+                        TileType.PILLAR
+                    } else {
+                        TileType.FLOOR
                     }
-
-                    val floorVariant = if (type == TileType.FLOOR || type == TileType.GOAL_TABLE || type == TileType.START) {
-                        getWeightedFloorVariant()
-                    } else 0
-                    hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
                 }
             }
 
-            // Verify path exists
-            val blocked = hexes.values.filter {
-                it.type == TileType.PILLAR
-            }.map { it.coordinate }.toSet()
+            val floorVariant = if (type != TileType.PILLAR) {
+                getWeightedFloorVariant(random)
+            } else 0
 
-            val path = Pathfinding.findPath(startPos, endPos, blocked, allCoords)
-            if (path != null) {
-                return Triple(hexes, startPos, endPos)
-            }
+            hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
         }
+
+        return Triple(hexes, startPos, endPos)
     }
 
-    fun generateMap(mapData: List<String>): Map<AxialCoordinate, HexTile> {
+    fun generateMap(
+        mapData: List<String>,
+        random: Random = Random.Default
+    ): Map<AxialCoordinate, HexTile> {
         val hexes = mutableMapOf<AxialCoordinate, HexTile>()
 
         mapData.forEachIndexed { r, row ->
             row.forEachIndexed { q_offset, char ->
                 // Convert offset coordinates (from List<String>) to Axial
                 // Assuming the input strings represent an odd-r offset grid
-                val q = q_offset - (r - (r and 1)) / 2
-                val coord = AxialCoordinate(q, r)
+                val coord = offsetToAxial(q_offset, r)
 
                 val type = when (char) {
                     'F' -> TileType.FLOOR
@@ -78,7 +90,7 @@ object MapGenerator {
                 // Place the tile based on character type
                 if (!hexes.containsKey(coord)) {
                     val floorVariant = if (type == TileType.FLOOR) {
-                        getWeightedFloorVariant()
+                        getWeightedFloorVariant(random)
                     } else 0
                     hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
                 }
@@ -88,11 +100,11 @@ object MapGenerator {
         return hexes
     }
 
-    private fun getWeightedFloorVariant(): Int {
-        return if (Random.nextFloat() < 0.90f) {
+    private fun getWeightedFloorVariant(random: Random): Int {
+        return if (random.nextFloat() < 0.90f) {
             0
         } else {
-            1 + Random.nextInt(6) // floor01 to floor10 (20% total)
+            1 + random.nextInt(6) // floor02 to floor07 (floor01 is at index 0)
         }
     }
 }

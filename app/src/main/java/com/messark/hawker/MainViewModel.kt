@@ -50,7 +50,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun initializeGame() {
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
 
         _gameState.update { it.copy(
             hexes = hexes,
@@ -100,7 +100,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun resetGame() {
         gameStateRepository.deleteGameState()
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
         _gameState.update {
             GameState(
                 currentScreen = AppScreen.GAME,
@@ -208,7 +208,7 @@ class MainViewModel @JvmOverloads constructor(
                 6 -> List(4) { EnemyType.SALARYMAN } + List(2) { EnemyType.TOURIST } + List(1) { EnemyType.AUNTIE }
                 else -> emptyList()
             }
-            return list.shuffled()
+            return list.shuffled(random)
         }
 
         // Algorithmic for Wave 7+
@@ -242,7 +242,7 @@ class MainViewModel @JvmOverloads constructor(
 
         var attempts = 0
         while (remainingBudget > 0 && attempts < 100) {
-            val type = allowedTiers[kotlin.random.Random.nextInt(allowedTiers.size)]
+            val type = allowedTiers[random.nextInt(allowedTiers.size)]
 
             if (type == EnemyType.TIGER_MOM && enemyList.contains(EnemyType.TIGER_MOM)) {
                 attempts++
@@ -263,7 +263,7 @@ class MainViewModel @JvmOverloads constructor(
             enemyList.add(EnemyType.SALARYMAN)
         }
 
-        return enemyList.shuffled()
+        return enemyList.shuffled(random)
     }
 
     private fun getEnemyHP(type: EnemyType, wave: Int): Int {
