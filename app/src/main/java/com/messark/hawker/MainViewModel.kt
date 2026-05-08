@@ -323,7 +323,10 @@ class MainViewModel @JvmOverloads constructor(
                 val bonusBudget = (newState.goldEarnedThisWave * (0.01f * preNewStarCount + 1.00f * newState.activeBudgetBonuses)).toInt()
                 bonusAwardedOutside = bonusBudget
 
-                // Decrement disabledWaves for all stalls
+                // 1. Identify which stalls were enabled before decrementing (for ATM income eligibility)
+                val previouslyEnabledStalls = newState.hexes.filter { it.value.stall?.disabledWaves == 0 }.keys
+
+                // 2. Decrement disabledWaves for all stalls
                 val updatedHexes = newState.hexes.mapValues { (_, tile) ->
                     tile.stall?.let { stall ->
                         if (stall.disabledWaves > 0) {
@@ -332,14 +335,17 @@ class MainViewModel @JvmOverloads constructor(
                     } ?: tile
                 }.toMutableMap()
 
-                // Collect ATM income
+                // 3. Collect ATM income and update BKT stats
                 var atmGold = 0
                 val atmEffects = mutableListOf<VisualEffect>()
-                updatedHexes.forEach { (coord, tile) ->
+
+                updatedHexes.toList().forEach { (coord, tile) ->
                     val stall = tile.stall
-                    if (stall != null) {
+                    // Use previouslyEnabledStalls check for ATM income eligibility
+                    if (stall != null && previouslyEnabledStalls.contains(coord)) {
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
+                            // calculateStatBoost uses the updated hexes, so re-enabled BKTs are counted
                             val (boost, providers) = calculateStatBoost(coord, updatedHexes)
                             atmGold += (stallDef.passiveIncome * boost).toInt()
 
