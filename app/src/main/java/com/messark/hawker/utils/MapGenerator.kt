@@ -37,6 +37,11 @@ object MapGenerator {
         // Guaranteed path carving: use A* on an empty grid to find a baseline path
         val guaranteedPath = Pathfinding.findPath(startPos, endPos, emptySet(), allCoords)?.toSet() ?: emptySet()
 
+        // Fallback or warning if no path is found (should not happen on an empty grid)
+        if (guaranteedPath.isEmpty()) {
+            android.util.Log.e("MapGenerator", "Failed to carve a guaranteed path from $startPos to $endPos")
+        }
+
         allCoords.forEach { coord ->
             val type = when (coord) {
                 startPos -> TileType.START
@@ -99,7 +104,7 @@ object MapGenerator {
         return if (random.nextFloat() < 0.90f) {
             0
         } else {
-            1 + random.nextInt(6) // floor01 to floor07
+            1 + random.nextInt(6) // floor02 to floor07 (floor01 is at index 0)
         }
     }
 }
