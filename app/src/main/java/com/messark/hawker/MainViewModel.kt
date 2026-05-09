@@ -290,6 +290,9 @@ class MainViewModel @JvmOverloads constructor(
     internal fun updateGame(currentTimeMs: Long) {
         var starAwardedOutside = false
         var bonusAwardedOutside = 0
+        var hapticRequested = false
+        var gameOverState: GameState? = null
+
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
             var newState = state
@@ -311,7 +314,9 @@ class MainViewModel @JvmOverloads constructor(
             newState = handleStallFiring(newState, currentTimeMs)
 
             // 4. Projectile Movement and Collision
-            newState = handleProjectiles(newState, currentTimeMs)
+            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs)
+            newState = projectilesState
+            if (hitHaptic) hapticRequested = true
 
             // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
@@ -390,10 +395,22 @@ class MainViewModel @JvmOverloads constructor(
 
             // 6. Game over check
             if (newState.health <= 0 && state.health > 0) {
-                handleGameOver(newState)
+                gameOverState = newState
             }
 
             newState
+        }
+
+        if (hapticRequested) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastHapticTimeMs >= 1000) {
+                triggerHaptic()
+                lastHapticTimeMs = currentTime
+            }
+        }
+
+        if (gameOverState != null) {
+            handleGameOver(gameOverState!!)
         }
 
         if (starAwardedOutside) {
@@ -651,7 +668,8 @@ class MainViewModel @JvmOverloads constructor(
             // Find all potential targets within range that are not already grabbed
             val potentialTargets = state.enemies.filter { enemy ->
                 !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
-                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
+                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
+                        (!stall.isBlockable || !isLineOfSightBlocked(coord, enemy.position, state.hexes))
             }
 
             val target = when (stall.targetMode) {
@@ -726,7 +744,7 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state after projectile processing.
      */
-    private fun handleProjectiles(state: GameState, currentTimeMs: Long): GameState {
+    private fun handleProjectiles(state: GameState, currentTimeMs: Long): Pair<GameState, Boolean> {
         val finalProjectiles = mutableListOf<Projectile>()
         val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
         val newVisualEffects = state.visualEffects.toMutableList()
@@ -785,7 +803,7 @@ class MainViewModel @JvmOverloads constructor(
         }
 
         if (hitEnemiesDetails.isEmpty()) {
-            return state.copy(projectiles = finalProjectiles, visualEffects = newVisualEffects)
+            return state.copy(projectiles = finalProjectiles, visualEffects = newVisualEffects) to false
         }
 
         var updatedGold = state.gold
@@ -861,16 +879,6 @@ class MainViewModel @JvmOverloads constructor(
             } else e
         }
 
-        if (shouldTriggerHaptic) {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastHapticTimeMs >= 1000) {
-                viewModelScope.launch {
-                    if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
-                }
-                lastHapticTimeMs = currentTime
-            }
-        }
-
         return state.copy(
             hexes = updatedHexes,
             enemies = fullyUpdatedEnemies,
@@ -879,7 +887,7 @@ class MainViewModel @JvmOverloads constructor(
             gold = updatedGold,
             score = updatedScore,
             goldEarnedThisWave = state.goldEarnedThisWave + (updatedGold - state.gold)
-        )
+        ) to shouldTriggerHaptic
     }
 
     private fun handleGameOver(state: GameState) {
@@ -902,6 +910,13 @@ class MainViewModel @JvmOverloads constructor(
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
         val tile = currentState.hexes[coord] ?: return
+
+        if (currentState.isRemovePillarModeActive) {
+            if (tile.type == TileType.PILLAR) {
+                removePillar(coord)
+            }
+            return
+        }
 
         if (tile.stall != null) {
             // Select existing stall
@@ -1017,6 +1032,14 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(showStarActionOverlay = false) }
     }
 
+    fun enterRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = true, showStarActionOverlay = false) }
+    }
+
+    fun exitRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = false) }
+    }
+
     fun chooseBudgetBonus() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
@@ -1061,6 +1084,33 @@ class MainViewModel @JvmOverloads constructor(
     fun upgradeStallSpecifically(stat: String) {
         applyUpgrade(isSpecific = true, specificStat = stat)
         dismissUpgradeOverlay()
+    }
+
+    private fun removePillar(coord: AxialCoordinate) {
+        val currentTime = System.currentTimeMillis()
+        var success = false
+        _gameState.update { state ->
+            if (state.kitchelinStars > 0 && state.hexes[coord]?.type == TileType.PILLAR) {
+                val newHexes = state.hexes.toMutableMap()
+                newHexes[coord] = state.hexes[coord]!!.copy(type = TileType.FLOOR)
+
+                val blocked = getBlockedCoordinates(newHexes)
+                val updatedEnemies = recalculateEnemyPaths(state.copy(hexes = newHexes), blocked, newHexes)
+
+                success = true
+
+                state.copy(
+                    kitchelinStars = state.kitchelinStars - 1,
+                    hexes = newHexes,
+                    enemies = updatedEnemies,
+                    isRemovePillarModeActive = false,
+                    lastShakeTimeMs = currentTime
+                )
+            } else state
+        }
+        if (success) {
+            triggerHaptic()
+        }
     }
 
     private fun applyUpgrade(isSpecific: Boolean, specificStat: String? = null) {
@@ -1141,8 +1191,68 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun getBlockedCoordinates(hexes: Map<AxialCoordinate, HexTile>): Set<AxialCoordinate> {
         return hexes.values.filter {
-            it.stall != null || it.type == TileType.PILLAR || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
+            it.stall != null || it.type is TileType.Obstruction || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
         }.map { it.coordinate }.toSet()
+    }
+
+    private fun isLineOfSightBlocked(
+        stallCoord: AxialCoordinate,
+        enemyPos: PreciseAxialCoordinate,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): Boolean {
+        val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
+        if (obstructions.isEmpty()) return false
+
+        // Convert to a consistent 2D space for circle-segment intersection
+        val yFactor = (91f / 101f) * 0.69f
+
+        val x1 = stallCoord.q + stallCoord.r / 2f
+        val y1 = stallCoord.r * yFactor
+
+        val x2 = enemyPos.q + enemyPos.r / 2f
+        val y2 = enemyPos.r * yFactor
+
+        val radius = 0.25f // Blocked area is half diameter (0.5), so radius is 0.25
+
+        for (obs in obstructions) {
+            val pc = obs.coordinate
+            val px = pc.q + pc.r / 2f
+            val py = pc.r * yFactor
+
+            if (lineIntersectsCircle(x1, y1, x2, y2, px, py, radius)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun lineIntersectsCircle(x1: Float, y1: Float, x2: Float, y2: Float, cx: Float, cy: Float, r: Float): Boolean {
+        val dx = x2 - x1
+        val dy = y2 - y1
+
+        val fx = x1 - cx
+        val fy = y1 - cy
+
+        val a = dx * dx + dy * dy
+        if (a < 0.0001f) return false // Essentially same point
+
+        val b = 2 * (fx * dx + fy * dy)
+        val c = (fx * fx + fy * fy) - r * r
+
+        var discriminant = b * b - 4 * a * c
+        if (discriminant < 0) {
+            return false
+        } else {
+            discriminant = Math.sqrt(discriminant.toDouble()).toFloat()
+            val t1 = (-b - discriminant) / (2 * a)
+            val t2 = (-b + discriminant) / (2 * a)
+
+            if ((t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1)) {
+                return true
+            }
+            if (t1 < 0 && t2 > 1) return true
+        }
+        return false
     }
 
     private fun updateHeldEnemies(state: GameState, currentTimeMs: Long): GameState {
@@ -1202,9 +1312,7 @@ class MainViewModel @JvmOverloads constructor(
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
             val tile = hexes[adj] ?: return@filter false
-            val isStandardWalkable = !blocked.contains(adj) &&
-                    tile.type != TileType.PILLAR &&
-                    !tile.type.name.startsWith("EDGE_")
+            val isStandardWalkable = !blocked.contains(adj) && tile.type !is TileType.Obstruction && !tile.type.name.startsWith("EDGE_")
             isStandardWalkable || tile.type == TileType.START || tile.type == TileType.GOAL_TABLE
         }
 

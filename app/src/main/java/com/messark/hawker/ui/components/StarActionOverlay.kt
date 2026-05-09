@@ -20,9 +20,11 @@ import androidx.compose.ui.unit.sp
 fun StarActionOverlay(
     kitchelinStars: Int,
     health: Int,
+    hasPillars: Boolean,
     onChooseBudgetBonus: () -> Unit,
     onChooseFreeUpgrade: () -> Unit,
     onRestoreHealth: () -> Unit,
+    onRemovePillar: () -> Unit,
     onDismiss: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
@@ -99,6 +101,16 @@ fun StarActionOverlay(
                     onClick = {
                         onTriggerHaptic()
                         onRestoreHealth()
+                    }
+                )
+
+                StarActionButton(
+                    title = "Remove Pillar",
+                    description = "Permanently remove a pillar from the hawker centre to clear lines of sight or paths.",
+                    enabled = hasPillars,
+                    onClick = {
+                        onTriggerHaptic()
+                        onRemovePillar()
                     }
                 )
 

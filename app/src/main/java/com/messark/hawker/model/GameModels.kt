@@ -11,18 +11,32 @@ enum class AppScreen {
     LOADING, MAIN_MENU, GAME, OPTIONS
 }
 
-enum class TileType {
-    FLOOR,
-    EDGE_NW,
-    EDGE_NE,
-    EDGE_SW,
-    EDGE_SE,
-    EDGE_TOP,
-    PILLAR,
-    GOAL_TABLE,
-    START,
-    END,
-    DRAIN
+sealed class TileType(val name: String) {
+    object FLOOR : TileType("FLOOR")
+    object EDGE_NW : TileType("EDGE_NW")
+    object EDGE_NE : TileType("EDGE_NE")
+    object EDGE_SW : TileType("EDGE_SW")
+    object EDGE_SE : TileType("EDGE_SE")
+    object EDGE_TOP : TileType("EDGE_TOP")
+
+    sealed class Obstruction(name: String) : TileType(name)
+    object PILLAR : Obstruction("PILLAR")
+
+    object GOAL_TABLE : TileType("GOAL_TABLE")
+    object START : TileType("START")
+    object END : TileType("END")
+    object DRAIN : TileType("DRAIN")
+
+    override fun toString(): String = name
+
+    companion object {
+        fun values(): Array<TileType> = arrayOf(
+            FLOOR, EDGE_NW, EDGE_NE, EDGE_SW, EDGE_SE, EDGE_TOP, PILLAR, GOAL_TABLE, START, END, DRAIN
+        )
+        fun valueOf(name: String): TileType {
+            return values().find { it.name == name } ?: throw IllegalArgumentException("No such TileType: $name")
+        }
+    }
 }
 
 data class HexTile(
@@ -99,7 +113,8 @@ data class Stall(
     val namingCategories: List<String> = emptyList(),
     val heldEnemyId: String? = null,
     val releaseTimeMs: Long = 0L,
-    val disabledWaves: Int = 0
+    val disabledWaves: Int = 0,
+    val isBlockable: Boolean = true
 ) {
     fun getUpgradeCost(): Int {
         val nextUpgradeIndex = upgradeCount + 1
@@ -252,5 +267,7 @@ data class GameState(
     val freeSpecificUpgrades: Int = 0,
     val showStarActionOverlay: Boolean = false,
     val lastWaveBonusGold: Int = 0,
-    val showBonusMessage: Boolean = false
+    val showBonusMessage: Boolean = false,
+    val isRemovePillarModeActive: Boolean = false,
+    val lastShakeTimeMs: Long = 0
 )

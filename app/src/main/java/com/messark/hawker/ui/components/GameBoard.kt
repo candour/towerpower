@@ -40,6 +40,7 @@ fun GameBoard(
     puddles: List<StickyPuddle>,
     visualEffects: List<VisualEffect>,
     selectedBoardStall: AxialCoordinate?,
+    isRemovePillarModeActive: Boolean = false,
     gold: Int,
     health: Int,
     onCellClick: (AxialCoordinate) -> Unit,
@@ -223,6 +224,23 @@ fun GameBoard(
 
                 // 2. Tile Content (Edges, Pillars, Tables, Start Decoration)
                 if (tile.type != TileType.FLOOR) {
+                    if (tile.type == TileType.PILLAR && isRemovePillarModeActive) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 1,
+                            draw = {
+                                val progress = (System.currentTimeMillis() % 1000) / 1000f
+                                val scale = 1.0f + 0.1f * Math.sin(progress * 2 * Math.PI).toFloat()
+                                val hexPath = createHexPath(screenPos, wPx * scale, hPx * scale)
+                                drawPath(
+                                    path = hexPath,
+                                    color = Color.Yellow.copy(alpha = 0.4f)
+                                )
+                            }
+                        ))
+                    }
+
                     if (tile.type == TileType.START) {
                         drawables.add(DrawableEntity(
                             q = coord.q.toFloat(),
@@ -377,6 +395,84 @@ fun GameBoard(
                                     size = ovalSize,
                                     style = Stroke(width = 2.dp.toPx())
                                 )
+
+                                // LOS Blocked area visualization
+                                if (stall.isBlockable) {
+                                    val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
+                                    val ratio = 91f / 101f
+                                    val yFactor = rowSpacingFactor * ratio
+
+                                    // Local coordinates for calculations
+                                    val x1 = coord.q + coord.r / 2f
+                                    val y1 = coord.r * yFactor
+
+                                    val radius = 0.25f
+                                    val stallVisualRadius = 0.4f // Approximate visual radius of the stall tile
+
+                                    obstructions.forEach { obs ->
+                                        val px = obs.coordinate.q + obs.coordinate.r / 2f
+                                        val py = obs.coordinate.r * yFactor
+
+                                        val dx = px - x1
+                                        val dy = py - y1
+                                        val dist = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+
+                                        if (dist > radius) {
+                                            val angleToPillar = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
+                                            val alpha = Math.asin((radius / dist).toDouble()).toFloat()
+
+                                            val angle1 = angleToPillar - alpha
+                                            val angle2 = angleToPillar + alpha
+
+                                            val startX1 = x1 + Math.cos(angle1.toDouble()).toFloat() * stallVisualRadius
+                                            val startY1 = y1 + Math.sin(angle1.toDouble()).toFloat() * stallVisualRadius
+                                            val startX2 = x1 + Math.cos(angle2.toDouble()).toFloat() * stallVisualRadius
+                                            val startY2 = y1 + Math.sin(angle2.toDouble()).toFloat() * stallVisualRadius
+
+                                            val endX1 = x1 + Math.cos(angle1.toDouble()).toFloat() * stall.range
+                                            val endY1 = y1 + Math.sin(angle1.toDouble()).toFloat() * stall.range
+                                            val endX2 = x1 + Math.cos(angle2.toDouble()).toFloat() * stall.range
+                                            val endY2 = y1 + Math.sin(angle2.toDouble()).toFloat() * stall.range
+
+                                            fun projectedToScreen(x: Float, y: Float): Offset {
+                                                val r = y / yFactor
+                                                val q = x - r / 2f
+                                                return GridUtils.toScreenPrecise(q, r, wPx, hPx, rowSpacingFactor, borderPx)
+                                            }
+
+                                            val p1Start = projectedToScreen(startX1, startY1)
+                                            val p2Start = projectedToScreen(startX2, startY2)
+                                            val p1End = projectedToScreen(endX1, endY1)
+                                            val p2End = projectedToScreen(endX2, endY2)
+
+                                            val shadowPath = Path().apply {
+                                                moveTo(p1Start.x, p1Start.y)
+                                                lineTo(p1End.x, p1End.y)
+                                                lineTo(p2End.x, p2End.y)
+                                                lineTo(p2Start.x, p2Start.y)
+                                                close()
+                                            }
+
+                                            drawPath(
+                                                path = shadowPath,
+                                                color = Color.Black.copy(alpha = 0.2f)
+                                            )
+
+                                            drawLine(
+                                                color = Color.Red.copy(alpha = 0.5f),
+                                                start = p1Start,
+                                                end = p1End,
+                                                strokeWidth = 2.dp.toPx()
+                                            )
+                                            drawLine(
+                                                color = Color.Red.copy(alpha = 0.5f),
+                                                start = p2Start,
+                                                end = p2End,
+                                                strokeWidth = 2.dp.toPx()
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         ))
                     }

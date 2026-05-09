@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.filled.Star
 import com.messark.hawker.model.AppScreen
 import com.messark.hawker.model.HighScore
 import com.messark.hawker.model.Settings
+import com.messark.hawker.model.TileType
 import com.messark.hawker.ui.components.GameBoard
 import com.messark.hawker.ui.components.GameControlPanel
 import com.messark.hawker.ui.components.StarActionOverlay
@@ -608,8 +610,22 @@ fun GameScreen(
         }
     }
 
+    val shakeOffset = remember(gameState.lastShakeTimeMs) { Animatable(Offset(0f, 0f), Offset.VectorConverter) }
+
+    LaunchedEffect(gameState.lastShakeTimeMs) {
+        if (gameState.lastShakeTimeMs > 0) {
+            repeat(10) {
+                val x = (Math.random() * 20 - 10).toFloat()
+                val y = (Math.random() * 20 - 10).toFloat()
+                shakeOffset.snapTo(Offset(x, y))
+                delay(20)
+            }
+            shakeOffset.animateTo(Offset(0f, 0f), spring(stiffness = Spring.StiffnessLow))
+        }
+    }
+
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().offset { IntOffset(shakeOffset.value.x.toInt(), shakeOffset.value.y.toInt()) }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             Column(
@@ -633,11 +649,48 @@ fun GameScreen(
                         puddles = gameState.puddles,
                         visualEffects = gameState.visualEffects,
                         selectedBoardStall = gameState.selectedBoardStall,
+                        isRemovePillarModeActive = gameState.isRemovePillarModeActive,
                         gold = gameState.gold,
                         health = gameState.health,
                         onCellClick = { coord -> viewModel.onCellClick(coord) },
                         modifier = Modifier.fillMaxSize()
                     )
+
+                    if (gameState.isRemovePillarModeActive) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            ) {
+                                Text(
+                                    text = "SELECT A PILLAR TO REMOVE",
+                                    color = Color.Yellow,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.triggerHaptic()
+                                    viewModel.exitRemovePillarMode()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                                Spacer(Modifier.width(8.dp))
+                                Text("CANCEL DESTRUCTION", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
 
                     // Kitchelin Stars Display
                     Row(
@@ -751,12 +804,15 @@ fun GameScreen(
             }
 
             if (gameState.showStarActionOverlay) {
+                val hasPillars = gameState.hexes.values.any { it.type == TileType.PILLAR }
                 StarActionOverlay(
                     kitchelinStars = gameState.kitchelinStars,
                     health = gameState.health,
+                    hasPillars = hasPillars,
                     onChooseBudgetBonus = { viewModel.chooseBudgetBonus() },
                     onChooseFreeUpgrade = { viewModel.chooseFreeUpgrade() },
                     onRestoreHealth = { viewModel.restoreHealth() },
+                    onRemovePillar = { viewModel.enterRemovePillarMode() },
                     onDismiss = { viewModel.dismissStarActionOverlay() },
                     onTriggerHaptic = { viewModel.triggerHaptic() }
                 )

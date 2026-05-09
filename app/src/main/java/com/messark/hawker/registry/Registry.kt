@@ -33,7 +33,8 @@ data class StallDefinition(
     val passiveIncome: Int = 0,
     val visualEffectType: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE,
     val visualEffectColor: Color? = null,
-    val visualEffectDuration: Long = 150L
+    val visualEffectDuration: Long = 150L,
+    val isBlockable: Boolean = true
 ) {
     fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float {
         return when (type) {
@@ -150,7 +151,8 @@ data class StallDefinition(
             description = description,
             aoeRadius = aoeRadius,
             effectDurationMs = effectDurationMs,
-            freezeDurationMs = freezeDurationMs
+            freezeDurationMs = freezeDurationMs,
+            isBlockable = isBlockable
         )
     }
 
