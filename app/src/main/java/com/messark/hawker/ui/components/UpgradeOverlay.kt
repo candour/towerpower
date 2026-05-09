@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.messark.hawker.model.Stall
 import com.messark.hawker.model.StallType
+import com.messark.hawker.utils.StallUpgradeManager
 
 @Composable
 fun UpgradeOverlay(
@@ -31,16 +32,7 @@ fun UpgradeOverlay(
     val baseUpgradeCost = stall.getUpgradeCost()
     val specificUpgradeCost = if (freeUpgradeCount > 0) 0 else baseUpgradeCost * 2
 
-    val availableStats = when (stall.stallType) {
-        StallType.CHICKEN_RICE -> listOf("Damage", "Range", "Rate")
-        StallType.TEH_TARIK -> listOf("Range", "Rate", "Duration")
-        StallType.SATAY -> listOf("Damage", "Range", "Rate", "Radius")
-        StallType.DURIAN -> listOf("Damage", "Range", "Rate", "Radius")
-        StallType.ICE_KACHANG -> listOf("Range", "Rate", "Effect")
-        StallType.TRAY_RETURN_UNCLE -> listOf("Grab Rate", "Cleaning Time")
-        StallType.ATM -> emptyList()
-        StallType.BAK_KUT_TEH -> listOf("Boost")
-    }
+    val availableStats = StallUpgradeManager.getAvailableUpgradeStats(stall)
 
     Box(
         modifier = Modifier
