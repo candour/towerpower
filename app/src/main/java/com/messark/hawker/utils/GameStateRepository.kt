@@ -18,6 +18,16 @@ class ColorTypeAdapter : JsonSerializer<Color>, JsonDeserializer<Color> {
     }
 }
 
+class TileTypeAdapter : JsonSerializer<TileType>, JsonDeserializer<TileType> {
+    override fun serialize(src: TileType, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+        return JsonPrimitive(src.name)
+    }
+
+    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): TileType {
+        return TileType.valueOf(json.asString)
+    }
+}
+
 data class PersistentGameState(
     val health: Int,
     val gold: Int,
@@ -32,6 +42,7 @@ data class PersistentGameState(
 class GameStateRepository(private val context: Context) {
     private val gson = GsonBuilder()
         .registerTypeAdapter(Color::class.java, ColorTypeAdapter())
+        .registerTypeAdapter(TileType::class.java, TileTypeAdapter())
         .create()
     private val file = File(context.filesDir, "gamestate.json")
 
