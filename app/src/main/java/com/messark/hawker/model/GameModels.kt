@@ -266,5 +266,7 @@ data class GameState(
     val freeSpecificUpgrades: Int = 0,
     val showStarActionOverlay: Boolean = false,
     val lastWaveBonusGold: Int = 0,
-    val showBonusMessage: Boolean = false
+    val showBonusMessage: Boolean = false,
+    val isRemovePillarModeActive: Boolean = false,
+    val lastShakeTimeMs: Long = 0
 )

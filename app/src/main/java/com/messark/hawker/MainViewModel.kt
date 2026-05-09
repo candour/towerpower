@@ -904,6 +904,13 @@ class MainViewModel @JvmOverloads constructor(
         val currentState = _gameState.value
         val tile = currentState.hexes[coord] ?: return
 
+        if (currentState.isRemovePillarModeActive) {
+            if (tile.type == TileType.PILLAR) {
+                removePillar(coord)
+            }
+            return
+        }
+
         if (tile.stall != null) {
             // Select existing stall
             _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null) }
@@ -1016,6 +1023,14 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(showStarActionOverlay = false) }
     }
 
+    fun enterRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = true, showStarActionOverlay = false) }
+    }
+
+    fun exitRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = false) }
+    }
+
     fun chooseBudgetBonus() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
@@ -1060,6 +1075,28 @@ class MainViewModel @JvmOverloads constructor(
     fun upgradeStallSpecifically(stat: String) {
         applyUpgrade(isSpecific = true, specificStat = stat)
         dismissUpgradeOverlay()
+    }
+
+    private fun removePillar(coord: AxialCoordinate) {
+        _gameState.update { state ->
+            if (state.kitchelinStars > 0 && state.hexes[coord]?.type == TileType.PILLAR) {
+                val newHexes = state.hexes.toMutableMap()
+                newHexes[coord] = state.hexes[coord]!!.copy(type = TileType.FLOOR)
+
+                val blocked = getBlockedCoordinates(newHexes)
+                val updatedEnemies = recalculateEnemyPaths(state.copy(hexes = newHexes), blocked, newHexes)
+
+                triggerHaptic()
+
+                state.copy(
+                    kitchelinStars = state.kitchelinStars - 1,
+                    hexes = newHexes,
+                    enemies = updatedEnemies,
+                    isRemovePillarModeActive = false,
+                    lastShakeTimeMs = System.currentTimeMillis()
+                )
+            } else state
+        }
     }
 
     private fun applyUpgrade(isSpecific: Boolean, specificStat: String? = null) {

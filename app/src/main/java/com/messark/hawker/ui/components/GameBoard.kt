@@ -40,6 +40,7 @@ fun GameBoard(
     puddles: List<StickyPuddle>,
     visualEffects: List<VisualEffect>,
     selectedBoardStall: AxialCoordinate?,
+    isRemovePillarModeActive: Boolean = false,
     gold: Int,
     health: Int,
     onCellClick: (AxialCoordinate) -> Unit,
@@ -207,6 +208,23 @@ fun GameBoard(
 
                 // 2. Tile Content (Edges, Pillars, Tables, Start Decoration)
                 if (tile.type != TileType.FLOOR) {
+                    if (tile.type == TileType.PILLAR && isRemovePillarModeActive) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 1,
+                            draw = {
+                                val progress = (System.currentTimeMillis() % 1000) / 1000f
+                                val scale = 1.0f + 0.1f * Math.sin(progress * 2 * Math.PI).toFloat()
+                                val hexPath = createHexPath(screenPos, wPx * scale, hPx * scale)
+                                drawPath(
+                                    path = hexPath,
+                                    color = Color.Yellow.copy(alpha = 0.4f)
+                                )
+                            }
+                        ))
+                    }
+
                     if (tile.type == TileType.START) {
                         drawables.add(DrawableEntity(
                             q = coord.q.toFloat(),
