@@ -290,6 +290,9 @@ class MainViewModel @JvmOverloads constructor(
     internal fun updateGame(currentTimeMs: Long) {
         var starAwardedOutside = false
         var bonusAwardedOutside = 0
+        var hapticRequested = false
+        var gameOverState: GameState? = null
+
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
             var newState = state
@@ -311,7 +314,9 @@ class MainViewModel @JvmOverloads constructor(
             newState = handleStallFiring(newState, currentTimeMs)
 
             // 4. Projectile Movement and Collision
-            newState = handleProjectiles(newState, currentTimeMs)
+            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs)
+            newState = projectilesState
+            if (hitHaptic) hapticRequested = true
 
             // 5. Wave completion check
             if (newState.waveActive && newState.enemiesToSpawn == 0 && newState.enemies.isEmpty()) {
@@ -390,10 +395,22 @@ class MainViewModel @JvmOverloads constructor(
 
             // 6. Game over check
             if (newState.health <= 0 && state.health > 0) {
-                handleGameOver(newState)
+                gameOverState = newState
             }
 
             newState
+        }
+
+        if (hapticRequested) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastHapticTimeMs >= 1000) {
+                triggerHaptic()
+                lastHapticTimeMs = currentTime
+            }
+        }
+
+        if (gameOverState != null) {
+            handleGameOver(gameOverState!!)
         }
 
         if (starAwardedOutside) {
@@ -727,7 +744,7 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state after projectile processing.
      */
-    private fun handleProjectiles(state: GameState, currentTimeMs: Long): GameState {
+    private fun handleProjectiles(state: GameState, currentTimeMs: Long): Pair<GameState, Boolean> {
         val finalProjectiles = mutableListOf<Projectile>()
         val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
         val newVisualEffects = state.visualEffects.toMutableList()
@@ -786,7 +803,7 @@ class MainViewModel @JvmOverloads constructor(
         }
 
         if (hitEnemiesDetails.isEmpty()) {
-            return state.copy(projectiles = finalProjectiles, visualEffects = newVisualEffects)
+            return state.copy(projectiles = finalProjectiles, visualEffects = newVisualEffects) to false
         }
 
         var updatedGold = state.gold
@@ -862,16 +879,6 @@ class MainViewModel @JvmOverloads constructor(
             } else e
         }
 
-        if (shouldTriggerHaptic) {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastHapticTimeMs >= 1000) {
-                viewModelScope.launch {
-                    if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
-                }
-                lastHapticTimeMs = currentTime
-            }
-        }
-
         return state.copy(
             hexes = updatedHexes,
             enemies = fullyUpdatedEnemies,
@@ -880,7 +887,7 @@ class MainViewModel @JvmOverloads constructor(
             gold = updatedGold,
             score = updatedScore,
             goldEarnedThisWave = state.goldEarnedThisWave + (updatedGold - state.gold)
-        )
+        ) to shouldTriggerHaptic
     }
 
     private fun handleGameOver(state: GameState) {
@@ -903,6 +910,13 @@ class MainViewModel @JvmOverloads constructor(
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
         val tile = currentState.hexes[coord] ?: return
+
+        if (currentState.isRemovePillarModeActive) {
+            if (tile.type == TileType.PILLAR) {
+                removePillar(coord)
+            }
+            return
+        }
 
         if (tile.stall != null) {
             // Select existing stall
@@ -1016,6 +1030,14 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(showStarActionOverlay = false) }
     }
 
+    fun enterRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = true, showStarActionOverlay = false) }
+    }
+
+    fun exitRemovePillarMode() {
+        _gameState.update { it.copy(isRemovePillarModeActive = false) }
+    }
+
     fun chooseBudgetBonus() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
@@ -1060,6 +1082,33 @@ class MainViewModel @JvmOverloads constructor(
     fun upgradeStallSpecifically(stat: String) {
         applyUpgrade(isSpecific = true, specificStat = stat)
         dismissUpgradeOverlay()
+    }
+
+    private fun removePillar(coord: AxialCoordinate) {
+        val currentTime = System.currentTimeMillis()
+        var success = false
+        _gameState.update { state ->
+            if (state.kitchelinStars > 0 && state.hexes[coord]?.type == TileType.PILLAR) {
+                val newHexes = state.hexes.toMutableMap()
+                newHexes[coord] = state.hexes[coord]!!.copy(type = TileType.FLOOR)
+
+                val blocked = getBlockedCoordinates(newHexes)
+                val updatedEnemies = recalculateEnemyPaths(state.copy(hexes = newHexes), blocked, newHexes)
+
+                success = true
+
+                state.copy(
+                    kitchelinStars = state.kitchelinStars - 1,
+                    hexes = newHexes,
+                    enemies = updatedEnemies,
+                    isRemovePillarModeActive = false,
+                    lastShakeTimeMs = currentTime
+                )
+            } else state
+        }
+        if (success) {
+            triggerHaptic()
+        }
     }
 
     private fun applyUpgrade(isSpecific: Boolean, specificStat: String? = null) {
