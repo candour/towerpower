@@ -924,7 +924,7 @@ class MainViewModel @JvmOverloads constructor(
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
-            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR) {
+            if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
