@@ -847,10 +847,13 @@ class MainViewModel @JvmOverloads constructor(
                     speedBoostDurationMs = speedBoostDuration
                 )
             }
-        }.map { e ->
+        }
+
+        val survivingEnemyLookup = finalEnemies.associateBy { it.id }
+        val fullyUpdatedEnemies = finalEnemies.map { e ->
             // Clean up buffs: source must be alive, still targeting this enemy, and not grabbed
             val validBuffs = e.buffs.filter { buff ->
-                val source = enemyLookup[buff.sourceId]
+                val source = survivingEnemyLookup[buff.sourceId]
                 source != null && source.buffingTargetId == e.id && !source.isGrabbed
             }
             if (validBuffs.size != e.buffs.size) {
@@ -870,7 +873,7 @@ class MainViewModel @JvmOverloads constructor(
 
         return state.copy(
             hexes = updatedHexes,
-            enemies = finalEnemies,
+            enemies = fullyUpdatedEnemies,
             projectiles = finalProjectiles,
             visualEffects = newVisualEffects,
             gold = updatedGold,
@@ -906,7 +909,7 @@ class MainViewModel @JvmOverloads constructor(
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
-            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR && tile.stall == null) {
+            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
