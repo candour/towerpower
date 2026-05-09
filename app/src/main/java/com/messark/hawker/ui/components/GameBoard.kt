@@ -399,10 +399,16 @@ fun GameBoard(
                                             val endX2 = x1 + Math.cos(angle2.toDouble()).toFloat() * stall.range
                                             val endY2 = y1 + Math.sin(angle2.toDouble()).toFloat() * stall.range
 
-                                            val p1Start = GridUtils.toScreenPrecise(startX1, startY1 / yFactor, wPx, hPx, rowSpacingFactor, borderPx)
-                                            val p2Start = GridUtils.toScreenPrecise(startX2, startY2 / yFactor, wPx, hPx, rowSpacingFactor, borderPx)
-                                            val p1End = GridUtils.toScreenPrecise(endX1, endY1 / yFactor, wPx, hPx, rowSpacingFactor, borderPx)
-                                            val p2End = GridUtils.toScreenPrecise(endX2, endY2 / yFactor, wPx, hPx, rowSpacingFactor, borderPx)
+                                            fun projectedToScreen(x: Float, y: Float): Offset {
+                                                val r = y / yFactor
+                                                val q = x - r / 2f
+                                                return GridUtils.toScreenPrecise(q, r, wPx, hPx, rowSpacingFactor, borderPx)
+                                            }
+
+                                            val p1Start = projectedToScreen(startX1, startY1)
+                                            val p2Start = projectedToScreen(startX2, startY2)
+                                            val p1End = projectedToScreen(endX1, endY1)
+                                            val p2End = projectedToScreen(endX2, endY2)
 
                                             val shadowPath = Path().apply {
                                                 moveTo(p1Start.x, p1Start.y)
