@@ -651,7 +651,8 @@ class MainViewModel @JvmOverloads constructor(
             // Find all potential targets within range that are not already grabbed
             val potentialTargets = state.enemies.filter { enemy ->
                 !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
-                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
+                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
+                        (!stall.isBlockable || !isLineOfSightBlocked(coord, enemy.position, state.hexes))
             }
 
             val target = when (stall.targetMode) {
@@ -1139,8 +1140,68 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun getBlockedCoordinates(hexes: Map<AxialCoordinate, HexTile>): Set<AxialCoordinate> {
         return hexes.values.filter {
-            it.stall != null || it.type == TileType.PILLAR || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
+            it.stall != null || it.type is TileType.Obstruction || it.type == TileType.GOAL_TABLE || it.type.name.startsWith("EDGE_")
         }.map { it.coordinate }.toSet()
+    }
+
+    private fun isLineOfSightBlocked(
+        stallCoord: AxialCoordinate,
+        enemyPos: PreciseAxialCoordinate,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): Boolean {
+        val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
+        if (obstructions.isEmpty()) return false
+
+        // Convert to a consistent 2D space for circle-segment intersection
+        val yFactor = (91f / 101f) * 0.69f
+
+        val x1 = stallCoord.q + stallCoord.r / 2f
+        val y1 = stallCoord.r * yFactor
+
+        val x2 = enemyPos.q + enemyPos.r / 2f
+        val y2 = enemyPos.r * yFactor
+
+        val radius = 0.25f // Blocked area is half diameter (0.5), so radius is 0.25
+
+        for (obs in obstructions) {
+            val pc = obs.coordinate
+            val px = pc.q + pc.r / 2f
+            val py = pc.r * yFactor
+
+            if (lineIntersectsCircle(x1, y1, x2, y2, px, py, radius)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun lineIntersectsCircle(x1: Float, y1: Float, x2: Float, y2: Float, cx: Float, cy: Float, r: Float): Boolean {
+        val dx = x2 - x1
+        val dy = y2 - y1
+
+        val fx = x1 - cx
+        val fy = y1 - cy
+
+        val a = dx * dx + dy * dy
+        if (a < 0.0001f) return false // Essentially same point
+
+        val b = 2 * (fx * dx + fy * dy)
+        val c = (fx * fx + fy * fy) - r * r
+
+        var discriminant = b * b - 4 * a * c
+        if (discriminant < 0) {
+            return false
+        } else {
+            discriminant = Math.sqrt(discriminant.toDouble()).toFloat()
+            val t1 = (-b - discriminant) / (2 * a)
+            val t2 = (-b + discriminant) / (2 * a)
+
+            if ((t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1)) {
+                return true
+            }
+            if (t1 < 0 && t2 > 1) return true
+        }
+        return false
     }
 
     private fun updateHeldEnemies(state: GameState, currentTimeMs: Long): GameState {
@@ -1200,7 +1261,7 @@ class MainViewModel @JvmOverloads constructor(
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
             val tile = hexes[adj] ?: return@filter false
-            val isStandardWalkable = !blocked.contains(adj) && tile.type != TileType.PILLAR && !tile.type.name.startsWith("EDGE_")
+            val isStandardWalkable = !blocked.contains(adj) && tile.type !is TileType.Obstruction && !tile.type.name.startsWith("EDGE_")
             isStandardWalkable || tile.type == TileType.START || tile.type == TileType.GOAL_TABLE
         }
 
