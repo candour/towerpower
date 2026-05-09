@@ -25,12 +25,13 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Pathfinding:** Implemented in `Pathfinding.kt` using A*. Customers recalculate paths immediately when stalls are placed or sold.
 
 ### Rendering & Depth
-- **zOrder Groups:**
-  - `0`: Floor
-  - `1`: Edges/Puddles/Drain Details
-  - `2`: Standard entities (Stalls, Customers, Projectiles)
-  - `3+`: Overlays (>= 10)
-- **Sorting Logic:** Within a zOrder group, sort by `r` (row), then `zOrder`, then `q` (column) to ensure correct isometric depth.
+- **Layered Architecture:** Rendering is split into four explicit layers drawn in sequence:
+  - **Background:** Static floor tiles and clipped edge decorations.
+  - **Decals:** Ground-level details like start markers, drains, puddles, and persistent AOE effects (e.g., gas clouds).
+  - **World:** Dynamic entities that require depth sorting (Stalls, Customers, Pillars, Goal Table).
+  - **Foreground:** UI elements, projectiles, selection markers, and transient effects (e.g., money spray).
+- **Sorting Logic:** Only the **World** layer is sorted, and it is sorted strictly by the axial `r` (row) coordinate to ensure correct isometric depth.
+- **RenderingContext:** Shared drawing state (bitmaps, optimized paints) and coordinate conversion helpers are encapsulated in a `RenderingContext` to minimize boilerplate and object allocation.
 
 ### Stalls & Upgrades
 - **Stall Types:** Teh Tarik (Slow), Satay (AOE), Chicken Rice (Single Target), Durian (High Damage/Slow Fire), Ice Kachang (Freeze), Bak Kut Teh (Booster), ATM (Income).
