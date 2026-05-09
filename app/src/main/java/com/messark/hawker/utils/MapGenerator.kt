@@ -63,6 +63,35 @@ object MapGenerator {
             hexes[coord] = HexTile(coord, type, floorVariant = floorVariant)
         }
 
+        // Place a horizontal line of 5 DRAIN tiles on a random row (excluding first and last)
+        if (height > 2) {
+            val rows = (1 until height - 1).shuffled(random)
+            var placed = false
+            for (drainRow in rows) {
+                val maxStartQOffset = (width - 5).coerceAtLeast(0)
+                val offsets = (0..maxStartQOffset).shuffled(random)
+                for (startQOffset in offsets) {
+                    var allFloor = true
+                    for (i in 0 until 5) {
+                        val drainCoord = offsetToAxial(startQOffset + i, drainRow)
+                        if (hexes[drainCoord]?.type != TileType.FLOOR) {
+                            allFloor = false
+                            break
+                        }
+                    }
+                    if (allFloor) {
+                        for (i in 0 until 5) {
+                            val drainCoord = offsetToAxial(startQOffset + i, drainRow)
+                            hexes[drainCoord] = hexes[drainCoord]!!.copy(type = TileType.DRAIN)
+                        }
+                        placed = true
+                        break
+                    }
+                }
+                if (placed) break
+            }
+        }
+
         return Triple(hexes, startPos, endPos)
     }
 

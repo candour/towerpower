@@ -25,12 +25,13 @@ sealed class TileType(val name: String) {
     object GOAL_TABLE : TileType("GOAL_TABLE")
     object START : TileType("START")
     object END : TileType("END")
+    object DRAIN : TileType("DRAIN")
 
     override fun toString(): String = name
 
     companion object {
         fun values(): Array<TileType> = arrayOf(
-            FLOOR, EDGE_NW, EDGE_NE, EDGE_SW, EDGE_SE, EDGE_TOP, PILLAR, GOAL_TABLE, START, END
+            FLOOR, EDGE_NW, EDGE_NE, EDGE_SW, EDGE_SE, EDGE_TOP, PILLAR, GOAL_TABLE, START, END, DRAIN
         )
         fun valueOf(name: String): TileType {
             return values().find { it.name == name } ?: throw IllegalArgumentException("No such TileType: $name")

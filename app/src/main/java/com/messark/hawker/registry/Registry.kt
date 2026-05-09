@@ -71,20 +71,26 @@ data class StallDefinition(
         stall: Stall,
         stallCoord: AxialCoordinate,
         target: Enemy,
-        currentTimeMs: Long
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
     ): FireResult {
         val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
         return when (type) {
-            StallType.TEH_TARIK -> FireResult.NewPuddle(
-                StickyPuddle(
-                    id = UUID.randomUUID().toString(),
-                    position = target.position,
-                    spawnTimeMs = currentTimeMs,
-                    durationMs = stall.effectDurationMs,
-                    sourceStallCoord = stallCoord,
-                    sourceStallId = stall.id
+            StallType.TEH_TARIK -> {
+                val targetCoord = AxialCoordinate(Math.round(target.position.q), Math.round(target.position.r))
+                val isOnDrain = hexes[targetCoord]?.type == TileType.DRAIN
+                val duration = if (isOnDrain) stall.effectDurationMs / 2 else stall.effectDurationMs
+                FireResult.NewPuddle(
+                    StickyPuddle(
+                        id = UUID.randomUUID().toString(),
+                        position = target.position,
+                        spawnTimeMs = currentTimeMs,
+                        durationMs = duration,
+                        sourceStallCoord = stallCoord,
+                        sourceStallId = stall.id
+                    )
                 )
-            )
+            }
             StallType.SATAY -> {
                 val dq = target.position.q - stallCoord.q
                 val dr = target.position.r - stallCoord.r

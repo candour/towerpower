@@ -714,7 +714,7 @@ class MainViewModel @JvmOverloads constructor(
                     )
                 } else stall
 
-                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
+                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs, state.hexes)
                 var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
 
                 // Reset boosted stats but keep firing metadata (rotation, lastFiredMs)
@@ -924,7 +924,7 @@ class MainViewModel @JvmOverloads constructor(
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
-            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR) {
+            if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return

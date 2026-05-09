@@ -27,7 +27,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 ### Rendering & Depth
 - **zOrder Groups:**
   - `0`: Floor
-  - `1`: Edges/Puddles
+  - `1`: Edges/Puddles/Drain Details
   - `2`: Standard entities (Stalls, Customers, Projectiles)
   - `3+`: Overlays (>= 10)
 - **Sorting Logic:** Within a zOrder group, sort by `r` (row), then `zOrder`, then `q` (column) to ensure correct isometric depth.
@@ -74,6 +74,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 
 ### Important Asset Rules
 - **DPI Scaling:** Always place sprite-based assets with hardcoded pixel coordinates in `drawable-nodpi` to prevent Android's automatic scaling.
+- **Drain Logic:** The `TileType.DRAIN` variant acts as a walkable and buildable floor tile. It is rendered in `GameBoard.kt` as a base floor sprite with a 30% width `Color.DarkGray` square and black grill lines in the center. In `MapGenerator.kt`, one horizontal line of 5 `DRAIN` tiles is placed on a random row between indices 1 and `height - 2`, starting from a random horizontal offset.
 - **Resource Naming:** Use only lowercase letters (a-z), numbers (0-9), and underscores.
 - **Anchoring:**
   - Stalls/Pillars: Bottom-center at hex center (`Offset(0.5f, 0.8f)`).
