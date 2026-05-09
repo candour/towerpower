@@ -240,6 +240,35 @@ fun GameBoard(
                         ))
                     }
 
+                    if (tile.type == TileType.DRAIN) {
+                        drawables.add(DrawableEntity(
+                            q = coord.q.toFloat(),
+                            r = coord.r.toFloat(),
+                            zOrder = 1,
+                            draw = {
+                                val drainSize = wPx * 0.3f
+                                val rectTopLeft = Offset(screenPos.x - drainSize / 2f, screenPos.y - drainSize / 2f)
+                                drawRect(
+                                    color = Color.DarkGray,
+                                    topLeft = rectTopLeft,
+                                    size = Size(drainSize, drainSize)
+                                )
+                                // Grill lines
+                                val lineCount = 3
+                                val spacing = drainSize / (lineCount + 1)
+                                for (i in 1..lineCount) {
+                                    val x = rectTopLeft.x + i * spacing
+                                    drawLine(
+                                        color = Color.Black,
+                                        start = Offset(x, rectTopLeft.y),
+                                        end = Offset(x, rectTopLeft.y + drainSize),
+                                        strokeWidth = 1.dp.toPx()
+                                    )
+                                }
+                            }
+                        ))
+                    }
+
                     val srcRect = when (tile.type) {
                         TileType.PILLAR -> SpriteConstants.PILLAR_RECT
                         TileType.GOAL_TABLE -> null
@@ -251,6 +280,7 @@ fun GameBoard(
                         TileType.START -> null
                         TileType.FLOOR -> null
                         TileType.END -> null
+                        TileType.DRAIN -> null
                     }
 
                     srcRect?.let { rect ->

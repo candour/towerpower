@@ -714,7 +714,7 @@ class MainViewModel @JvmOverloads constructor(
                     )
                 } else stall
 
-                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
+                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs, state.hexes)
                 var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
 
                 // Reset boosted stats but keep firing metadata (rotation, lastFiredMs)
