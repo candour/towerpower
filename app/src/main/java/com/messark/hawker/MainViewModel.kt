@@ -623,13 +623,6 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Checks all stalls to see if they are ready to fire and creates projectiles/puddles.
-     *
-     * @param state Current game state.
-     * @param currentTimeMs Current game time.
-     * @return Updated state with new projectiles/puddles.
-     */
-    /**
      * Handles the firing logic for all stalls on the board.
      * Efficiently filters for active stalls and determines targets based on their targeting mode.
      *
@@ -857,7 +850,7 @@ class MainViewModel @JvmOverloads constructor(
         }.map { e ->
             // Clean up buffs: source must be alive, still targeting this enemy, and not grabbed
             val validBuffs = e.buffs.filter { buff ->
-                val source = state.enemies.find { it.id == buff.sourceId }
+                val source = enemyLookup[buff.sourceId]
                 source != null && source.buffingTargetId == e.id && !source.isGrabbed
             }
             if (validBuffs.size != e.buffs.size) {
