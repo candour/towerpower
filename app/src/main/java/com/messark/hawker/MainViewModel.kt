@@ -623,93 +623,98 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Checks all stalls to see if they are ready to fire and creates projectiles/puddles.
+     * Handles the firing logic for all stalls on the board.
+     * Efficiently filters for active stalls and determines targets based on their targeting mode.
      *
      * @param state Current game state.
-     * @param currentTimeMs Current game time.
-     * @return Updated state with new projectiles/puddles.
+     * @param currentTimeMs Current game time in milliseconds.
+     * @return Updated game state with new projectiles, puddles, and stall states.
      */
     private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
+        val firingStalls = state.hexes.entries.filter { (_, tile) ->
+            val stall = tile.stall
+            stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 &&
+                    stall.heldEnemyId == null && (currentTimeMs - stall.lastFiredMs) >= stall.fireRateMs
+        }
+
+        if (firingStalls.isEmpty() || state.enemies.isEmpty()) return state
+
         val newProjectiles = state.projectiles.toMutableList()
         val newPuddles = state.puddles.toMutableList()
         val updatedHexes = state.hexes.toMutableMap()
         val newlyGrabbedEnemyIds = mutableSetOf<String>()
 
-        state.hexes.forEach { (coord, tile) ->
-            val stall = tile.stall
-            if (stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 && stall.heldEnemyId == null && currentTimeMs - stall.lastFiredMs >= stall.fireRateMs) {
-                val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-                val potentialTargets = state.enemies.filter { enemy ->
-                    !enemy.isGrabbed && !newlyGrabbedEnemyIds.contains(enemy.id) && GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
-                }
+        firingStalls.forEach { (coord, tile) ->
+            val stall = tile.stall!!
+            val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
 
-                val target = when (stall.targetMode) {
-                    TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                    TargetMode.CLOSEST -> potentialTargets.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
-                    TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
-                    TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
-                }
+            // Find all potential targets within range that are not already grabbed
+            val potentialTargets = state.enemies.filter { enemy ->
+                !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
+                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range
+            }
 
-                if (target != null) {
-                    val (boost, providers) = calculateStatBoost(coord, state.hexes)
+            val target = when (stall.targetMode) {
+                TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
+                TargetMode.CLOSEST -> potentialTargets.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
+                TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
+                TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
+            } ?: return@forEach
 
-                    // Update Bak Kut Teh stats
-                    providers.forEach { providerCoord ->
-                        val providerTile = updatedHexes[providerCoord]
-                        if (providerTile?.stall != null) {
-                            val updatedBkt = providerTile.stall.copy(
-                                uniqueTargetIds = providerTile.stall.uniqueTargetIds + stall.id
-                            )
-                            updatedHexes[providerCoord] = providerTile.copy(stall = updatedBkt)
-                        }
-                    }
+            val (boost, providers) = calculateStatBoost(coord, state.hexes)
 
-                    if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                        newlyGrabbedEnemyIds.add(target.id)
-                        val boostedDuration = (stall.effectDurationMs * boost).toLong()
-                        val updatedStall = stall.copy(
-                            lastFiredMs = currentTimeMs,
-                            heldEnemyId = target.id,
-                            releaseTimeMs = currentTimeMs + boostedDuration,
-                            uniqueTargetIds = stall.uniqueTargetIds + target.id
+            // Update Bak Kut Teh stats for adjacency tracking
+            providers.forEach { providerCoord ->
+                updatedHexes[providerCoord]?.let { tileWithBkt ->
+                    tileWithBkt.stall?.let { bktStall ->
+                        updatedHexes[providerCoord] = tileWithBkt.copy(
+                            stall = bktStall.copy(uniqueTargetIds = bktStall.uniqueTargetIds + stall.id)
                         )
-                        updatedHexes[coord] = tile.copy(stall = updatedStall)
-                    } else {
-                        val stallDef = StallRegistry.get(stall.stallType)
-                        val boostedStall = if (boost > 1.0f) {
-                            stall.copy(
-                                damage = (stall.damage * boost).toInt(),
-                                effectDurationMs = (stall.effectDurationMs * boost).toLong(),
-                                freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
-                            )
-                        } else stall
-
-                        val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
-                        var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
-
-                        // CRITICAL: We must NOT save the boosted damage/durations back to the state.
-                        // We take the updatedStall (which might have new rotation or releaseTimeMs)
-                        // and reset its stats back to the original stall's unboosted stats.
-                        updatedStall = updatedStall.copy(
-                            lastFiredMs = currentTimeMs,
-                            damage = stall.damage,
-                            effectDurationMs = stall.effectDurationMs,
-                            freezeDurationMs = stall.freezeDurationMs
-                        )
-
-                        when (fireResult) {
-                            is FireResult.NewProjectile -> {
-                                newProjectiles.add(fireResult.projectile)
-                            }
-                            is FireResult.NewPuddle -> {
-                                newPuddles.add(fireResult.puddle)
-                            }
-                        }
-                        updatedHexes[coord] = tile.copy(stall = updatedStall)
                     }
                 }
             }
+
+            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
+                newlyGrabbedEnemyIds.add(target.id)
+                val boostedDuration = (stall.effectDurationMs * boost).toLong()
+                updatedHexes[coord] = tile.copy(
+                    stall = stall.copy(
+                        lastFiredMs = currentTimeMs,
+                        heldEnemyId = target.id,
+                        releaseTimeMs = currentTimeMs + boostedDuration,
+                        uniqueTargetIds = stall.uniqueTargetIds + target.id
+                    )
+                )
+            } else {
+                val stallDef = StallRegistry.get(stall.stallType)
+                // Temporarily boost stall for fire calculation
+                val boostedStall = if (boost > 1.0f) {
+                    stall.copy(
+                        damage = (stall.damage * boost).toInt(),
+                        effectDurationMs = (stall.effectDurationMs * boost).toLong(),
+                        freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
+                    )
+                } else stall
+
+                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
+                var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
+
+                // Reset boosted stats but keep firing metadata (rotation, lastFiredMs)
+                updatedStall = updatedStall.copy(
+                    lastFiredMs = currentTimeMs,
+                    damage = stall.damage,
+                    effectDurationMs = stall.effectDurationMs,
+                    freezeDurationMs = stall.freezeDurationMs
+                )
+
+                when (fireResult) {
+                    is FireResult.NewProjectile -> newProjectiles.add(fireResult.projectile)
+                    is FireResult.NewPuddle -> newPuddles.add(fireResult.puddle)
+                }
+                updatedHexes[coord] = tile.copy(stall = updatedStall)
+            }
         }
+
         return state.copy(hexes = updatedHexes, projectiles = newProjectiles, puddles = newPuddles)
     }
 
@@ -725,10 +730,12 @@ class MainViewModel @JvmOverloads constructor(
         val finalProjectiles = mutableListOf<Projectile>()
         val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
         val newVisualEffects = state.visualEffects.toMutableList()
+        val enemyLookup = state.enemies.associateBy { it.id }
 
         state.projectiles.forEach { proj ->
             val targetPos = if (proj.targetEnemyId != null) {
-                state.enemies.find { it.id == proj.targetEnemyId && !it.isGrabbed }?.position ?: proj.targetPosition
+                enemyLookup[proj.targetEnemyId]?.let { if (!it.isGrabbed) it.position else null }
+                    ?: proj.targetPosition
             } else {
                 proj.targetPosition
             }
@@ -738,7 +745,7 @@ class MainViewModel @JvmOverloads constructor(
             val dist = GridUtils.axialDistance(proj.position, targetPos)
 
             if (dist < proj.speed) {
-                // Visual Effect
+                // Visual Effect for AoE
                 if (proj.aoeRadius > 0 && proj.sourceStallType != null) {
                     val stallDef = StallRegistry.get(proj.sourceStallType)
                     newVisualEffects.add(VisualEffect(
@@ -751,13 +758,18 @@ class MainViewModel @JvmOverloads constructor(
                     ))
                 }
 
-                // Collect hits
-                state.enemies.forEach { enemy ->
-                    if (enemy.isGrabbed) return@forEach
-                    val isDirectTarget = proj.targetEnemyId == enemy.id
-                    val isWithinAoe = proj.aoeRadius > 0 && GridUtils.axialDistance(enemy.position, targetPos) <= proj.aoeRadius
-                    if (isDirectTarget || isWithinAoe) {
-                        hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
+                // Collect hits - Direct target first
+                if (proj.targetEnemyId != null && enemyLookup.containsKey(proj.targetEnemyId) && !enemyLookup[proj.targetEnemyId]!!.isGrabbed) {
+                    hitEnemiesDetails.getOrPut(proj.targetEnemyId) { mutableListOf() }.add(proj)
+                }
+
+                // Collect AoE hits
+                if (proj.aoeRadius > 0) {
+                    state.enemies.forEach { enemy ->
+                        if (enemy.isGrabbed || enemy.id == proj.targetEnemyId) return@forEach
+                        if (GridUtils.axialDistance(enemy.position, targetPos) <= proj.aoeRadius) {
+                            hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
+                        }
                     }
                 }
             } else {
@@ -772,87 +784,88 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
 
+        if (hitEnemiesDetails.isEmpty()) {
+            return state.copy(projectiles = finalProjectiles, visualEffects = newVisualEffects)
+        }
+
         var updatedGold = state.gold
         var updatedScore = state.score
+        var shouldTriggerHaptic = false
         val updatedHexes = state.hexes.toMutableMap()
 
-        val finalEnemies = state.enemies.map { enemy ->
-            val hits = hitEnemiesDetails[enemy.id]
-            if (hits != null) {
-                var currentHealth = enemy.health.toFloat()
-                var maxFreezeDuration = enemy.freezeDurationMs
-                var speedBoostDuration = enemy.speedBoostDurationMs
+        val finalEnemies = state.enemies.mapNotNull { enemy ->
+            val hits = hitEnemiesDetails[enemy.id] ?: return@mapNotNull enemy
 
-                hits.forEach { proj ->
-                    if (currentHealth <= 0) return@forEach
+            var currentHealth = enemy.health.toFloat()
+            var maxFreezeDuration = enemy.freezeDurationMs
+            var speedBoostDuration = enemy.speedBoostDurationMs
 
-                    var damage = proj.damage.toFloat()
+            hits.forEach { proj ->
+                if (currentHealth <= 0) return@forEach
 
-                    // Apply Armor Buffs
-                    enemy.buffs.forEach { buff ->
-                        if (buff.type == BuffType.ARMOR) {
-                            damage *= (1.0f - buff.value)
-                        }
-                    }
+                var damage = proj.damage.toFloat()
+                enemy.buffs.forEach { if (it.type == BuffType.ARMOR) damage *= (1.0f - it.value) }
 
-                    var freezeDuration = proj.freezeDurationMs
+                var freezeDuration = proj.freezeDurationMs
+                if (proj.sourceStallType != null) {
+                    val stallDef = StallRegistry.get(proj.sourceStallType)
+                    damage = stallDef.applyDamageModifiers(enemy, damage)
+                    freezeDuration = stallDef.getFreezeModifier(enemy, freezeDuration)
+                    stallDef.getSpeedBoost(enemy).let { if (it > 0) speedBoostDuration = it }
+                }
 
-                    // Apply modifiers
-                    if (proj.sourceStallType != null) {
-                        val stallDef = StallRegistry.get(proj.sourceStallType)
-                        damage = stallDef.applyDamageModifiers(enemy, damage)
-                        freezeDuration = stallDef.getFreezeModifier(enemy, freezeDuration)
-                        val boost = stallDef.getSpeedBoost(enemy)
-                        if (boost > 0) speedBoostDuration = boost
-                    }
+                currentHealth = maxOf(0f, currentHealth - damage)
+                maxFreezeDuration = maxOf(maxFreezeDuration, freezeDuration)
 
-                    val damageDealt = damage
-                    currentHealth = maxOf(0f, currentHealth - damageDealt)
-                    maxFreezeDuration = maxOf(maxFreezeDuration, freezeDuration)
-
-                    // Track hit and kill
-                    if (proj.sourceStallCoord != null && proj.sourceStallId != null) {
-                        val coord = proj.sourceStallCoord
-                        updatedHexes[coord]?.stall?.let { stall ->
-                            if (stall.id == proj.sourceStallId) {
-                                val isKill = currentHealth <= 0
-                                val newTargetIds = stall.uniqueTargetIds + enemy.id
-                                // Only count kill if stall is NOT a utility stall
-                                val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
-                                updatedHexes[coord] = updatedHexes[coord]!!.copy(stall = stall.copy(
-                                    uniqueTargetIds = newTargetIds,
+                // Track hit and kill on the source stall
+                if (proj.sourceStallCoord != null && proj.sourceStallId != null) {
+                    val coord = proj.sourceStallCoord
+                    updatedHexes[coord]?.stall?.let { stall ->
+                        if (stall.id == proj.sourceStallId) {
+                            val isKill = currentHealth < 1.0f
+                            val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
+                            updatedHexes[coord] = updatedHexes[coord]!!.copy(
+                                stall = stall.copy(
+                                    uniqueTargetIds = stall.uniqueTargetIds + enemy.id,
                                     kills = newKills
-                                ))
-                            }
+                                )
+                            )
                         }
                     }
                 }
+            }
 
-                val finalHealthInt = currentHealth.toInt()
-                if (finalHealthInt <= 0) {
-                    updatedGold += enemy.reward
-                    updatedScore += enemy.reward
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastHapticTimeMs >= 1000) {
-                        viewModelScope.launch {
-                            if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
-                        }
-                        lastHapticTimeMs = currentTime
-                    }
-                    enemy.copy(health = 0, isDead = true)
-                } else {
-                    enemy.copy(health = finalHealthInt, freezeDurationMs = maxFreezeDuration, speedBoostDurationMs = speedBoostDuration)
-                }
-            } else enemy
-        }.filter { !it.isDead }.map { e ->
+            if (currentHealth < 1.0f) { // Consider dead if health rounds to 0
+                updatedGold += enemy.reward
+                updatedScore += enemy.reward
+                shouldTriggerHaptic = true
+                null // Enemy is dead
+            } else {
+                enemy.copy(
+                    health = currentHealth.toInt(),
+                    freezeDurationMs = maxFreezeDuration,
+                    speedBoostDurationMs = speedBoostDuration
+                )
+            }
+        }.map { e ->
             // Clean up buffs: source must be alive, still targeting this enemy, and not grabbed
             val validBuffs = e.buffs.filter { buff ->
-                val source = state.enemies.find { it.id == buff.sourceId }
+                val source = enemyLookup[buff.sourceId]
                 source != null && source.buffingTargetId == e.id && !source.isGrabbed
             }
             if (validBuffs.size != e.buffs.size) {
                 e.copy(buffs = validBuffs)
             } else e
+        }
+
+        if (shouldTriggerHaptic) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastHapticTimeMs >= 1000) {
+                viewModelScope.launch {
+                    if (settingsRepository.settingsFlow.first().hapticEnabled) _hapticEvents.emit(Unit)
+                }
+                lastHapticTimeMs = currentTime
+            }
         }
 
         return state.copy(
