@@ -21,7 +21,8 @@ enum class TileType {
     PILLAR,
     GOAL_TABLE,
     START,
-    END
+    END,
+    DRAIN
 }
 
 data class HexTile(

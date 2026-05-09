@@ -201,6 +201,22 @@ fun GameBoard(
                                 destSize = Size(wPx + 3.0f, hPx + 3.0f),
                                 clipHex = true
                             )
+
+                            // Draw drain square if tile type is DRAIN
+                            if (tile.type == TileType.DRAIN) {
+                                val drainSize = wPx * 0.3f
+                                drawRect(
+                                    color = Color.DarkGray,
+                                    topLeft = Offset(screenPos.x - drainSize / 2f, screenPos.y - drainSize / 2f),
+                                    size = Size(drainSize, drainSize)
+                                )
+                                drawRect(
+                                    color = Color.Black,
+                                    topLeft = Offset(screenPos.x - drainSize / 2f, screenPos.y - drainSize / 2f),
+                                    size = Size(drainSize, drainSize),
+                                    style = Stroke(width = 1.dp.toPx())
+                                )
+                            }
                         }
                     ))
                 }
@@ -233,6 +249,7 @@ fun GameBoard(
                         TileType.START -> null
                         TileType.FLOOR -> null
                         TileType.END -> null
+                        TileType.DRAIN -> null
                     }
 
                     srcRect?.let { rect ->

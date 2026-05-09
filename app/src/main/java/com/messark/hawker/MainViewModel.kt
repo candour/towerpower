@@ -696,7 +696,7 @@ class MainViewModel @JvmOverloads constructor(
                     )
                 } else stall
 
-                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs)
+                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs, state.hexes)
                 var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
 
                 // Reset boosted stats but keep firing metadata (rotation, lastFiredMs)
@@ -909,7 +909,8 @@ class MainViewModel @JvmOverloads constructor(
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
-            if (currentState.gold >= stallToPlace.cost && tile.type == TileType.FLOOR) {
+            val isBuildable = tile.type == TileType.FLOOR || tile.type == TileType.DRAIN
+            if (currentState.gold >= stallToPlace.cost && isBuildable) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
@@ -925,7 +926,8 @@ class MainViewModel @JvmOverloads constructor(
                     val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
                         val neighborTile = currentState.hexes[it] ?: return@filter false
-                        it != coord && (neighborTile.type == TileType.FLOOR && !blocked.contains(it) ||
+                        val isWalkableTile = neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN
+                        it != coord && (isWalkableTile && !blocked.contains(it) ||
                                 neighborTile.type == TileType.START ||
                                 neighborTile.type == TileType.GOAL_TABLE)
                     }
@@ -1200,7 +1202,9 @@ class MainViewModel @JvmOverloads constructor(
         val blocked = getBlockedCoordinates(hexes)
         val validTiles = adjacentCoords.filter { adj ->
             val tile = hexes[adj] ?: return@filter false
-            val isStandardWalkable = !blocked.contains(adj) && tile.type != TileType.PILLAR && !tile.type.name.startsWith("EDGE_")
+            val isStandardWalkable = !blocked.contains(adj) &&
+                    tile.type != TileType.PILLAR &&
+                    !tile.type.name.startsWith("EDGE_")
             isStandardWalkable || tile.type == TileType.START || tile.type == TileType.GOAL_TABLE
         }
 
