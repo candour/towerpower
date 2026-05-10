@@ -814,14 +814,14 @@ class MainViewModel @JvmOverloads constructor(
         val finalEnemies = state.enemies.mapNotNull { enemy ->
             val hits = hitEnemiesDetails[enemy.id] ?: return@mapNotNull enemy
 
-            var currentHealth = enemy.health.toFloat()
+            var currentHealth = enemy.health
             var maxFreezeDuration = enemy.freezeDurationMs
             var speedBoostDuration = enemy.speedBoostDurationMs
 
             hits.forEach { proj ->
-                if (currentHealth <= 0) return@forEach
+                if (currentHealth < 1.0f) return@forEach
 
-                var damage = proj.damage.toFloat()
+                var damage = proj.damage
                 enemy.buffs.forEach { if (it.type == BuffType.ARMOR) damage *= (1.0f - it.value) }
 
                 var freezeDuration = proj.freezeDurationMs
