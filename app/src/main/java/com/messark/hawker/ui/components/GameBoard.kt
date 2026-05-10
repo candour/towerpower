@@ -644,7 +644,7 @@ fun GameBoard(
 
                         val barWidth = 2.dp.toPx()
                         val barHeight = hPx * 0.5f
-                        val healthRatio = (enemy.health / enemy.maxHealth).coerceIn(0.0f, 1.0f)
+                        val healthRatio = if (enemy.maxHealth > 0f) (enemy.health / enemy.maxHealth).coerceIn(0.0f, 1.0f) else 0f
 
                         // Positioned on the right side of the enemy, vertically centered
                         val barX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
