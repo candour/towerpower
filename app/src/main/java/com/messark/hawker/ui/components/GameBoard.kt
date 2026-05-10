@@ -381,7 +381,7 @@ fun GameBoard(
                         drawables.add(DrawableEntity(
                             q = coord.q.toFloat(),
                             r = coord.r.toFloat(),
-                            zOrder = 10,
+                            zOrder = 30,
                             draw = {
                                 val radiusX = (stall.range + 0.25f) * wPx
                                 val radiusY = (stall.range * rowSpacingFactor + 0.25f) * hPx
@@ -494,7 +494,7 @@ fun GameBoard(
                     drawables.add(DrawableEntity(
                         q = coord.q.toFloat(),
                         r = coord.r.toFloat(),
-                        zOrder = 11,
+                        zOrder = 31,
                         draw = {
                             val canAfford = gold >= stall.getUpgradeCost()
                             val indicatorColor = if (canAfford) Color.Green else Color.Gray
@@ -530,10 +530,14 @@ fun GameBoard(
 
             visualEffects.forEach { effect ->
                 val screenPos = toScreenPrecise(effect.position.q, effect.position.r)
+                val effectZOrder = when(effect.type) {
+                    VisualEffectType.GAS_CLOUD, VisualEffectType.MONEY_SPRAY -> 21
+                    else -> 1
+                }
                 drawables.add(DrawableEntity(
                     q = effect.position.q,
                     r = effect.position.r,
-                    zOrder = 1,
+                    zOrder = effectZOrder,
                     draw = {
                         val currentTimeMs = System.currentTimeMillis()
                         val elapsed = currentTimeMs - effect.startTimeMs
@@ -640,7 +644,7 @@ fun GameBoard(
 
                         val barWidth = 2.dp.toPx()
                         val barHeight = hPx * 0.5f
-                        val healthPercent = (enemy.health.toFloat() / enemy.maxHealth).coerceIn(0f, 1f)
+                        val healthRatio = (enemy.health / enemy.maxHealth).coerceIn(0.0f, 1.0f)
 
                         // Positioned on the right side of the enemy, vertically centered
                         val barX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
@@ -655,12 +659,30 @@ fun GameBoard(
                         )
 
                         // Health (Red) - Drains from top to bottom (bottom remains filled)
-                        val filledHeight = barHeight * healthPercent
+                        val filledHeight = barHeight * healthRatio
                         drawRect(
                             color = Color.Red,
                             topLeft = Offset(barX, barY + (barHeight - filledHeight)),
                             size = Size(barWidth, filledHeight)
+
                         )
+
+                        // Health Percentage Text
+                        drawIntoCanvas { canvas ->
+                            val text = "${Math.round(healthRatio * 100)}%"
+                            val paint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.WHITE
+                                textSize = 8.dp.toPx()
+                                isFakeBoldText = true
+                                setShadowLayer(2f, 0f, 0f, android.graphics.Color.BLACK)
+                            }
+                            canvas.nativeCanvas.drawText(
+                                text,
+                                barX + barWidth + 2.dp.toPx(),
+                                barY + barHeight,
+                                paint
+                            )
+                        }
 
                         // Armor Buff Icon (Shield)
                         if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
@@ -706,7 +728,7 @@ fun GameBoard(
                 drawables.add(DrawableEntity(
                     q = projectile.position.q,
                     r = projectile.position.r,
-                    zOrder = 5,
+                    zOrder = 20,
                     draw = {
                         val radius = if (projectile.isArc) 6.dp.toPx() else 4.dp.toPx()
                         // Draw 4 sub-frames between last position and current position for smoothness
@@ -747,14 +769,16 @@ fun GameBoard(
                     val aGroup = when {
                         a.zOrder == 0 -> 0
                         a.zOrder == 1 -> 1
-                        a.zOrder >= 10 -> 3
-                        else -> 2
+                        a.zOrder in 2..19 -> 2
+                        a.zOrder in 20..29 -> 3
+                        else -> 4
                     }
                     val bGroup = when {
                         b.zOrder == 0 -> 0
                         b.zOrder == 1 -> 1
-                        b.zOrder >= 10 -> 3
-                        else -> 2
+                        b.zOrder in 2..19 -> 2
+                        b.zOrder in 20..29 -> 3
+                        else -> 4
                     }
                     
                     if (aGroup != bGroup) return aGroup.compareTo(bGroup)

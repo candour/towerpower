@@ -72,8 +72,8 @@ class UncleDoubleGrabTest {
 
         val enemy = Enemy(
             id = "target-enemy",
-            health = 100,
-            maxHealth = 100,
+            health = 100f,
+            maxHealth = 100f,
             position = PreciseAxialCoordinate(0f, 1f),
             path = listOf(AxialCoordinate(0,1), AxialCoordinate(0,2), AxialCoordinate(0,3), AxialCoordinate(0,4))
         )

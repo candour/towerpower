@@ -266,7 +266,7 @@ class MainViewModel @JvmOverloads constructor(
         return enemyList.shuffled(random)
     }
 
-    private fun getEnemyHP(type: EnemyType, wave: Int): Int {
+    private fun getEnemyHP(type: EnemyType, wave: Int): Float {
         return EnemyRegistry.get(type).getHp(wave)
     }
 
@@ -708,7 +708,7 @@ class MainViewModel @JvmOverloads constructor(
                 // Temporarily boost stall for fire calculation
                 val boostedStall = if (boost > 1.0f) {
                     stall.copy(
-                        damage = (stall.damage * boost).toInt(),
+                        damage = stall.damage * boost,
                         effectDurationMs = (stall.effectDurationMs * boost).toLong(),
                         freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
                     )
@@ -860,7 +860,7 @@ class MainViewModel @JvmOverloads constructor(
                 null // Enemy is dead
             } else {
                 enemy.copy(
-                    health = currentHealth.toInt(),
+                    health = currentHealth,
                     freezeDurationMs = maxFreezeDuration,
                     speedBoostDurationMs = speedBoostDuration
                 )
@@ -1359,7 +1359,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
-        var totalBoostPercent = 0
+        var totalBoostPercent = 0f
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
             val stall = hexes[adj]?.stall

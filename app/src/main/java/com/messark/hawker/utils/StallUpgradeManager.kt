@@ -167,7 +167,7 @@ object StallUpgradeManager {
 
         return stall.copy(
             name = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix),
-            damage = calculateValue(damageStat, baseDef.damage.toDouble(), mutableUpgrades.getOrDefault(damageStat, 0), stall.stallType).toInt(),
+            damage = calculateValue(damageStat, baseDef.damage.toDouble(), mutableUpgrades.getOrDefault(damageStat, 0), stall.stallType).toFloat(),
             range = calculateValue("Range", baseDef.range.toDouble(), mutableUpgrades.getOrDefault("Range", 0), stall.stallType).toFloat(),
             fireRateMs = calculateValue("Rate", baseDef.fireRateMs.toDouble(), mutableUpgrades.getOrDefault("Rate", 0), stall.stallType).toLong(),
             aoeRadius = calculateValue("Radius", baseDef.aoeRadius.toDouble(), mutableUpgrades.getOrDefault("Radius", 0), stall.stallType).toFloat(),

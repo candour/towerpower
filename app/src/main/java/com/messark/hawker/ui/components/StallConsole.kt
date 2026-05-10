@@ -129,8 +129,8 @@ fun StallConsole(
                 val hungerValue = when (stall.stallType) {
                     StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
                     StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
-                    StallType.BAK_KUT_TEH -> "+${stall.damage}%"
-                    else -> "${stall.damage}"
+                    StallType.BAK_KUT_TEH -> "+${stall.damage.toInt()}%"
+                    else -> "${stall.damage.toInt()}"
                 }
                 val hungerLabel = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost" else hungerWord
                 StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerValue)

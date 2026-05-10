@@ -39,7 +39,7 @@ class MilestoneBoostTest {
             cost = 100,
             color = Color.Yellow,
             stallType = StallType.CHICKEN_RICE,
-            damage = 15
+            damage = 15f
         )
 
         // Benefit calculation uses StallRegistry.get(stallType). Chicken Rice base damage is 10.
@@ -69,7 +69,7 @@ class MilestoneBoostTest {
             cost = 100,
             color = Color.Yellow,
             stallType = StallType.CHICKEN_RICE,
-            damage = 64, // (10 + 9*6)
+            damage = 64f, // (10 + 9*6)
             upgrades = mapOf("Damage" to 9),
             upgradeCount = 9
         )
@@ -89,7 +89,7 @@ class MilestoneBoostTest {
         val upgradedStall = viewModel.gameState.value.hexes[stallCoord]?.stall!!
         assertEquals(10, upgradedStall.upgrades["Damage"])
         // (64 + 6) * 1.25 = 87.5 -> 88
-        assertEquals(88, upgradedStall.damage)
+        assertEquals(88f, upgradedStall.damage)
     }
 
     @Test

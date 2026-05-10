@@ -93,7 +93,7 @@ data class Stall(
     val cost: Int,
     val color: Color,
     val range: Float = 3f, // Grid units
-    val damage: Int = 10,
+    val damage: Float = 10f,
     val fireRateMs: Long = 1000L,
     val lastFiredMs: Long = 0L,
     val stallType: StallType = StallType.CHICKEN_RICE,
@@ -145,8 +145,8 @@ data class Buff(
 data class Enemy(
     val id: String,
     val type: EnemyType = EnemyType.SALARYMAN,
-    val health: Int,
-    val maxHealth: Int,
+    val health: Float,
+    val maxHealth: Float,
     val position: PreciseAxialCoordinate,
     val baseSpeed: Float = 0.05f, // Grid units per tick
     val currentSpeed: Float = 0.05f,
@@ -193,7 +193,7 @@ data class Projectile(
     val lastPosition: PreciseAxialCoordinate? = null,
     val targetEnemyId: String?,
     val targetPosition: PreciseAxialCoordinate,
-    val damage: Int,
+    val damage: Float,
     val speed: Float = 0.2f,
     val color: Color,
     val isFreeze: Boolean = false,
