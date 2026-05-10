@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import com.messark.hawker.model.AxialCoordinate
 import com.messark.hawker.model.PreciseAxialCoordinate
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 object GridUtils {
     val NEIGHBOR_OFFSETS = listOf(
@@ -48,5 +49,26 @@ object GridUtils {
         return NEIGHBOR_OFFSETS.map { offset ->
             AxialCoordinate(coord.q + offset.q, coord.r + offset.r)
         }
+    }
+
+    /**
+     * Rounds fractional axial coordinates to the nearest hex coordinate.
+     */
+    fun hexRound(q: Float, r: Float): AxialCoordinate {
+        var rq = q.roundToInt()
+        var rr = r.roundToInt()
+        var rs = (-q - r).roundToInt()
+
+        val qDiff = abs(rq - q)
+        val rDiff = abs(rr - r)
+        val sDiff = abs(rs - (-q - r))
+
+        if (qDiff > rDiff && qDiff > sDiff) {
+            rq = -rr - rs
+        } else if (rDiff > sDiff) {
+            rr = -rq - rs
+        }
+
+        return AxialCoordinate(rq, rr)
     }
 }
