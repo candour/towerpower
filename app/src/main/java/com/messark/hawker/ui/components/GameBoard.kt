@@ -37,6 +37,7 @@ private class RenderingContext(
     val hPx: Float,
     val rowSpacingFactor: Float,
     val borderPx: Float,
+    val now: Long,
     val spriteSheet: ImageBitmap,
     val stallsSheet: ImageBitmap,
     val enemiesSheet: ImageBitmap,
@@ -185,6 +186,7 @@ fun GameBoard(
             val ctx = RenderingContext(
                 wPx = hexWidth.toPx(), hPx = hexHeight.toPx(),
                 rowSpacingFactor = rowSpacingFactor, borderPx = 20.dp.toPx(),
+                now = System.currentTimeMillis(),
                 spriteSheet, stallsSheet, enemiesSheet, endTableSheet, upgradePaint, spritePaint
             )
 
@@ -240,7 +242,7 @@ fun GameBoard(
                 if (tile.type == TileType.PILLAR) {
                     worldLayer.add(DrawableEntity(coord.r.toFloat()) {
                         if (isRemovePillarModeActive) {
-                            val p = (System.currentTimeMillis() % 1000) / 1000f
+                            val p = (ctx.now % 1000) / 1000f
                             val s = 1.0f + 0.1f * sin(p * 2 * PI).toFloat()
                             drawPath(ctx.createHexPath(screenPos), Color.Yellow.copy(alpha = 0.4f)) // simplified pulse
                         }
@@ -363,7 +365,7 @@ fun GameBoard(
                 val targetLayer = if (effect.type == VisualEffectType.GAS_CLOUD) decalLayer else foregroundLayer
                 targetLayer.add {
                     val pos = ctx.toScreenPrecise(effect.position.q, effect.position.r)
-                    val p = ((System.currentTimeMillis() - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
+                    val p = ((ctx.now - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
                     val a = 1f - p
                     when (effect.type) {
                         VisualEffectType.GAS_CLOUD -> {
@@ -408,7 +410,8 @@ fun GameBoard(
             // --- Execution ---
             backgroundLayer.forEach { it(this) }
             decalLayer.forEach { it(this) }
-            worldLayer.sortedBy { it.r }.forEach { it.draw(this) }
+            worldLayer.sortBy { it.r }
+            worldLayer.forEach { it.draw(this) }
             foregroundLayer.forEach { it(this) }
         }
     }
