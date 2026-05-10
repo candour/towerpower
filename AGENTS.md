@@ -25,6 +25,16 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Pathfinding:** Implemented in `Pathfinding.kt` using A*. Customers recalculate paths immediately when stalls are placed or sold.
 
 ### Rendering & Depth
+- **zOrder Groups:**
+  - `0`: Foundation (Floor)
+  - `1`: Ground Decals (Puddles, standard visual effects)
+  - `2`: World Entities (Pillars, Stalls, Enemies - Sorted by 'r' coordinate)
+  - `3`: Overhead Entities (Projectiles, Gas Clouds, Money Sprays - Ignores 'r' sorting)
+  - `4`: UI Overlays (Selection markers, Upgrade indicators)
+- **Sorting Logic:**
+  - Group 0 & 1: Ground level.
+  - Group 2 (World): Sorted by `r` (row), then `zOrder`, then `q` (column) to ensure correct isometric depth.
+  - Group 3 (Overhead) & 4 (UI): Rendered above World entities, sorted by `zOrder`.
 - **Layered Architecture:** Rendering is split into four explicit layers drawn in sequence:
   - **Background:** Static floor tiles and clipped edge decorations.
   - **Decals:** Ground-level details like start markers, drains, puddles, and persistent AOE effects (e.g., gas clouds).

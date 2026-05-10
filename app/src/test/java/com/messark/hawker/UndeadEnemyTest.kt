@@ -43,8 +43,8 @@ class UndeadEnemyTest {
         val enemyId = "enemy1"
         val enemy = Enemy(
             id = enemyId,
-            health = 1,
-            maxHealth = 100,
+            health = 1f,
+            maxHealth = 100f,
             position = PreciseAxialCoordinate(1f, 0f),
             path = listOf(AxialCoordinate(0, 0), AxialCoordinate(1, 0))
         )
@@ -62,7 +62,7 @@ class UndeadEnemyTest {
                     position = PreciseAxialCoordinate(1f, 0f), // already at enemy
                     targetEnemyId = enemyId,
                     targetPosition = PreciseAxialCoordinate(1f, 0f),
-                    damage = 5,
+                    damage = 5f,
                     color = Color.Yellow
                 )
             )

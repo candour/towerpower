@@ -266,7 +266,7 @@ class MainViewModel @JvmOverloads constructor(
         return enemyList.shuffled(random)
     }
 
-    private fun getEnemyHP(type: EnemyType, wave: Int): Int {
+    private fun getEnemyHP(type: EnemyType, wave: Int): Float {
         return EnemyRegistry.get(type).getHp(wave)
     }
 
@@ -708,7 +708,7 @@ class MainViewModel @JvmOverloads constructor(
                 // Temporarily boost stall for fire calculation
                 val boostedStall = if (boost > 1.0f) {
                     stall.copy(
-                        damage = (stall.damage * boost).toInt(),
+                        damage = stall.damage * boost,
                         effectDurationMs = (stall.effectDurationMs * boost).toLong(),
                         freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
                     )
@@ -814,14 +814,14 @@ class MainViewModel @JvmOverloads constructor(
         val finalEnemies = state.enemies.mapNotNull { enemy ->
             val hits = hitEnemiesDetails[enemy.id] ?: return@mapNotNull enemy
 
-            var currentHealth = enemy.health.toFloat()
+            var currentHealth = enemy.health
             var maxFreezeDuration = enemy.freezeDurationMs
             var speedBoostDuration = enemy.speedBoostDurationMs
 
             hits.forEach { proj ->
-                if (currentHealth <= 0) return@forEach
+                if (currentHealth < 1.0f) return@forEach
 
-                var damage = proj.damage.toFloat()
+                var damage = proj.damage
                 enemy.buffs.forEach { if (it.type == BuffType.ARMOR) damage *= (1.0f - it.value) }
 
                 var freezeDuration = proj.freezeDurationMs
@@ -860,7 +860,7 @@ class MainViewModel @JvmOverloads constructor(
                 null // Enemy is dead
             } else {
                 enemy.copy(
-                    health = currentHealth.toInt(),
+                    health = currentHealth,
                     freezeDurationMs = maxFreezeDuration,
                     speedBoostDurationMs = speedBoostDuration
                 )
@@ -1359,7 +1359,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
-        var totalBoostPercent = 0
+        var totalBoostPercent = 0f
         val providers = mutableListOf<AxialCoordinate>()
         adjacentCoords.forEach { adj ->
             val stall = hexes[adj]?.stall

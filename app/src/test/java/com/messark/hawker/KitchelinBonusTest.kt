@@ -61,8 +61,8 @@ class KitchelinBonusTest {
         viewModel.startWave()
         val enemy = Enemy(
             id = "test-enemy",
-            health = 10,
-            maxHealth = 10,
+            health = 10f,
+            maxHealth = 10f,
             position = PreciseAxialCoordinate(0f, 0f),
             reward = 100,
             path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1), AxialCoordinate(0,2))
@@ -74,7 +74,7 @@ class KitchelinBonusTest {
             position = PreciseAxialCoordinate(0f, 0f),
             targetEnemyId = "test-enemy",
             targetPosition = PreciseAxialCoordinate(0f, 0f),
-            damage = 100,
+            damage = 100f,
             color = androidx.compose.ui.graphics.Color.Red,
             speed = 100.0f
         )
@@ -106,10 +106,10 @@ class KitchelinBonusTest {
         ) }
 
         viewModel.startWave()
-        val enemy = Enemy(id = "e1", health = 1, maxHealth = 1, position = PreciseAxialCoordinate(0f, 0f), reward = 100, path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1)))
+        val enemy = Enemy(id = "e1", health = 1f, maxHealth = 1f, position = PreciseAxialCoordinate(0f, 0f), reward = 100, path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1)))
         viewModel._gameState.update { it.copy(enemies = listOf(enemy), waveActive = true, enemiesToSpawn = 0) }
 
-        val projectile = Projectile(id = "p1", position = PreciseAxialCoordinate(0f, 0f), targetEnemyId = "e1", targetPosition = PreciseAxialCoordinate(0f, 0f), damage = 10, color = androidx.compose.ui.graphics.Color.Red, speed = 100f)
+        val projectile = Projectile(id = "p1", position = PreciseAxialCoordinate(0f, 0f), targetEnemyId = "e1", targetPosition = PreciseAxialCoordinate(0f, 0f), damage = 10f, color = androidx.compose.ui.graphics.Color.Red, speed = 100f)
         viewModel._gameState.update { it.copy(projectiles = listOf(projectile)) }
 
         viewModel.updateGame(1000L)
@@ -140,10 +140,10 @@ class KitchelinBonusTest {
         assertEquals(2, viewModel.gameState.value.activeBudgetBonuses)
 
         viewModel.startWave()
-        val enemy = Enemy(id = "e1", health = 1, maxHealth = 1, position = PreciseAxialCoordinate(0f, 0f), reward = 1000, path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1)))
+        val enemy = Enemy(id = "e1", health = 1f, maxHealth = 1f, position = PreciseAxialCoordinate(0f, 0f), reward = 1000, path = listOf(AxialCoordinate(0,0), AxialCoordinate(0,1)))
         viewModel._gameState.update { it.copy(enemies = listOf(enemy), waveActive = true, enemiesToSpawn = 0) }
 
-        val projectile = Projectile(id = "p1", position = PreciseAxialCoordinate(0f, 0f), targetEnemyId = "e1", targetPosition = PreciseAxialCoordinate(0f, 0f), damage = 10, color = androidx.compose.ui.graphics.Color.Red, speed = 100f)
+        val projectile = Projectile(id = "p1", position = PreciseAxialCoordinate(0f, 0f), targetEnemyId = "e1", targetPosition = PreciseAxialCoordinate(0f, 0f), damage = 10f, color = androidx.compose.ui.graphics.Color.Red, speed = 100f)
         viewModel._gameState.update { it.copy(projectiles = listOf(projectile)) }
 
         viewModel.updateGame(1000L)

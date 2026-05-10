@@ -17,7 +17,7 @@ data class StallDefinition(
     val cost: Int,
     val color: Color,
     val range: Float,
-    val damage: Int,
+    val damage: Float,
     val fireRateMs: Long,
     val description: String,
     val tutorialTitle: String,
@@ -161,7 +161,7 @@ data class EnemyDefinition(
     val type: EnemyType,
     val name: String,
     val description: String,
-    val baseHp: Int,
+    val baseHp: Float,
     val baseSpeed: Float,
     val reward: Int,
     val spriteRow: Int
@@ -195,8 +195,8 @@ data class EnemyDefinition(
         return enemy
     }
 
-    fun getHp(wave: Int): Int {
-        return (baseHp * Math.pow(1.1, (wave - 1).toDouble())).toInt()
+    fun getHp(wave: Int): Float {
+        return (baseHp * Math.pow(1.1, (wave - 1).toDouble())).toFloat()
     }
 
     fun toEnemy(id: String = UUID.randomUUID().toString(), wave: Int, position: PreciseAxialCoordinate, path: List<AxialCoordinate>, isFacingLeft: Boolean): Enemy {
@@ -225,7 +225,7 @@ object StallRegistry {
             cost = 150,
             color = Color.Blue,
             range = 3f,
-            damage = 0,
+            damage = 0f,
             fireRateMs = 1000L,
             description = "Creates slowing puddles",
             tutorialTitle = "Teh Tarik Maestro (Movement Slow)",
@@ -240,7 +240,7 @@ object StallRegistry {
             cost = 200,
             color = Color.Red,
             range = 2.5f,
-            damage = 30,
+            damage = 30f,
             fireRateMs = 1500L,
             description = "Area chili sauce damage",
             tutorialTitle = "Uncle's Satay Stall (AoE Damage)",
@@ -261,7 +261,7 @@ object StallRegistry {
             cost = 100,
             color = Color.Yellow,
             range = 4f,
-            damage = 10,
+            damage = 10f,
             fireRateMs = 500L,
             description = "High single-target damage",
             tutorialTitle = "Ah Hock’s Chicken Rice Stand (Single-Target DPS)",
@@ -275,7 +275,7 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF4CAF50),
             range = 3f,
-            damage = 150,
+            damage = 150f,
             fireRateMs = 2000L,
             description = "Massive damage, slow fire",
             tutorialTitle = "The King Durian Bunker (High Damage/Slight AoE)",
@@ -291,7 +291,7 @@ object StallRegistry {
             cost = 250,
             color = Color.Cyan,
             range = 3.5f,
-            damage = 0,
+            damage = 0f,
             fireRateMs = 1500L,
             description = "Freezes enemies in place",
             tutorialTitle = "Auntie's Ice Kachang Cart (Stun/Freezer)",
@@ -306,7 +306,7 @@ object StallRegistry {
             cost = 250,
             color = Color.Gray,
             range = 1.1f,
-            damage = 0,
+            damage = 0f,
             fireRateMs = 15000L,
             description = "Cleans trays, and enemies",
             tutorialTitle = "Tray Return Uncle (Enemy Displacement)",
@@ -321,7 +321,7 @@ object StallRegistry {
             cost = 1000,
             color = Color(0xFF4CAF50), // Green
             range = 0f,
-            damage = 0,
+            damage = 0f,
             fireRateMs = 0L,
             description = "Provides $100 every wave",
             tutorialTitle = "The Reliable ATM (Passive Income)",
@@ -336,7 +336,7 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF795548), // Brown
             range = 1.1f,
-            damage = 20, // Used as base boost percentage
+            damage = 20f, // Used as base boost percentage
             fireRateMs = 0L,
             description = "Boosts adjacent stalls",
             tutorialTitle = "The Herbal Bak Kut Teh Stall (Adjacency Booster)",
@@ -356,7 +356,7 @@ object EnemyRegistry {
             type = EnemyType.SALARYMAN,
             name = "Salaryman",
             description = "The fast-paced office worker. They move quickly across the grid, eager to reach their destination. Their high speed makes them difficult to hit, but they don't have much health.",
-            baseHp = 50,
+            baseHp = 50f,
             baseSpeed = 0.08f,
             reward = 10,
             spriteRow = 2
@@ -365,7 +365,7 @@ object EnemyRegistry {
             type = EnemyType.TOURIST,
             name = "Tourist",
             description = "A curious visitor who frequently stops to take pictures of the local sights. While stationary, they are easy targets for your stalls, but they have more health than a Salaryman.",
-            baseHp = 100,
+            baseHp = 100f,
             baseSpeed = 0.04f,
             reward = 20,
             spriteRow = 1
@@ -374,7 +374,7 @@ object EnemyRegistry {
             type = EnemyType.AUNTIE,
             name = "Auntie",
             description = "A veteran of the hawker scene. She moves slowly and deliberately, but possesses high health. It takes sustained fire from multiple stalls to stop her progress.",
-            baseHp = 150,
+            baseHp = 150f,
             baseSpeed = 0.03f,
             reward = 30,
             spriteRow = 0
@@ -383,7 +383,7 @@ object EnemyRegistry {
             type = EnemyType.DELIVERY_RIDER,
             name = "Delivery Rider",
             description = "A formidable boss on two wheels. He has massive health and moves at a significant speed. He is particularly cautious on wet surfaces, slowing down considerably when passing through sticky puddles.",
-            baseHp = 300,
+            baseHp = 300f,
             baseSpeed = 0.06f,
             reward = 60,
             spriteRow = 3
@@ -392,7 +392,7 @@ object EnemyRegistry {
             type = EnemyType.TIGER_MOM,
             name = "Tiger Mom",
             description = "She's not just here for the food; she's here to ensure success! The Tiger Mom is a formidable force who occasionally stops to give another customer an 'encouraging' lecture, providing them with a 90% armor buff until she's fully fed. Only one Tiger Mom can be on the board at a time.",
-            baseHp = 80,
+            baseHp = 80f,
             baseSpeed = 0.05f,
             reward = 40,
             spriteRow = 4

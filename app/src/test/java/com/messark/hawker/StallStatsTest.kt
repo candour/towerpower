@@ -52,13 +52,13 @@ class StallStatsTest {
             cost = 100,
             color = Color.Yellow,
             stallType = StallType.CHICKEN_RICE,
-            damage = 50
+            damage = 50f
         )
 
         val enemy = Enemy(
             id = enemyId,
-            health = 100,
-            maxHealth = 100,
+            health = 100f,
+            maxHealth = 100f,
             position = PreciseAxialCoordinate(1f, 0f), // within range
             path = listOf(AxialCoordinate(0, 0), AxialCoordinate(1, 0), AxialCoordinate(2, 0))
         )
@@ -73,7 +73,7 @@ class StallStatsTest {
                     position = PreciseAxialCoordinate(1f, 0f), // already at enemy
                     targetEnemyId = enemyId,
                     targetPosition = PreciseAxialCoordinate(1f, 0f),
-                    damage = 50,
+                    damage = 50f,
                     color = Color.Yellow,
                     sourceStallCoord = stallCoord,
                     sourceStallId = stallId
@@ -89,7 +89,7 @@ class StallStatsTest {
         assertEquals(1, updatedStall.uniqueTargetIds.size)
         assertTrue("Stall should track specific enemyId", updatedStall.uniqueTargetIds.contains(enemyId))
         assertEquals(0, updatedStall.kills)
-        assertEquals(50, newState.enemies[0].health)
+        assertEquals(50f, newState.enemies[0].health)
 
         // 2. Second hit on SAME enemy (should NOT increment unique hits, but should kill and increment kills)
         viewModel._gameState.value = newState.copy(
@@ -99,7 +99,7 @@ class StallStatsTest {
                     position = PreciseAxialCoordinate(1f, 0f),
                     targetEnemyId = enemyId,
                     targetPosition = PreciseAxialCoordinate(1f, 0f),
-                    damage = 50,
+                    damage = 50f,
                     color = Color.Yellow,
                     sourceStallCoord = stallCoord,
                     sourceStallId = stallId
@@ -136,8 +136,8 @@ class StallStatsTest {
 
         val enemy = Enemy(
             id = enemyId,
-            health = 100,
-            maxHealth = 100,
+            health = 100f,
+            maxHealth = 100f,
             position = PreciseAxialCoordinate(1f, 0f),
             path = listOf(AxialCoordinate(0, 0), AxialCoordinate(1, 0))
         )
@@ -152,7 +152,7 @@ class StallStatsTest {
                     position = PreciseAxialCoordinate(1f, 0f),
                     targetEnemyId = enemyId,
                     targetPosition = PreciseAxialCoordinate(1f, 0f),
-                    damage = 50,
+                    damage = 50f,
                     color = Color.Yellow,
                     sourceStallCoord = stallCoord,
                     sourceStallId = oldStallId
