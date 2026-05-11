@@ -1163,6 +1163,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun applyOutdoorPuddles(chain: List<AxialCoordinate>) {
+        var success = false
         _gameState.update { state ->
             if (state.kitchelinStars < 2) return@update state
 
@@ -1171,13 +1172,16 @@ class MainViewModel @JvmOverloads constructor(
                 newHexes[coord] = newHexes[coord]!!.copy(isPermanentlyWet = true)
             }
 
+            success = true
             state.copy(
                 kitchelinStars = state.kitchelinStars - 2,
                 hexes = newHexes,
                 isOutdoorPuddleModeActive = false
             )
         }
-        triggerHaptic()
+        if (success) {
+            triggerHaptic()
+        }
     }
 
     private fun removePillar(coord: AxialCoordinate) {
