@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -32,6 +33,13 @@ import com.messark.hawker.ui.constants.SpriteConstants
 import com.messark.hawker.utils.GridUtils
 import kotlin.math.*
 
+private data class DrawableEntity(
+    val q: Float,
+    val r: Float,
+    val zOrder: Int,
+    val draw: DrawScope.() -> Unit
+)
+
 private class RenderingContext(
     val wPx: Float,
     val hPx: Float,
@@ -43,6 +51,7 @@ private class RenderingContext(
     val enemiesSheet: ImageBitmap,
     val endTableSheet: ImageBitmap,
     val upgradePaint: android.graphics.Paint,
+    val healthTextPaint: android.graphics.Paint,
     val spritePaint: android.graphics.Paint,
     val hexPath: Path = Path()
 ) {
@@ -165,6 +174,15 @@ fun GameBoard(
     val worldItemPool = remember { List(512) { WorldItem() } }
     val activeWorldItems = remember { mutableListOf<WorldItem>() }
     val reusedPath = remember { Path() }
+    val density = LocalDensity.current
+    val healthTextPaint = remember {
+        android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 8.dp.toPx() }
+            isFakeBoldText = true
+            setShadowLayer(2f, 0f, 0f, android.graphics.Color.BLACK)
+        }
+    }
 
     val hexWidth = 47.dp
     val hexHeight = hexWidth * 91f / 101f
@@ -212,23 +230,24 @@ fun GameBoard(
                 wPx = hexWidth.toPx(), hPx = hexHeight.toPx(),
                 rowSpacingFactor = rowSpacingFactor, borderPx = 20.dp.toPx(),
                 now = System.currentTimeMillis(),
-                spriteSheet, stallsSheet, enemiesSheet, endTableSheet, upgradePaint, spritePaint,
+                spriteSheet, stallsSheet, enemiesSheet, endTableSheet, upgradePaint, healthTextPaint, spritePaint,
                 hexPath = reusedPath
             )
+            val drawables = mutableListOf<DrawableEntity>()
 
-            // 1. Background Layer (Direct Draw)
+            // 1. Background Layer (Group 0)
             hexes.forEach { (coord, tile) ->
                 val screenPos = ctx.toScreen(coord)
-                if (!tile.type.name.startsWith("EDGE_")) {
+                if (tile.type !is TileType.EDGE_NW && tile.type !is TileType.EDGE_NE && tile.type !is TileType.EDGE_SW && tile.type !is TileType.EDGE_SE && tile.type !is TileType.EDGE_TOP) {
                     val floorSrc = SpriteConstants.FLOOR_RECTS[tile.floorVariant % SpriteConstants.FLOOR_RECTS.size]
                     ctx.drawSprite(this, floorSrc, screenPos, Size(ctx.wPx + 3.0f, ctx.hPx + 3.0f), clipHex = true)
                 } else {
                     val edgeSrc = when (tile.type) {
-                        TileType.EDGE_NW -> SpriteConstants.EDGE_NW_RECT
-                        TileType.EDGE_NE -> SpriteConstants.EDGE_NE_RECT
-                        TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
-                        TileType.EDGE_SE -> SpriteConstants.EDGE_SE_RECT
-                        TileType.EDGE_TOP -> SpriteConstants.EDGE_TOP_RECT
+                        is TileType.EDGE_NW -> SpriteConstants.EDGE_NW_RECT
+                        is TileType.EDGE_NE -> SpriteConstants.EDGE_NE_RECT
+                        is TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
+                        is TileType.EDGE_SE -> SpriteConstants.EDGE_SE_RECT
+                        is TileType.EDGE_TOP -> SpriteConstants.EDGE_TOP_RECT
                         else -> null
                     }
                     edgeSrc?.let { rect ->
@@ -236,15 +255,11 @@ fun GameBoard(
                         ctx.drawSprite(this, rect, screenPos, Size(rect.width * scale, rect.height * scale), clipHex = true)
                     }
                 }
-            }
 
-            // 2. Decal Layer (Direct Draw)
-            hexes.forEach { (coord, tile) ->
-                val screenPos = ctx.toScreen(coord)
-                if (tile.type == TileType.START) {
+                if (tile.type is TileType.START) {
                     drawPath(path = ctx.resetHexPath(screenPos), color = Color.Green.copy(alpha = 0.3f))
                 }
-                if (tile.type == TileType.DRAIN) {
+                if (tile.type is TileType.DRAIN) {
                     val s = ctx.wPx * 0.3f
                     drawRect(Color.DarkGray, Offset(screenPos.x - s / 2f, screenPos.y - s / 2f), Size(s, s))
                     for (i in 1..3) {
@@ -253,219 +268,126 @@ fun GameBoard(
                     }
                 }
             }
-            puddles.forEach { puddle ->
-                val sc = ctx.wPx / 101f
-                ctx.drawSprite(this, SpriteConstants.FX_PUDDLE_RECT, ctx.toScreenPrecise(puddle.position.q, puddle.position.r), Size(64f * sc, 62f * sc), clipHex = true)
-            }
-            visualEffects.forEach { effect ->
-                if (effect.type == VisualEffectType.GAS_CLOUD) {
-                    val pos = ctx.toScreenPrecise(effect.position.q, effect.position.r)
-                    val p = ((ctx.now - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
-                    val a = 1f - p
-                    val rand = kotlin.random.Random(effect.id.hashCode().toLong())
-                    for (i in 0 until 8) {
-                        val off = Offset((rand.nextFloat() - 0.5f) * ctx.wPx * 1.5f + (rand.nextFloat() - 0.5f) * ctx.wPx * 0.3f * p, (rand.nextFloat() - 0.5f) * ctx.wPx * 1.5f + (rand.nextFloat() - 0.5f) * ctx.wPx * 0.3f * p)
-                        drawCircle(effect.color.copy(alpha = effect.color.alpha * a), ctx.wPx * 0.4f * (0.8f + rand.nextFloat() * 0.4f) * (1f + p * 0.5f), pos + off)
-                    }
-                }
-            }
 
-            // 3. World Layer (Sorted)
-            activeWorldItems.clear()
-            var itemIdx = 0
-
+            // 3. World Layer (Group 2)
+            val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
             hexes.forEach { (coord, tile) ->
                 val screenPos = ctx.toScreen(coord)
-                if (tile.type == TileType.PILLAR || tile.type == TileType.GOAL_TABLE || tile.stall != null) {
-                    val type = when {
-                        tile.type == TileType.PILLAR -> WorldItemType.PILLAR
-                        tile.type == TileType.GOAL_TABLE -> WorldItemType.GOAL_TABLE
-                        else -> WorldItemType.STALL
-                    }
-                    if (itemIdx < worldItemPool.size) {
-                        worldItemPool[itemIdx].set(coord.r.toFloat(), type, coord, tile, null, screenPos)
-                        activeWorldItems.add(worldItemPool[itemIdx])
-                        itemIdx++
-                    }
-                }
-            }
-            enemies.forEach { enemy ->
-                if (itemIdx < worldItemPool.size) {
-                    worldItemPool[itemIdx].set(enemy.position.r, WorldItemType.ENEMY, null, null, enemy, ctx.toScreenPrecise(enemy.position.q, enemy.position.r))
-                    activeWorldItems.add(worldItemPool[itemIdx])
-                    itemIdx++
-                }
-            }
-            activeWorldItems.sortBy { it.r }
-            activeWorldItems.forEach { item ->
-                val screenPos = item.screenPos
-                when (item.type) {
-                    WorldItemType.PILLAR -> {
+                if (tile.type is TileType.PILLAR) {
+                    drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 2) {
                         if (isRemovePillarModeActive) {
                             val p = (ctx.now % 1000) / 1000f
                             val s = 1.0f + 0.1f * sin(p * 2 * PI).toFloat()
                             drawPath(ctx.resetHexPath(screenPos, s), Color.Yellow.copy(alpha = 0.4f))
                         }
-                        val r = SpriteConstants.PILLAR_RECT
-                        val sc = ctx.wPx / 101f
+                        val r = SpriteConstants.PILLAR_RECT; val sc = ctx.wPx / 101f
                         ctx.drawSprite(this, r, screenPos, Size(r.width * sc, r.height * sc), anchor = Offset(0.5f, 0.8f))
-                    }
-                    WorldItemType.GOAL_TABLE -> {
-                        val sc = ctx.wPx / 101f
-                        val idx = (10 - health).coerceIn(0, 9)
+                    })
+                } else if (tile.type is TileType.GOAL_TABLE) {
+                    drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 2) {
+                        val sc = ctx.wPx / 101f; val idx = (10 - health).coerceIn(0, 9)
                         val r = IntRect(0, idx * SpriteConstants.END_TABLE_SPRITE_HEIGHT, SpriteConstants.END_TABLE_SPRITE_WIDTH, (idx + 1) * SpriteConstants.END_TABLE_SPRITE_HEIGHT)
-                        val w = 263f * sc
-                        ctx.drawSprite(this, r, screenPos, Size(w, w * SpriteConstants.END_TABLE_SPRITE_HEIGHT / SpriteConstants.END_TABLE_SPRITE_WIDTH), anchor = Offset(0.5f, 1.0f), bitmap = ctx.endTableSheet)
-                    }
-                    WorldItemType.STALL -> {
-                        val stall = item.tile?.stall ?: return@forEach
-                        val def = StallRegistry.get(stall.stallType)
-                        val w = ctx.wPx * 0.8f
-                        val sc = w / def.spriteRect.width
+                        ctx.drawSprite(this, r, screenPos, Size(263f * sc, 263f * sc * SpriteConstants.END_TABLE_SPRITE_HEIGHT / SpriteConstants.END_TABLE_SPRITE_WIDTH), anchor = Offset(0.5f, 0.8f), bitmap = ctx.endTableSheet)
+                    })
+                }
+                tile.stall?.let { stall ->
+                    drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 2) {
+                        val def = StallRegistry.get(stall.stallType); val w = ctx.wPx * 0.8f; val sc = w / def.spriteRect.width
                         ctx.drawSprite(this, def.spriteRect, screenPos, Size(w, def.spriteRect.height * sc), anchor = Offset(0.5f, 0.8f), bitmap = ctx.stallsSheet)
                         if (stall.disabledWaves > 0) {
-                            val cSc = ctx.wPx / 101f
-                            ctx.drawSprite(this, SpriteConstants.FX_CONE_RECT, screenPos, Size(64f * cSc, 62f * cSc))
+                            val cSc = ctx.wPx / 101f; ctx.drawSprite(this, SpriteConstants.FX_CONE_RECT, screenPos, Size(64f * cSc, 62f * cSc))
                         }
-                        if (selectedBoardStall == item.coord) {
+                        if (selectedBoardStall == coord) {
                             drawPath(ctx.resetHexPath(screenPos), Color.White.copy(alpha = 0.3f))
                         }
-                    }
-                    WorldItemType.ENEMY -> {
-                        val enemy = item.enemy ?: return@forEach
-                        val def = EnemyRegistry.get(enemy.type)
-                        val frame = ((enemy.animationTimeMs / 500) % SpriteConstants.ENEMY_SPRITE_FRAMES).toInt()
-                        val r = IntRect(frame * SpriteConstants.ENEMY_SPRITE_WIDTH, def.spriteRow * SpriteConstants.ENEMY_SPRITE_HEIGHT, (frame + 1) * SpriteConstants.ENEMY_SPRITE_WIDTH, (def.spriteRow + 1) * SpriteConstants.ENEMY_SPRITE_HEIGHT)
-                        ctx.drawSprite(this, r, screenPos, Size(SpriteConstants.ENEMY_SPRITE_WIDTH.toFloat(), SpriteConstants.ENEMY_SPRITE_HEIGHT.toFloat()), anchor = Offset(0.5f, 1.0f), bitmap = ctx.enemiesSheet, flipHorizontal = enemy.isFacingLeft)
-                        val bW = 2.dp.toPx(); val bH = ctx.hPx * 0.5f
-                        val bX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
-                        val bY = screenPos.y - SpriteConstants.ENEMY_SPRITE_HEIGHT / 2f - bH / 2f
-                        drawRect(Color.Black, Offset(bX, bY), Size(bW, bH))
-                        drawRect(Color.Red, Offset(bX, bY + bH * (1f - enemy.health.toFloat() / enemy.maxHealth)), Size(bW, bH * (enemy.health.toFloat() / enemy.maxHealth)))
-                        if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
-                            val s = 10.dp.toPx(); val path = Path().apply {
-                                moveTo(bX - s/2f - 2.dp.toPx(), bY + bH/2f - s/2f)
-                                lineTo(bX - 2.dp.toPx(), bY + bH/2f - s*0.2f); lineTo(bX - 2.dp.toPx(), bY + bH/2f + s*0.2f)
-                                quadraticTo(bX - s/2f - 2.dp.toPx(), bY + bH/2f + s/2f, bX - s - 2.dp.toPx(), bY + bH/2f + s*0.2f)
-                                lineTo(bX - s - 2.dp.toPx(), bY + bH/2f - s*0.2f); close()
-                            }
-                            drawPath(path, Color(0xFF90A4AE)); drawPath(path, Color.White, style = Stroke(1.dp.toPx()))
-                        }
-                    }
+                    })
                 }
             }
+            enemies.forEach { enemy ->
+                val screenPos = ctx.toScreenPrecise(enemy.position.q, enemy.position.r)
+                drawables.add(DrawableEntity(enemy.position.q, enemy.position.r, 2) {
+                    val def = EnemyRegistry.get(enemy.type); val frame = ((enemy.animationTimeMs / 500) % SpriteConstants.ENEMY_SPRITE_FRAMES).toInt()
+                    val r = IntRect(frame * SpriteConstants.ENEMY_SPRITE_WIDTH, def.spriteRow * SpriteConstants.ENEMY_SPRITE_HEIGHT, (frame + 1) * SpriteConstants.ENEMY_SPRITE_WIDTH, (def.spriteRow + 1) * SpriteConstants.ENEMY_SPRITE_HEIGHT)
+                    ctx.drawSprite(this, r, screenPos, Size(SpriteConstants.ENEMY_SPRITE_WIDTH.toFloat(), SpriteConstants.ENEMY_SPRITE_HEIGHT.toFloat()), anchor = Offset(0.5f, 1.0f), bitmap = ctx.enemiesSheet, flipHorizontal = enemy.isFacingLeft)
+                    val bW = 2.dp.toPx(); val bH = ctx.hPx * 0.5f; val hR = if (enemy.maxHealth > 0f) (enemy.health / enemy.maxHealth).coerceIn(0f, 1f) else 0f
+                    val bX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
+                    val bY = screenPos.y - SpriteConstants.ENEMY_SPRITE_HEIGHT / 2f - bH / 2f
+                    drawRect(Color.Black, Offset(bX, bY), Size(bW, bH))
+                    drawRect(Color.Red, Offset(bX, bY + bH * (1f - hR)), Size(bW, bH * hR))
+                    drawIntoCanvas { canvas ->
+                        val text = "${Math.round(hR * 100)}%"
+                        canvas.nativeCanvas.drawText(text, bX + bW + 2.dp.toPx(), bY + bH, ctx.healthTextPaint)
+                    }
+                    if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
+                        val s = 10.dp.toPx(); val sX = bX - s - 2.dp.toPx(); val sY = bY + (bH - s) / 2f
+                        val path = Path().apply {
+                            moveTo(sX + s/2f, sY); lineTo(sX + s, sY + s*0.3f); lineTo(sX + s, sY + s*0.7f)
+                            quadraticTo(sX + s/2f, sY + s, sX, sY + s*0.7f); lineTo(sX, sY + s*0.3f); close()
+                        }
+                        drawPath(path, Color(0xFF90A4AE)); drawPath(path, Color.White, style = Stroke(1.dp.toPx()))
+                    }
+                })
+            }
 
-            // 4. Foreground Layer (Direct Draw)
+            // 4. Foreground Layer (Projectiles, UI, Effects)
+            puddles.forEach { puddle ->
+                val screenPos = ctx.toScreenPrecise(puddle.position.q, puddle.position.r)
+                drawables.add(DrawableEntity(puddle.position.q, puddle.position.r, 1) {
+                    val scale = ctx.wPx / 101f
+                    ctx.drawSprite(this, SpriteConstants.FX_PUDDLE_RECT, screenPos, Size(64f * scale, 62f * scale), clipHex = true)
+                })
+            }
+
+            visualEffects.forEach { effect ->
+                val screenPos = ctx.toScreenPrecise(effect.position.q, effect.position.r)
+                val z = if (effect.type == VisualEffectType.GAS_CLOUD || effect.type == VisualEffectType.MONEY_SPRAY) 21 else 1
+                drawables.add(DrawableEntity(effect.position.q, effect.position.r, z) {
+                    val progress = ((ctx.now - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
+                    val alpha = 1f - progress
+                    when (effect.type) {
+                        VisualEffectType.GAS_CLOUD -> {
+                            val rand = kotlin.random.Random(effect.id.hashCode().toLong())
+                            for (i in 0 until 8) {
+                                val off = Offset((rand.nextFloat() - 0.5f) * ctx.wPx * 1.5f + (rand.nextFloat() - 0.5f) * ctx.wPx * 0.3f * progress, (rand.nextFloat() - 0.5f) * ctx.wPx * 1.5f + (rand.nextFloat() - 0.5f) * ctx.wPx * 0.3f * progress)
+                                drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 0.4f * (0.8f + rand.nextFloat() * 0.4f) * (1f + progress * 0.5f), screenPos + off)
+                            }
+                        }
+                        VisualEffectType.MONEY_SPRAY -> {
+                            val rand = kotlin.random.Random(effect.id.hashCode().toLong())
+                            val nW = 64.dp.toPx(); val nH = SpriteConstants.DOLLAR_NOTE_RECT.height * (nW / SpriteConstants.DOLLAR_NOTE_RECT.width)
+                            for (i in 0 until 5) {
+                                val ang = (rand.nextFloat() * 2 * PI).toFloat()
+                                val dst = progress * ctx.wPx * 1.5f
+                                ctx.drawSprite(this, SpriteConstants.DOLLAR_NOTE_RECT, Offset(screenPos.x + cos(ang) * dst, screenPos.y + sin(ang) * dst), Size(nW, nH), alpha = alpha)
+                            }
+                        }
+                        else -> drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
+                    }
+                })
+            }
+
             hexes.forEach { (coord, tile) ->
                 tile.stall?.let { stall ->
                     val screenPos = ctx.toScreen(coord)
                     if (selectedBoardStall == coord) {
-                        drawables.add(DrawableEntity(
-                            q = coord.q.toFloat(),
-                            r = coord.r.toFloat(),
-                            zOrder = 30,
-                            draw = {
-                                val radiusX = (stall.range + 0.25f) * wPx
-                                val radiusY = (stall.range * rowSpacingFactor + 0.25f) * hPx
-                                val ovalSize = Size(radiusX * 2, radiusY * 2)
-                                val ovalTopLeft = Offset(screenPos.x - radiusX, screenPos.y - radiusY)
-
-                                // 1. Filled area
-                                drawOval(
-                                    color = Color.White.copy(alpha = 0.15f),
-                                    topLeft = ovalTopLeft,
-                                    size = ovalSize
-                                )
-                                // 2. Yellow border (wider stroke)
-                                drawOval(
-                                    color = Color.Yellow,
-                                    topLeft = ovalTopLeft,
-                                    size = ovalSize,
-                                    style = Stroke(width = 4.dp.toPx())
-                                )
-                                // 3. Red outline (thinner stroke on top)
-                                drawOval(
-                                    color = Color.Red,
-                                    topLeft = ovalTopLeft,
-                                    size = ovalSize,
-                                    style = Stroke(width = 2.dp.toPx())
-                                )
-
-                                // LOS Blocked area visualization
-                                if (stall.isBlockable) {
-                                    val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
-                                    val ratio = 91f / 101f
-                                    val yFactor = rowSpacingFactor * ratio
-
-                                    // Local coordinates for calculations
-                                    val x1 = coord.q + coord.r / 2f
-                                    val y1 = coord.r * yFactor
-
-                                    val radius = 0.25f
-                                    val stallVisualRadius = 0.4f // Approximate visual radius of the stall tile
-
-                                    obstructions.forEach { obs ->
-                                        val px = obs.coordinate.q + obs.coordinate.r / 2f
-                                        val py = obs.coordinate.r * yFactor
-
-                                        val dx = px - x1
-                                        val dy = py - y1
-                                        val dist = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-
-                                        if (dist > radius) {
-                                            val angleToPillar = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
-                                            val alpha = Math.asin((radius / dist).toDouble()).toFloat()
-
-                                            val angle1 = angleToPillar - alpha
-                                            val angle2 = angleToPillar + alpha
-
-                                            val startX1 = x1 + Math.cos(angle1.toDouble()).toFloat() * stallVisualRadius
-                                            val startY1 = y1 + Math.sin(angle1.toDouble()).toFloat() * stallVisualRadius
-                                            val startX2 = x1 + Math.cos(angle2.toDouble()).toFloat() * stallVisualRadius
-                                            val startY2 = y1 + Math.sin(angle2.toDouble()).toFloat() * stallVisualRadius
-
-                                            val endX1 = x1 + Math.cos(angle1.toDouble()).toFloat() * stall.range
-                                            val endY1 = y1 + Math.sin(angle1.toDouble()).toFloat() * stall.range
-                                            val endX2 = x1 + Math.cos(angle2.toDouble()).toFloat() * stall.range
-                                            val endY2 = y1 + Math.sin(angle2.toDouble()).toFloat() * stall.range
-
-                                            fun projectedToScreen(x: Float, y: Float): Offset {
-                                                val r = y / yFactor
-                                                val q = x - r / 2f
-                                                return GridUtils.toScreenPrecise(q, r, wPx, hPx, rowSpacingFactor, borderPx)
-                                            }
-
-                                            val p1Start = projectedToScreen(startX1, startY1)
-                                            val p2Start = projectedToScreen(startX2, startY2)
-                                            val p1End = projectedToScreen(endX1, endY1)
-                                            val p2End = projectedToScreen(endX2, endY2)
-
-                                            val shadowPath = Path().apply {
-                                                moveTo(p1Start.x, p1Start.y)
-                                                lineTo(p1End.x, p1End.y)
-                                                lineTo(p2End.x, p2End.y)
-                                                lineTo(p2Start.x, p2Start.y)
-                                                close()
-                                            }
-
-                                            drawPath(
-                                                path = shadowPath,
-                                                color = Color.Black.copy(alpha = 0.2f)
-                                            )
-
-                                            drawLine(
-                                                color = Color.Red.copy(alpha = 0.5f),
-                                                start = p1Start,
-                                                end = p1End,
-                                                strokeWidth = 2.dp.toPx()
-                                            )
-                                            drawLine(
-                                                color = Color.Red.copy(alpha = 0.5f),
-                                                start = p2Start,
-                                                end = p2End,
-                                                strokeWidth = 2.dp.toPx()
-                                            )
-                                        }
+                        drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 30) {
+                            val rx = (stall.range + 0.25f) * ctx.wPx; val ry = (stall.range * rowSpacingFactor + 0.25f) * ctx.hPx
+                            drawOval(Color.White.copy(alpha = 0.15f), Offset(screenPos.x - rx, screenPos.y - ry), Size(rx * 2, ry * 2))
+                            drawOval(Color.Yellow, Offset(screenPos.x - rx, screenPos.y - ry), Size(rx * 2, ry * 2), style = Stroke(4.dp.toPx()))
+                            drawOval(Color.Red, Offset(screenPos.x - rx, screenPos.y - ry), Size(rx * 2, ry * 2), style = Stroke(2.dp.toPx()))
+                            if (stall.isBlockable) {
+                                val yF = rowSpacingFactor * (91f / 101f)
+                                val x1 = coord.q + coord.r / 2f; val y1 = coord.r * yF
+                                obstructions.forEach { obs ->
+                                    val px = obs.coordinate.q + obs.coordinate.r / 2f; val py = obs.coordinate.r * yF
+                                    val dx = px - x1; val dy = py - y1; val dist = sqrt(dx * dx + dy * dy)
+                                    if (dist > 0.25f) {
+                                        val angP = atan2(dy, dx); val alp = asin(0.25f / dist)
+                                        val a1 = angP - alp; val a2 = angP + alp
+                                        val p = listOf(
+                                            Offset(x1 + cos(a1) * 0.4f, y1 + sin(a1) * 0.4f), Offset(x1 + cos(a1) * stall.range, y1 + sin(a1) * stall.range),
+                                            Offset(x1 + cos(a2) * 0.4f, y1 + sin(a2) * 0.4f), Offset(x1 + cos(a2) * stall.range, y1 + sin(a2) * stall.range)
+                                        ).map { GridUtils.toScreenPrecise(it.x - (it.y / yF) / 2f, it.y / yF, ctx.wPx, ctx.hPx, rowSpacingFactor, ctx.borderPx) }
                                         val path = Path().apply { moveTo(p[0].x, p[0].y); lineTo(p[1].x, p[1].y); lineTo(p[3].x, p[3].y); lineTo(p[2].x, p[2].y); close() }
                                         drawPath(path, Color.Black.copy(alpha = 0.2f))
                                         drawLine(Color.Red.copy(alpha = 0.5f), p[0], p[1], 2.dp.toPx())
@@ -473,287 +395,42 @@ fun GameBoard(
                                     }
                                 }
                             }
-                        ))
+                        })
                     }
-
-                    // Upgrade Indicator
-                    drawables.add(DrawableEntity(
-                        q = coord.q.toFloat(),
-                        r = coord.r.toFloat(),
-                        zOrder = 31,
-                        draw = {
-                            val canAfford = gold >= stall.getUpgradeCost()
-                            val indicatorColor = if (canAfford) Color.Green else Color.Gray
-                            val indicatorRadius = 7.dp.toPx()
-                            // Positioned at bottom right relative to center (screenPos), moved closer to center
-                            val indicatorPos = Offset(screenPos.x + wPx * 0.25f, screenPos.y + hPx * 0.25f)
-
-                            drawCircle(
-                                color = indicatorColor,
-                                radius = indicatorRadius,
-                                center = indicatorPos
-                            )
-                            drawCircle(
-                                color = Color.White,
-                                radius = indicatorRadius,
-                                center = indicatorPos,
-                                style = Stroke(width = 1.dp.toPx())
-                            )
-
-                            drawIntoCanvas { canvas ->
-                                upgradePaint.textSize = if (stall.upgradeCount > 9) 7.dp.toPx() else 9.dp.toPx()
-                                canvas.nativeCanvas.drawText(
-                                    stall.upgradeCount.toString(),
-                                    indicatorPos.x,
-                                    indicatorPos.y + upgradePaint.textSize / 3f,
-                                    upgradePaint
-                                )
-                            }
-                        }
-                    }
-                    val col = if (gold >= stall.getUpgradeCost()) Color.Green else Color.Gray
-                    val pos = Offset(screenPos.x + ctx.wPx * 0.25f, screenPos.y + ctx.hPx * 0.25f)
-                    drawCircle(col, 7.dp.toPx(), pos)
-                    drawCircle(Color.White, 7.dp.toPx(), pos, style = Stroke(1.dp.toPx()))
-                    drawIntoCanvas { it.nativeCanvas.drawText(stall.upgradeCount.toString(), pos.x, pos.y + 3.dp.toPx(), ctx.upgradePaint.apply { textSize = (if (stall.upgradeCount > 9) 7.dp else 9.dp).toPx() }) }
-                }
-            }
-            visualEffects.forEach { effect ->
-                val screenPos = toScreenPrecise(effect.position.q, effect.position.r)
-                val effectZOrder = when(effect.type) {
-                    VisualEffectType.GAS_CLOUD, VisualEffectType.MONEY_SPRAY -> 21
-                    else -> 1
-                }
-                drawables.add(DrawableEntity(
-                    q = effect.position.q,
-                    r = effect.position.r,
-                    zOrder = effectZOrder,
-                    draw = {
-                        val currentTimeMs = System.currentTimeMillis()
-                        val elapsed = currentTimeMs - effect.startTimeMs
-                        val progress = (elapsed.toFloat() / effect.durationMs).coerceIn(0f, 1f)
-                        val fraction = 1.0f - progress
-
-                        when (effect.type) {
-                            VisualEffectType.GAS_CLOUD -> {
-                                // Pseudo-random patchy gas effect seeded by effect ID
-                                val random = kotlin.random.Random(effect.id.hashCode().toLong())
-                                val baseRadius = wPx * 0.4f
-                                for (i in 0 until 8) {
-                                    val offsetX = (random.nextFloat() - 0.5f) * wPx * 1.5f
-                                    val offsetY = (random.nextFloat() - 0.5f) * wPx * 1.5f
-                                    val individualScale = 0.8f + random.nextFloat() * 0.4f
-                                    val driftX = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
-                                    val driftY = (random.nextFloat() - 0.5f) * wPx * 0.3f * progress
-
-                                    drawCircle(
-                                        color = effect.color.copy(alpha = effect.color.alpha * fraction),
-                                        radius = baseRadius * individualScale * (1f + progress * 0.5f),
-                                        center = Offset(screenPos.x + offsetX + driftX, screenPos.y + offsetY + driftY)
-                                    )
-                                }
-                            }
-                            VisualEffectType.MONEY_SPRAY -> {
-                                val random = kotlin.random.Random(effect.id.hashCode().toLong())
-                                val noteWidth = 64.dp.toPx()
-                                val scale = noteWidth / SpriteConstants.DOLLAR_NOTE_RECT.width
-                                val noteHeight = SpriteConstants.DOLLAR_NOTE_RECT.height * scale
-
-                                for (i in 0 until 5) {
-                                    val angle = (random.nextFloat() * 2 * Math.PI).toFloat()
-                                    val dist = progress * wPx * 1.5f
-                                    val offsetX = Math.cos(angle.toDouble()).toFloat() * dist
-                                    val offsetY = Math.sin(angle.toDouble()).toFloat() * dist
-
-                                    drawSprite(
-                                        srcRect = SpriteConstants.DOLLAR_NOTE_RECT,
-                                        destCenter = Offset(screenPos.x + offsetX, screenPos.y + offsetY),
-                                        destSize = Size(noteWidth, noteHeight),
-                                        alpha = fraction
-                                    )
-                                }
-                            }
-                            else -> {
-                                drawCircle(
-                                    color = effect.color.copy(alpha = effect.color.alpha * fraction),
-                                    radius = wPx * 1.2f, // Slightly larger than a hex
-                                    center = screenPos
-                                )
-                            }
-                        }
-                    }
-                ))
-            }
-
-            puddles.forEach { puddle ->
-                val screenPos = toScreenPrecise(puddle.position.q, puddle.position.r)
-                drawables.add(DrawableEntity(
-                    q = puddle.position.q,
-                    r = puddle.position.r,
-                    zOrder = 1,
-                    draw = {
-                        val scale = wPx / 101f
-                        drawSprite(
-                            srcRect = SpriteConstants.FX_PUDDLE_RECT,
-                            destCenter = screenPos,
-                            destSize = Size(64f * scale, 62f * scale),
-                            clipHex = true
-                        )
-                    }
-                ))
-            }
-
-            enemies.forEach { enemy ->
-                val screenPos = toScreenPrecise(enemy.position.q, enemy.position.r)
-
-                val enemyDef = EnemyRegistry.get(enemy.type)
-                val rowIndex = enemyDef.spriteRow
-                val frameIndex = ((enemy.animationTimeMs / 500) % SpriteConstants.ENEMY_SPRITE_FRAMES).toInt()
-
-                val srcRect = IntRect(
-                    left = frameIndex * SpriteConstants.ENEMY_SPRITE_WIDTH,
-                    top = rowIndex * SpriteConstants.ENEMY_SPRITE_HEIGHT,
-                    right = (frameIndex + 1) * SpriteConstants.ENEMY_SPRITE_WIDTH,
-                    bottom = (rowIndex + 1) * SpriteConstants.ENEMY_SPRITE_HEIGHT
-                )
-
-                drawables.add(DrawableEntity(
-                    q = enemy.position.q,
-                    r = enemy.position.r,
-                    zOrder = 4,
-                    draw = {
-                        val dSize = Size(SpriteConstants.ENEMY_SPRITE_WIDTH.toFloat(), SpriteConstants.ENEMY_SPRITE_HEIGHT.toFloat())
-                        drawSprite(
-                            srcRect = srcRect,
-                            destCenter = screenPos,
-                            destSize = dSize,
-                            anchor = Offset(0.5f, 1.0f), // Anchor feet to hex center
-                            bitmap = enemiesSheet,
-                            flipHorizontal = enemy.isFacingLeft
-                        )
-
-                        val barWidth = 2.dp.toPx()
-                        val barHeight = hPx * 0.5f
-                        val healthRatio = if (enemy.maxHealth > 0f) (enemy.health / enemy.maxHealth).coerceIn(0.0f, 1.0f) else 0f
-
-                        // Positioned on the right side of the enemy, vertically centered
-                        val barX = screenPos.x + SpriteConstants.ENEMY_SPRITE_WIDTH / 2f + 4.dp.toPx()
-                        val spriteCenterY = screenPos.y - SpriteConstants.ENEMY_SPRITE_HEIGHT / 2f
-                        val barY = spriteCenterY - barHeight / 2f
-
-                        // Background (Black)
-                        drawRect(
-                            color = Color.Black,
-                            topLeft = Offset(barX, barY),
-                            size = Size(barWidth, barHeight)
-                        )
-
-                        // Health (Red) - Drains from top to bottom (bottom remains filled)
-                        val filledHeight = barHeight * healthRatio
-                        drawRect(
-                            color = Color.Red,
-                            topLeft = Offset(barX, barY + (barHeight - filledHeight)),
-                            size = Size(barWidth, filledHeight)
-
-                        )
-
-                        // Health Percentage Text
-                        drawIntoCanvas { canvas ->
-                            val text = "${Math.round(healthRatio * 100)}%"
-                            val paint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.WHITE
-                                textSize = 8.dp.toPx()
-                                isFakeBoldText = true
-                                setShadowLayer(2f, 0f, 0f, android.graphics.Color.BLACK)
-                            }
-                            canvas.nativeCanvas.drawText(
-                                text,
-                                barX + barWidth + 2.dp.toPx(),
-                                barY + barHeight,
-                                paint
-                            )
-                        }
-
-                        // Armor Buff Icon (Shield)
-                        if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
-                            val shieldSize = 10.dp.toPx()
-                            val shieldX = barX - shieldSize - 2.dp.toPx()
-                            val shieldY = barY + (barHeight - shieldSize) / 2f
-
-                            val shieldPath = Path().apply {
-                                moveTo(shieldX + shieldSize / 2f, shieldY) // Top center
-                                lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.3f) // Right top
-                                lineTo(shieldX + shieldSize, shieldY + shieldSize * 0.7f) // Right bottom
-                                quadraticTo(
-                                    shieldX + shieldSize / 2f, shieldY + shieldSize, // Bottom center control
-                                    shieldX, shieldY + shieldSize * 0.7f // Left bottom
-                                )
-                                lineTo(shieldX, shieldY + shieldSize * 0.3f) // Left top
-                                close()
-                            }
-
-                            drawPath(
-                                path = shieldPath,
-                                color = Color(0xFF90A4AE) // Slate Grey
-                            )
-                            drawPath(
-                                path = shieldPath,
-                                color = Color.White,
-                                style = Stroke(width = 1.dp.toPx())
-                            )
-                        }
-                    } else {
-                        drawCircle(effect.color.copy(alpha = effect.color.alpha * a), ctx.wPx * 1.2f, pos)
-                    }
+                    drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 31) {
+                        val col = if (gold >= stall.getUpgradeCost()) Color.Green else Color.Gray
+                        val pos = Offset(screenPos.x + ctx.wPx * 0.25f, screenPos.y + ctx.hPx * 0.25f)
+                        drawCircle(col, 7.dp.toPx(), pos)
+                        drawCircle(Color.White, 7.dp.toPx(), pos, style = Stroke(1.dp.toPx()))
+                        drawIntoCanvas { it.nativeCanvas.drawText(stall.upgradeCount.toString(), pos.x, pos.y + 3.dp.toPx(), ctx.upgradePaint.apply { textSize = (if (stall.upgradeCount > 9) 7.dp else 9.dp).toPx() }) }
+                    })
                 }
             }
 
             projectiles.forEach { projectile ->
-                val currentScreenPos = toScreenPrecise(projectile.position.q, projectile.position.r)
-                val lastScreenPos = projectile.lastPosition?.let {
-                    toScreenPrecise(it.q, it.r)
-                } ?: currentScreenPos
+                val curr = ctx.toScreenPrecise(projectile.position.q, projectile.position.r)
+                val last = projectile.lastPosition?.let { ctx.toScreenPrecise(it.q, it.r) } ?: curr
+                val start = projectile.startPosition?.let { ctx.toScreenPrecise(it.q, it.r) } ?: last
+                val target = ctx.toScreenPrecise(projectile.targetPosition.q, projectile.targetPosition.r)
 
-                val startScreenPos = projectile.startPosition?.let { toScreenPrecise(it.q, it.r) } ?: lastScreenPos
-                val targetScreenPos = toScreenPrecise(projectile.targetPosition.q, projectile.targetPosition.r)
-
-                drawables.add(DrawableEntity(
-                    q = projectile.position.q,
-                    r = projectile.position.r,
-                    zOrder = 20,
-                    draw = {
-                        val radius = if (projectile.isArc) 6.dp.toPx() else 4.dp.toPx()
-                        // Draw 4 sub-frames between last position and current position for smoothness
-                        val steps = 4
-                        for (i in 0..steps) {
-                            val subFrameFraction = i.toFloat() / steps
-
-                            val lerpX = lastScreenPos.x + (currentScreenPos.x - lastScreenPos.x) * subFrameFraction
-                            val lerpY = lastScreenPos.y + (currentScreenPos.y - lastScreenPos.y) * subFrameFraction
-
-                            var finalPos = Offset(lerpX, lerpY)
-
-                            if (projectile.isArc) {
-                                // Calculate total distance and progress for arc height
-                                val totalDist = Math.sqrt(Math.pow((targetScreenPos.x - startScreenPos.x).toDouble(), 2.0) + Math.pow((targetScreenPos.y - startScreenPos.y).toDouble(), 2.0)).toFloat()
-                                if (totalDist > 0) {
-                                    val currentDist = Math.sqrt(Math.pow((lerpX - startScreenPos.x).toDouble(), 2.0) + Math.pow((lerpY - startScreenPos.y).toDouble(), 2.0)).toFloat()
-                                    val progress = (currentDist / totalDist).coerceIn(0f, 1f)
-                                    // Parabola: y = -4 * h * x * (x - 1)
-                                    val arcHeight = wPx * 1.5f
-                                    val verticalOffset = -4 * arcHeight * progress * (progress - 1)
-                                    finalPos = Offset(lerpX, lerpY - verticalOffset)
-                                }
+                drawables.add(DrawableEntity(projectile.position.q, projectile.position.r, 20) {
+                    val radius = (if (projectile.isArc) 6.dp else 4.dp).toPx()
+                    for (i in 0..4) {
+                        val frac = i.toFloat() / 4f
+                        val lx = last.x + (curr.x - last.x) * frac; val ly = last.y + (curr.y - last.y) * frac
+                        var fPos = Offset(lx, ly)
+                        if (projectile.isArc) {
+                            val tDist = sqrt((target.x - start.x).pow(2f) + (target.y - start.y).pow(2f))
+                            if (tDist > 0) {
+                                val cDist = sqrt((lx - start.x).pow(2f) + (ly - start.y).pow(2f))
+                                val prog = (cDist / tDist).coerceIn(0f, 1f)
+                                val aH = ctx.wPx * 1.5f
+                                fPos = Offset(lx, ly - (-4 * aH * prog * (prog - 1)))
                             }
-
-                            drawCircle(
-                                color = projectile.color.copy(alpha = 0.4f + 0.6f * subFrameFraction),
-                                radius = radius * (0.6f + 0.4f * subFrameFraction),
-                                center = finalPos
-                            )
                         }
+                        drawCircle(projectile.color.copy(alpha = 0.4f + 0.6f * frac), radius * (0.6f + 0.4f * frac), fPos)
                     }
-                ))
+                })
             }
 
             val sortedDrawables = drawables.sortedWith(object : Comparator<DrawableEntity> {
@@ -782,7 +459,8 @@ fun GameBoard(
                     if (zComp != 0) return zComp
                     return a.q.compareTo(b.q)
                 }
-            }
+            })
+            sortedDrawables.forEach { it.draw(this) }
         }
     }
 }
