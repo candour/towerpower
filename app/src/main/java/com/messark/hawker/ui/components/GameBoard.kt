@@ -5,6 +5,9 @@ import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -151,6 +154,8 @@ fun GameBoard(
     gold: Int,
     health: Int,
     onCellClick: (AxialCoordinate) -> Unit,
+    getOutdoorPuddleChain: (AxialCoordinate) -> List<AxialCoordinate> = { emptyList() },
+    isOutdoorPuddleModeActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val spriteSheet = ImageBitmap.imageResource(id = R.drawable.sprite_sheet)
@@ -173,6 +178,7 @@ fun GameBoard(
 
     val worldItemPool = remember { List(512) { WorldItem() } }
     val activeWorldItems = remember { mutableListOf<WorldItem>() }
+    var hoveredChain by remember { mutableStateOf<List<AxialCoordinate>>(emptyList()) }
     val reusedPath = remember { Path() }
     val density = LocalDensity.current
     val healthTextPaint = remember {
@@ -225,6 +231,27 @@ fun GameBoard(
                         }
                     }
                 }
+                .pointerInput(isOutdoorPuddleModeActive) {
+                    if (isOutdoorPuddleModeActive) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val position = event.changes.first().position
+                                val w = hexWidth.toPx()
+                                val h = hexHeight.toPx()
+                                val b = 20.dp.toPx()
+
+                                val fr = (position.y - b - h / 2f) / (h * rowSpacingFactor)
+                                val fq = (position.x - b - w / 2f) / w - fr / 2f
+
+                                val coord = GridUtils.hexRound(fq, fr)
+                                hoveredChain = getOutdoorPuddleChain(coord)
+                            }
+                        }
+                    } else {
+                        hoveredChain = emptyList()
+                    }
+                }
         ) {
             val ctx = RenderingContext(
                 wPx = hexWidth.toPx(), hPx = hexHeight.toPx(),
@@ -266,6 +293,13 @@ fun GameBoard(
                         val x = screenPos.x - s / 2f + i * (s / 4f)
                         drawLine(Color.Black, Offset(x, screenPos.y - s / 2f), Offset(x, screenPos.y + s / 2f), 1.dp.toPx())
                     }
+                }
+                if (tile.isPermanentlyWet) {
+                    val scale = ctx.wPx / 101f
+                    ctx.drawSprite(this, SpriteConstants.FX_PUDDLE_RECT, screenPos, Size(64f * scale, 62f * scale), clipHex = true)
+                }
+                if (hoveredChain.contains(coord)) {
+                    drawPath(path = ctx.resetHexPath(screenPos), color = Color.Cyan.copy(alpha = 0.4f))
                 }
             }
 

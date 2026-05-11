@@ -46,6 +46,7 @@ Every 10 waves, if you're still standing, you'll earn a **Kitchelin Star**. Thes
 - **Renovate for Free:** Skip the cost and the wait for those specific upgrades.
 - **Restore Health:** Fix up your health when things get a bit too "hot".
 - **Renovate the Floor:** Spend a star to remove a Pillar and make more space for your stalls.
+- **Wet Outdoors:** Spend 2 stars to make perimeter floor tiles permanently wet, slowing down any customers who dare pass through. Outdoors is always more *shiok*!
 
 ---
 

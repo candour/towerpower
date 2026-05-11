@@ -25,6 +25,7 @@ fun StarActionOverlay(
     onChooseFreeUpgrade: () -> Unit,
     onRestoreHealth: () -> Unit,
     onRemovePillar: () -> Unit,
+    onChooseOutdoorPuddles: () -> Unit,
     onDismiss: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
@@ -111,6 +112,16 @@ fun StarActionOverlay(
                     onClick = {
                         onTriggerHaptic()
                         onRemovePillar()
+                    }
+                )
+
+                StarActionButton(
+                    title = "Wet Outdoors (2 Stars)",
+                    description = "Select 4 consecutive perimeter floor tiles to become permanently wet and slow customers.",
+                    enabled = kitchelinStars >= 2,
+                    onClick = {
+                        onTriggerHaptic()
+                        onChooseOutdoorPuddles()
                     }
                 )
 

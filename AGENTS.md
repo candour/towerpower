@@ -56,7 +56,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Milestone Boost:** Every 10th level applies a 1.25x multiplier (or 0.75x for rate) to the value.
 - **Stat Aliasing:** Some UI stats are aliased (e.g., "Grab Rate" $\rightarrow$ "Rate"). `StallUpgradeManager` normalizes these mappings upfront to prevent state-resetting bugs.
 - **Costs:** Costs increase linearly: $\text{Base} \times (0.2 + \text{next\_level} \times 0.1)$. Specific upgrades cost double and apply a `disabledWaves` penalty unless a Kitchelin Star is used.
-- **Selling:** Provides a 50% refund of the total investment (base cost + upgrades).
+- **Selling:** Provides a 50% refund of the total investment (base cost + upgrades). Note: Placing a stall on a `isPermanentlyWet` tile clears the wetness; the wetness does not return if the stall is sold.
 - **Targeting:** Supports FIRST, CLOSEST, STRONGEST, and WEAKEST strategies.
 - **Legendary Names:** Stalls receive a 'legendary' suffix when their first upgrade category hits Level 10, and a 'legendary' prefix when a second, different category hits Level 10.
 
@@ -67,6 +67,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
   - **Budget Bonus:** 100% bonus of gold earned from enemies, awarded at the end of the next round. This is cumulative with the passive bonus and other active bonuses.
   - **Free Specific Upgrade:** Next specific stall upgrade is free ($0) and bypasses renovation time.
   - **Restore Health:** Increases health by 1 (max 10). Only available if health is less than 10.
+  - **Wet Outdoors:** Costs 2 stars. Player selects 4 consecutive empty perimeter floor tiles to become permanently wet (`isPermanentlyWet`).
 - **Trigger:** Accessible via clicking star icons in the top-left between waves.
 
 ### Customers & Difficulty
