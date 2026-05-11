@@ -415,12 +415,16 @@ fun GameBoard(
                                 obstructions.forEach { obs ->
                                     val px = obs.coordinate.q + obs.coordinate.r / 2f; val py = obs.coordinate.r * yF
                                     val dx = px - x1; val dy = py - y1; val dist = sqrt(dx * dx + dy * dy)
-                                    if (dist > 0.25f) {
+                                    // Only pillars within range block Line of Sight
+                                    if (dist > 0.5f && dist < stall.range) {
                                         val angP = atan2(dy, dx); val alp = asin(0.25f / dist)
                                         val a1 = angP - alp; val a2 = angP + alp
+                                        // The shadow starts at the pillar and extends to the range limit
                                         val p = listOf(
-                                            Offset(x1 + cos(a1) * 0.4f, y1 + sin(a1) * 0.4f), Offset(x1 + cos(a1) * stall.range, y1 + sin(a1) * stall.range),
-                                            Offset(x1 + cos(a2) * 0.4f, y1 + sin(a2) * 0.4f), Offset(x1 + cos(a2) * stall.range, y1 + sin(a2) * stall.range)
+                                            Offset(x1 + cos(a1) * dist, y1 + sin(a1) * dist),
+                                            Offset(x1 + cos(a1) * stall.range, y1 + sin(a1) * stall.range),
+                                            Offset(x1 + cos(a2) * dist, y1 + sin(a2) * dist),
+                                            Offset(x1 + cos(a2) * stall.range, y1 + sin(a2) * stall.range)
                                         ).map { GridUtils.toScreenPrecise(it.x - (it.y / yF) / 2f, it.y / yF, ctx.wPx, ctx.hPx, rowSpacingFactor, ctx.borderPx) }
                                         val path = Path().apply { moveTo(p[0].x, p[0].y); lineTo(p[1].x, p[1].y); lineTo(p[3].x, p[3].y); lineTo(p[2].x, p[2].y); close() }
                                         drawPath(path, Color.Black.copy(alpha = 0.2f))
