@@ -33,6 +33,15 @@ class MainViewModel @JvmOverloads constructor(
         EnemyType.TIGER_MOM
     )
 
+    private val earlyWaveConfigs = mapOf(
+        1 to listOf(EnemyType.SALARYMAN to 5),
+        2 to listOf(EnemyType.SALARYMAN to 6),
+        3 to listOf(EnemyType.SALARYMAN to 5, EnemyType.TOURIST to 1),
+        4 to listOf(EnemyType.SALARYMAN to 6, EnemyType.TOURIST to 1),
+        5 to listOf(EnemyType.SALARYMAN to 5, EnemyType.TOURIST to 2),
+        6 to listOf(EnemyType.SALARYMAN to 4, EnemyType.TOURIST to 2, EnemyType.AUNTIE to 1)
+    )
+
     private val _availableStalls = MutableStateFlow(
         StallRegistry.all().map { it.toStall() }
     )
@@ -217,16 +226,8 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun generateEnemyList(wave: Int): List<EnemyType> {
-        if (wave <= 6) {
-            val list = when (wave) {
-                1 -> List(5) { EnemyType.SALARYMAN }
-                2 -> List(6) { EnemyType.SALARYMAN }
-                3 -> List(5) { EnemyType.SALARYMAN } + List(1) { EnemyType.TOURIST }
-                4 -> List(6) { EnemyType.SALARYMAN } + List(1) { EnemyType.TOURIST }
-                5 -> List(5) { EnemyType.SALARYMAN } + List(2) { EnemyType.TOURIST }
-                6 -> List(4) { EnemyType.SALARYMAN } + List(2) { EnemyType.TOURIST } + List(1) { EnemyType.AUNTIE }
-                else -> emptyList()
-            }
+        earlyWaveConfigs[wave]?.let { config ->
+            val list = config.flatMap { (type, count) -> List(count) { type } }
             return list.shuffled(random)
         }
 
@@ -259,23 +260,17 @@ class MainViewModel @JvmOverloads constructor(
             allowedTiers = allowedTiers.filter { it != EnemyType.TIGER_MOM }
         }
 
-        var attempts = 0
-        while (remainingBudget > 0 && attempts < 100) {
-            val type = allowedTiers[random.nextInt(allowedTiers.size)]
-
-            if (type == EnemyType.TIGER_MOM && enemyList.contains(EnemyType.TIGER_MOM)) {
-                attempts++
-                continue
+        while (remainingBudget > 0) {
+            val affordableTiers = allowedTiers.filter {
+                getEnemyHP(it, wave) <= remainingBudget &&
+                        (it != EnemyType.TIGER_MOM || !enemyList.contains(EnemyType.TIGER_MOM))
             }
 
-            val hp = getEnemyHP(type, wave)
-            if (hp <= remainingBudget) {
-                enemyList.add(type)
-                remainingBudget -= hp
-            } else if (allowedTiers.all { getEnemyHP(it, wave) > remainingBudget }) {
-                break
-            }
-            attempts++
+            if (affordableTiers.isEmpty()) break
+
+            val type = affordableTiers[random.nextInt(affordableTiers.size)]
+            enemyList.add(type)
+            remainingBudget -= getEnemyHP(type, wave)
         }
 
         if (enemyList.isEmpty()) {
