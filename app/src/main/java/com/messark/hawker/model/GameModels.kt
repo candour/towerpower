@@ -43,7 +43,8 @@ data class HexTile(
     val coordinate: AxialCoordinate,
     val type: TileType = TileType.FLOOR,
     val stall: Stall? = null,
-    val floorVariant: Int = 0
+    val floorVariant: Int = 0,
+    val isPermanentlyWet: Boolean = false
 )
 
 enum class StallType {
@@ -269,5 +270,6 @@ data class GameState(
     val lastWaveBonusGold: Int = 0,
     val showBonusMessage: Boolean = false,
     val isRemovePillarModeActive: Boolean = false,
+    val isOutdoorPuddleModeActive: Boolean = false,
     val lastShakeTimeMs: Long = 0
 )

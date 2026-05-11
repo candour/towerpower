@@ -509,6 +509,12 @@ class MainViewModel @JvmOverloads constructor(
             var lastStopMs = behaviorUpdatedEnemy.lastStopMs
 
             var speedMultiplier = 1.0f
+            // Permanent Outdoor Puddles
+            val currentHex = GridUtils.hexRound(enemy.position.q, enemy.position.r)
+            if (state.hexes[currentHex]?.isPermanentlyWet == true) {
+                speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
+            }
+
             state.puddles.forEach { puddle ->
                 if (GridUtils.axialDistance(enemy.position, puddle.position) < 0.8) {
                     speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
@@ -932,6 +938,14 @@ class MainViewModel @JvmOverloads constructor(
             return
         }
 
+        if (currentState.isOutdoorPuddleModeActive) {
+            val chain = getOutdoorPuddleChain(coord)
+            if (chain.size == 4) {
+                applyOutdoorPuddles(chain)
+            }
+            return
+        }
+
         if (tile.stall != null) {
             // Select existing stall
             _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null) }
@@ -977,7 +991,10 @@ class MainViewModel @JvmOverloads constructor(
 
                     if (canRepathAll) {
                         val newHexes = currentState.hexes.toMutableMap()
-                        newHexes[coord] = tile.copy(stall = stallToPlace.copy(id = UUID.randomUUID().toString()))
+                        newHexes[coord] = tile.copy(
+                            stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
+                            isPermanentlyWet = false
+                        )
 
                         _gameState.update { state ->
                             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
@@ -1053,6 +1070,14 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(isRemovePillarModeActive = false) }
     }
 
+    fun enterOutdoorPuddleMode() {
+        _gameState.update { it.copy(isOutdoorPuddleModeActive = true, showStarActionOverlay = false) }
+    }
+
+    fun exitOutdoorPuddleMode() {
+        _gameState.update { it.copy(isOutdoorPuddleModeActive = false) }
+    }
+
     fun chooseBudgetBonus() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
@@ -1097,6 +1122,58 @@ class MainViewModel @JvmOverloads constructor(
     fun upgradeStallSpecifically(stat: String) {
         applyUpgrade(isSpecific = true, specificStat = stat)
         dismissUpgradeOverlay()
+    }
+
+    fun getOutdoorPuddleChain(startCoord: AxialCoordinate): List<AxialCoordinate> {
+        val state = _gameState.value
+        val hexes = state.hexes
+        val tile = hexes[startCoord] ?: return emptyList()
+
+        if (tile.type != TileType.FLOOR || tile.stall != null || tile.isPermanentlyWet) return emptyList()
+
+        // Perimeter check: at least one neighbor must be missing or an EDGE tile
+        val neighbors = GridUtils.getNeighbors(startCoord)
+        val isPerimeter = neighbors.any { n ->
+            val nTile = hexes[n]
+            nTile == null || nTile.type.name.startsWith("EDGE_")
+        }
+        if (!isPerimeter) return emptyList()
+
+        // Find connected chain of 4 perimeter floor tiles
+        val chain = mutableListOf(startCoord)
+        var current = startCoord
+
+        repeat(3) {
+            val next = GridUtils.getNeighbors(current).find { n ->
+                val nTile = hexes[n]
+                nTile != null && nTile.type == TileType.FLOOR && nTile.stall == null && !nTile.isPermanentlyWet && !chain.contains(n) &&
+                        GridUtils.getNeighbors(n).any { nn -> hexes[nn] == null || hexes[nn]?.type?.name?.startsWith("EDGE_") == true }
+            }
+            if (next != null) {
+                chain.add(next)
+                current = next
+            }
+        }
+
+        return if (chain.size == 4) chain else emptyList()
+    }
+
+    private fun applyOutdoorPuddles(chain: List<AxialCoordinate>) {
+        _gameState.update { state ->
+            if (state.kitchelinStars < 2) return@update state
+
+            val newHexes = state.hexes.toMutableMap()
+            chain.forEach { coord ->
+                newHexes[coord] = newHexes[coord]!!.copy(isPermanentlyWet = true)
+            }
+
+            state.copy(
+                kitchelinStars = state.kitchelinStars - 2,
+                hexes = newHexes,
+                isOutdoorPuddleModeActive = false
+            )
+        }
+        triggerHaptic()
     }
 
     private fun removePillar(coord: AxialCoordinate) {

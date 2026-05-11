@@ -650,9 +650,11 @@ fun GameScreen(
                         visualEffects = gameState.visualEffects,
                         selectedBoardStall = gameState.selectedBoardStall,
                         isRemovePillarModeActive = gameState.isRemovePillarModeActive,
+                        isOutdoorPuddleModeActive = gameState.isOutdoorPuddleModeActive,
                         gold = gameState.gold,
                         health = gameState.health,
                         onCellClick = { coord -> viewModel.onCellClick(coord) },
+                        getOutdoorPuddleChain = { coord -> viewModel.getOutdoorPuddleChain(coord) },
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -688,6 +690,42 @@ fun GameScreen(
                                 Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                                 Spacer(Modifier.width(8.dp))
                                 Text("CANCEL DESTRUCTION", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    if (gameState.isOutdoorPuddleModeActive) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            ) {
+                                Text(
+                                    text = "SELECT STARTING OUTDOOR TILE (4 TILES)",
+                                    color = Color.Cyan,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.triggerHaptic()
+                                    viewModel.exitOutdoorPuddleMode()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                                Spacer(Modifier.width(8.dp))
+                                Text("CANCEL ACTION", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -813,6 +851,7 @@ fun GameScreen(
                     onChooseFreeUpgrade = { viewModel.chooseFreeUpgrade() },
                     onRestoreHealth = { viewModel.restoreHealth() },
                     onRemovePillar = { viewModel.enterRemovePillarMode() },
+                    onChooseOutdoorPuddles = { viewModel.enterOutdoorPuddleMode() },
                     onDismiss = { viewModel.dismissStarActionOverlay() },
                     onTriggerHaptic = { viewModel.triggerHaptic() }
                 )
