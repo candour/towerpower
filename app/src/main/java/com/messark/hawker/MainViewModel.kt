@@ -1125,37 +1125,41 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun getOutdoorPuddleChain(startCoord: AxialCoordinate): List<AxialCoordinate> {
-        val state = _gameState.value
-        val hexes = state.hexes
+        val hexes = _gameState.value.hexes
         val tile = hexes[startCoord] ?: return emptyList()
 
         if (tile.type != TileType.FLOOR || tile.stall != null || tile.isPermanentlyWet) return emptyList()
 
-        // Perimeter check: at least one neighbor must be missing or an EDGE tile
-        val neighbors = GridUtils.getNeighbors(startCoord)
-        val isPerimeter = neighbors.any { n ->
+        // Perimeter check for start tile
+        if (GridUtils.getNeighbors(startCoord).none { n ->
+                val nTile = hexes[n]
+                nTile == null || nTile.type.name.startsWith("EDGE_")
+            }) return emptyList()
+
+        fun isPerimeter(coord: AxialCoordinate) = GridUtils.getNeighbors(coord).any { n ->
             val nTile = hexes[n]
             nTile == null || nTile.type.name.startsWith("EDGE_")
         }
-        if (!isPerimeter) return emptyList()
 
-        // Find connected chain of 4 perimeter floor tiles
-        val chain = mutableListOf(startCoord)
-        var current = startCoord
-
-        repeat(3) {
-            val next = GridUtils.getNeighbors(current).find { n ->
-                val nTile = hexes[n]
-                nTile != null && nTile.type == TileType.FLOOR && nTile.stall == null && !nTile.isPermanentlyWet && !chain.contains(n) &&
-                        GridUtils.getNeighbors(n).any { nn -> hexes[nn] == null || hexes[nn]?.type?.name?.startsWith("EDGE_") == true }
-            }
-            if (next != null) {
-                chain.add(next)
-                current = next
-            }
+        fun isValid(coord: AxialCoordinate, currentChain: List<AxialCoordinate>): Boolean {
+            val t = hexes[coord]
+            return t != null && t.type == TileType.FLOOR && t.stall == null &&
+                    !t.isPermanentlyWet && coord !in currentChain && isPerimeter(coord)
         }
 
-        return if (chain.size == 4) chain else emptyList()
+        fun findChain(current: AxialCoordinate, currentChain: List<AxialCoordinate>): List<AxialCoordinate>? {
+            if (currentChain.size == 4) return currentChain
+
+            for (neighbor in GridUtils.getNeighbors(current)) {
+                if (isValid(neighbor, currentChain)) {
+                    val result = findChain(neighbor, currentChain + neighbor)
+                    if (result != null) return result
+                }
+            }
+            return null
+        }
+
+        return findChain(startCoord, listOf(startCoord)) ?: emptyList()
     }
 
     private fun applyOutdoorPuddles(chain: List<AxialCoordinate>) {
