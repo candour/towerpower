@@ -63,4 +63,4 @@ Download the game, start your shift, and show them who really runs this hawker c
 
 ---
 
-*Note: This is a lighthearted game project built with Jetpack Compose. Enjoy the rush!*
+*Note: This is a lighthearted game project. Enjoy the rush!*
