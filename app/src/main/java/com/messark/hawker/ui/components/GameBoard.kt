@@ -216,36 +216,18 @@ fun GameBoard(
         Canvas(
             modifier = Modifier
                 .size(boardWidth, boardHeight)
-                .pointerInput(isOutdoorPuddleModeActive) {
-                    if (isOutdoorPuddleModeActive) {
-                        detectTapGestures(
-                            onTap = { offset ->
-                                val w = hexWidth.toPx()
-                                val h = hexHeight.toPx()
-                                val b = 20.dp.toPx()
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val w = hexWidth.toPx()
+                        val h = hexHeight.toPx()
+                        val b = 20.dp.toPx()
 
-                                val fr = (offset.y - b - h / 2f) / (h * rowSpacingFactor)
-                                val fq = (offset.x - b - w / 2f) / w - fr / 2f
+                        val fr = (offset.y - b - h / 2f) / (h * rowSpacingFactor)
+                        val fq = (offset.x - b - w / 2f) / w - fr / 2f
 
-                                val coord = GridUtils.hexRound(fq, fr)
-                                if (hexes.containsKey(coord)) {
-                                    onCellClick(coord)
-                                }
-                            }
-                        )
-                    } else {
-                        detectTapGestures { offset ->
-                            val w = hexWidth.toPx()
-                            val h = hexHeight.toPx()
-                            val b = 20.dp.toPx()
-
-                            val fr = (offset.y - b - h / 2f) / (h * rowSpacingFactor)
-                            val fq = (offset.x - b - w / 2f) / w - fr / 2f
-
-                            val coord = GridUtils.hexRound(fq, fr)
-                            if (hexes.containsKey(coord)) {
-                                onCellClick(coord)
-                            }
+                        val coord = GridUtils.hexRound(fq, fr)
+                        if (hexes.containsKey(coord)) {
+                            onCellClick(coord)
                         }
                     }
                 }
