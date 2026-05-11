@@ -62,14 +62,17 @@ class MainViewModelTest {
     @Test
     fun `resetGame reinitializes state and sets screen to GAME`() = runBlocking {
         val application = mockk<Application>(relaxed = true)
-        val settingsRepository = mockk<SettingsRepository>()
+        val settingsRepository = mockk<SettingsRepository>(relaxed = true)
         val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
 
         val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
         viewModel.resetGame()
 
-        val state = viewModel.gameState.first()
+        // Wait for coroutine to complete
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.gameState.value
         assertEquals(AppScreen.GAME, state.currentScreen)
         assertTrue(state.hexes.isNotEmpty())
         assertEquals(500, state.gold)

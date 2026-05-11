@@ -52,6 +52,9 @@ fun TutorialOverlay(
     val stallBitmap = remember {
         BitmapFactory.decodeResource(context.resources, R.drawable.stalls).asImageBitmap()
     }
+    val endTableBitmap = remember {
+        BitmapFactory.decodeResource(context.resources, R.drawable.end_table).asImageBitmap()
+    }
 
     // Animation state for the sprite
     var frameIndex by remember { mutableStateOf(0) }
@@ -66,6 +69,7 @@ fun TutorialOverlay(
         TutorialType.ENEMY -> Color(0xFFFF5252) // Light Red/Coral
         TutorialType.STALL -> Color(0xFF4CAF50) // Green
         TutorialType.KITCHELIN_STAR -> MaterialTheme.colorScheme.primary
+        TutorialType.GAME_AIM -> Color(0xFFFFEB3B) // Yellow/Gold
     }
 
     Box(
@@ -153,6 +157,28 @@ fun TutorialOverlay(
                             tint = themeColor,
                             modifier = Modifier.fillMaxSize(0.6f)
                         )
+                    } else if (tutorialData.type == TutorialType.GAME_AIM) {
+                        Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
+                            // Empty goal table is the first frame (index 0)
+                            val srcRect = IntRect(0, 0, SpriteConstants.END_TABLE_SPRITE_WIDTH, SpriteConstants.END_TABLE_SPRITE_HEIGHT)
+                            val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
+                            val drawWidth = srcRect.width * scale
+                            val drawHeight = size.height
+
+                            drawIntoCanvas { canvas ->
+                                val paint = android.graphics.Paint().apply {
+                                    isFilterBitmap = false
+                                }
+                                val androidSrc = android.graphics.Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
+                                val androidDst = android.graphics.RectF(
+                                    (size.width - drawWidth) / 2f,
+                                    (size.height - drawHeight) / 2f,
+                                    (size.width + drawWidth) / 2f,
+                                    (size.height + drawHeight) / 2f
+                                )
+                                canvas.nativeCanvas.drawBitmap(endTableBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
+                            }
+                        }
                     }
                 }
 
@@ -214,6 +240,30 @@ fun TutorialOverlay(
                                 Checkbox(
                                     checked = showTutorialsSetting,
                                     onCheckedChange = null, // Handled by Row clickable
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = themeColor,
+                                        uncheckedColor = Color.Gray,
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                Text(
+                                    text = "Show tutorials",
+                                    color = Color.White,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        } else if (tutorialData.type == TutorialType.GAME_AIM) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable {
+                                    onTriggerHaptic()
+                                    onToggleTutorialsSetting(!showTutorialsSetting)
+                                }
+                            ) {
+                                Checkbox(
+                                    checked = showTutorialsSetting,
+                                    onCheckedChange = null,
                                     colors = CheckboxDefaults.colors(
                                         checkedColor = themeColor,
                                         uncheckedColor = Color.Gray,
