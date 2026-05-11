@@ -954,7 +954,8 @@ class MainViewModel @JvmOverloads constructor(
                     val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
                     val freeUncleNeighbors = uncleNeighbors.filter {
                         val neighborTile = currentState.hexes[it] ?: return@filter false
-                        it != coord && (neighborTile.type == TileType.FLOOR && !blocked.contains(it) ||
+                        val isWalkableFloor = (neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN) && !blocked.contains(it)
+                        it != coord && (isWalkableFloor ||
                                 neighborTile.type == TileType.START ||
                                 neighborTile.type == TileType.GOAL_TABLE)
                     }
