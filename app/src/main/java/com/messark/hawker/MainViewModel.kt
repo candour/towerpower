@@ -101,15 +101,34 @@ class MainViewModel @JvmOverloads constructor(
     fun resetGame() {
         gameStateRepository.deleteGameState()
         val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
-        _gameState.update {
-            GameState(
-                currentScreen = AppScreen.GAME,
-                hexes = hexes,
-                startPosition = startPos,
-                endPosition = endPos,
-                gold = 500,
-                score = 0
-            )
+
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            var tutorialToShow: TutorialData? = null
+
+            if (settings.showTutorials && !settings.shownTutorials.contains("game_aim")) {
+                tutorialToShow = TutorialData(
+                    id = "game_aim",
+                    type = TutorialType.GAME_AIM,
+                    title = "Chope your table!",
+                    description = "Wah lau! Everyone is rushing for the best table in the hawker center! You must stop the hungry crowd from filling up the Goal Table by feeding them first. Don't let them chope your spot, okay?"
+                )
+                settingsRepository.updateSettings {
+                    it.copy(shownTutorials = it.shownTutorials + "game_aim")
+                }
+            }
+
+            _gameState.update {
+                GameState(
+                    currentScreen = AppScreen.GAME,
+                    hexes = hexes,
+                    startPosition = startPos,
+                    endPosition = endPos,
+                    gold = 500,
+                    score = 0,
+                    activeTutorial = tutorialToShow
+                )
+            }
         }
     }
 
