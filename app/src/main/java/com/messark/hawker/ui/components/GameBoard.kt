@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -50,6 +51,7 @@ private class RenderingContext(
     val enemiesSheet: ImageBitmap,
     val endTableSheet: ImageBitmap,
     val upgradePaint: android.graphics.Paint,
+    val healthTextPaint: android.graphics.Paint,
     val spritePaint: android.graphics.Paint,
     val hexPath: Path = Path()
 ) {
@@ -172,6 +174,15 @@ fun GameBoard(
     val worldItemPool = remember { List(512) { WorldItem() } }
     val activeWorldItems = remember { mutableListOf<WorldItem>() }
     val reusedPath = remember { Path() }
+    val density = LocalDensity.current
+    val healthTextPaint = remember {
+        android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 8.dp.toPx() }
+            isFakeBoldText = true
+            setShadowLayer(2f, 0f, 0f, android.graphics.Color.BLACK)
+        }
+    }
 
     val hexWidth = 47.dp
     val hexHeight = hexWidth * 91f / 101f
@@ -219,7 +230,7 @@ fun GameBoard(
                 wPx = hexWidth.toPx(), hPx = hexHeight.toPx(),
                 rowSpacingFactor = rowSpacingFactor, borderPx = 20.dp.toPx(),
                 now = System.currentTimeMillis(),
-                spriteSheet, stallsSheet, enemiesSheet, endTableSheet, upgradePaint, spritePaint,
+                spriteSheet, stallsSheet, enemiesSheet, endTableSheet, upgradePaint, healthTextPaint, spritePaint,
                 hexPath = reusedPath
             )
             val drawables = mutableListOf<DrawableEntity>()
@@ -227,16 +238,16 @@ fun GameBoard(
             // 1. Background Layer (Group 0)
             hexes.forEach { (coord, tile) ->
                 val screenPos = ctx.toScreen(coord)
-                if (!tile.type.name.startsWith("EDGE_")) {
+                if (tile.type !is TileType.EDGE_NW && tile.type !is TileType.EDGE_NE && tile.type !is TileType.EDGE_SW && tile.type !is TileType.EDGE_SE && tile.type !is TileType.EDGE_TOP) {
                     val floorSrc = SpriteConstants.FLOOR_RECTS[tile.floorVariant % SpriteConstants.FLOOR_RECTS.size]
                     ctx.drawSprite(this, floorSrc, screenPos, Size(ctx.wPx + 3.0f, ctx.hPx + 3.0f), clipHex = true)
                 } else {
                     val edgeSrc = when (tile.type) {
-                        TileType.EDGE_NW -> SpriteConstants.EDGE_NW_RECT
-                        TileType.EDGE_NE -> SpriteConstants.EDGE_NE_RECT
-                        TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
-                        TileType.EDGE_SE -> SpriteConstants.EDGE_SE_RECT
-                        TileType.EDGE_TOP -> SpriteConstants.EDGE_TOP_RECT
+                        is TileType.EDGE_NW -> SpriteConstants.EDGE_NW_RECT
+                        is TileType.EDGE_NE -> SpriteConstants.EDGE_NE_RECT
+                        is TileType.EDGE_SW -> SpriteConstants.EDGE_SW_RECT
+                        is TileType.EDGE_SE -> SpriteConstants.EDGE_SE_RECT
+                        is TileType.EDGE_TOP -> SpriteConstants.EDGE_TOP_RECT
                         else -> null
                     }
                     edgeSrc?.let { rect ->
@@ -245,10 +256,10 @@ fun GameBoard(
                     }
                 }
 
-                if (tile.type == TileType.START) {
+                if (tile.type is TileType.START) {
                     drawPath(path = ctx.resetHexPath(screenPos), color = Color.Green.copy(alpha = 0.3f))
                 }
-                if (tile.type == TileType.DRAIN) {
+                if (tile.type is TileType.DRAIN) {
                     val s = ctx.wPx * 0.3f
                     drawRect(Color.DarkGray, Offset(screenPos.x - s / 2f, screenPos.y - s / 2f), Size(s, s))
                     for (i in 1..3) {
@@ -259,9 +270,10 @@ fun GameBoard(
             }
 
             // 3. World Layer (Group 2)
+            val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
             hexes.forEach { (coord, tile) ->
                 val screenPos = ctx.toScreen(coord)
-                if (tile.type == TileType.PILLAR) {
+                if (tile.type is TileType.PILLAR) {
                     drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 2) {
                         if (isRemovePillarModeActive) {
                             val p = (ctx.now % 1000) / 1000f
@@ -271,11 +283,11 @@ fun GameBoard(
                         val r = SpriteConstants.PILLAR_RECT; val sc = ctx.wPx / 101f
                         ctx.drawSprite(this, r, screenPos, Size(r.width * sc, r.height * sc), anchor = Offset(0.5f, 0.8f))
                     })
-                } else if (tile.type == TileType.GOAL_TABLE) {
+                } else if (tile.type is TileType.GOAL_TABLE) {
                     drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 2) {
                         val sc = ctx.wPx / 101f; val idx = (10 - health).coerceIn(0, 9)
                         val r = IntRect(0, idx * SpriteConstants.END_TABLE_SPRITE_HEIGHT, SpriteConstants.END_TABLE_SPRITE_WIDTH, (idx + 1) * SpriteConstants.END_TABLE_SPRITE_HEIGHT)
-                        ctx.drawSprite(this, r, screenPos, Size(263f * sc, 263f * sc * SpriteConstants.END_TABLE_SPRITE_HEIGHT / SpriteConstants.END_TABLE_SPRITE_WIDTH), anchor = Offset(0.5f, 1.0f), bitmap = ctx.endTableSheet)
+                        ctx.drawSprite(this, r, screenPos, Size(263f * sc, 263f * sc * SpriteConstants.END_TABLE_SPRITE_HEIGHT / SpriteConstants.END_TABLE_SPRITE_WIDTH), anchor = Offset(0.5f, 0.8f), bitmap = ctx.endTableSheet)
                     })
                 }
                 tile.stall?.let { stall ->
@@ -304,8 +316,7 @@ fun GameBoard(
                     drawRect(Color.Red, Offset(bX, bY + bH * (1f - hR)), Size(bW, bH * hR))
                     drawIntoCanvas { canvas ->
                         val text = "${Math.round(hR * 100)}%"
-                        val paint = android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textSize = 8.dp.toPx(); isFakeBoldText = true; setShadowLayer(2f, 0f, 0f, android.graphics.Color.BLACK) }
-                        canvas.nativeCanvas.drawText(text, bX + bW + 2.dp.toPx(), bY + bH, paint)
+                        canvas.nativeCanvas.drawText(text, bX + bW + 2.dp.toPx(), bY + bH, ctx.healthTextPaint)
                     }
                     if (enemy.buffs.any { it.type == BuffType.ARMOR }) {
                         val s = 10.dp.toPx(); val sX = bX - s - 2.dp.toPx(); val sY = bY + (bH - s) / 2f
@@ -365,7 +376,6 @@ fun GameBoard(
                             drawOval(Color.Yellow, Offset(screenPos.x - rx, screenPos.y - ry), Size(rx * 2, ry * 2), style = Stroke(4.dp.toPx()))
                             drawOval(Color.Red, Offset(screenPos.x - rx, screenPos.y - ry), Size(rx * 2, ry * 2), style = Stroke(2.dp.toPx()))
                             if (stall.isBlockable) {
-                                val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
                                 val yF = rowSpacingFactor * (91f / 101f)
                                 val x1 = coord.q + coord.r / 2f; val y1 = coord.r * yF
                                 obstructions.forEach { obs ->
