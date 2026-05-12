@@ -311,11 +311,8 @@ class MainViewModel @JvmOverloads constructor(
             if (state.activeTutorial != null) return@update state
             var newState = state
 
-            // 0. Update Puddles and Visual Effects
-            newState = updateTransients(newState, currentTimeMs)
-
-            // 0.5 Update Held Enemies
-            newState = updateHeldEnemies(newState, currentTimeMs)
+            // 0. Update Transients (Puddles, Effects, and Held Enemies)
+            newState = updateTransientState(newState, currentTimeMs)
 
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
@@ -438,10 +435,64 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun updateTransients(state: GameState, currentTimeMs: Long): GameState {
-        val updatedPuddles = state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
-        val updatedVisualEffects = state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
-        return state.copy(puddles = updatedPuddles, visualEffects = updatedVisualEffects)
+    private fun updateTransientState(state: GameState, currentTimeMs: Long): GameState {
+        val anyPuddleExpired = state.puddles.any { currentTimeMs - it.spawnTimeMs >= it.durationMs }
+        val anyEffectExpired = state.visualEffects.any { currentTimeMs - it.startTimeMs >= it.durationMs }
+
+        var updatedHexes: MutableMap<AxialCoordinate, HexTile>? = null
+        var updatedEnemies: MutableList<Enemy>? = null
+
+        val enemyIndexMap = if (state.hexes.values.any { it.stall?.heldEnemyId != null }) {
+            state.enemies.withIndex().associate { it.value.id to it.index }
+        } else emptyMap()
+
+        state.hexes.forEach { (coord, tile) ->
+            val stall = tile.stall
+            if (stall?.heldEnemyId != null) {
+                val enemyIndex = enemyIndexMap[stall.heldEnemyId] ?: -1
+                if (enemyIndex != -1) {
+                    val enemy = (updatedEnemies ?: state.enemies)[enemyIndex]
+                    if (currentTimeMs >= stall.releaseTimeMs) {
+                        // Release enemy
+                        var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
+                        if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
+                            releasedEnemy = releasedEnemy.copy(
+                                buffingTargetId = null,
+                                isStopped = false,
+                                stopDurationMs = 0
+                            )
+                        }
+                        if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
+                        updatedEnemies!![enemyIndex] = releasedEnemy
+
+                        if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
+                        updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
+                    } else {
+                        // Move to stall center
+                        if (!enemy.isGrabbed || enemy.position.q != coord.q.toFloat() || enemy.position.r != coord.r.toFloat()) {
+                            if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
+                            updatedEnemies!![enemyIndex] = enemy.copy(
+                                isGrabbed = true,
+                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+                            )
+                        }
+                    }
+                } else {
+                    // Enemy gone?
+                    if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
+                    updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
+                }
+            }
+        }
+
+        return if (anyPuddleExpired || anyEffectExpired || updatedHexes != null || updatedEnemies != null) {
+            state.copy(
+                puddles = if (anyPuddleExpired) state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs } else state.puddles,
+                visualEffects = if (anyEffectExpired) state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs } else state.visualEffects,
+                hexes = updatedHexes ?: state.hexes,
+                enemies = updatedEnemies ?: state.enemies
+            )
+        } else state
     }
 
     private fun handleSpawning(state: GameState, currentTimeMs: Long): GameState {
@@ -681,6 +732,10 @@ class MainViewModel @JvmOverloads constructor(
         val updatedHexes = state.hexes.toMutableMap()
         val newlyGrabbedEnemyIds = mutableSetOf<String>()
 
+        val obstructions = if (firingStalls.any { it.value.stall?.isBlockable == true }) {
+            state.hexes.values.filter { it.type is TileType.Obstruction }.map { it.coordinate }
+        } else emptyList()
+
         firingStalls.forEach { (coord, tile) ->
             val stall = tile.stall!!
             val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
@@ -689,7 +744,7 @@ class MainViewModel @JvmOverloads constructor(
             val potentialTargets = state.enemies.filter { enemy ->
                 !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
                         GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
-                        (!stall.isBlockable || !isLineOfSightBlocked(coord, enemy.position, state.hexes))
+                        (!stall.isBlockable || !GridUtils.isLineOfSightBlocked(coord, enemy.position, obstructions))
             }
 
             val target = when (stall.targetMode) {
@@ -1293,111 +1348,7 @@ class MainViewModel @JvmOverloads constructor(
         }.map { it.coordinate }.toSet()
     }
 
-    private fun isLineOfSightBlocked(
-        stallCoord: AxialCoordinate,
-        enemyPos: PreciseAxialCoordinate,
-        hexes: Map<AxialCoordinate, HexTile>
-    ): Boolean {
-        val obstructions = hexes.values.filter { it.type is TileType.Obstruction }
-        if (obstructions.isEmpty()) return false
 
-        // Convert to a consistent 2D space for circle-segment intersection
-        val yFactor = (91f / 101f) * 0.69f
-
-        val x1 = stallCoord.q + stallCoord.r / 2f
-        val y1 = stallCoord.r * yFactor
-
-        val x2 = enemyPos.q + enemyPos.r / 2f
-        val y2 = enemyPos.r * yFactor
-
-        val radius = 0.25f // Blocked area is half diameter (0.5), so radius is 0.25
-
-        for (obs in obstructions) {
-            val pc = obs.coordinate
-            val px = pc.q + pc.r / 2f
-            val py = pc.r * yFactor
-
-            if (lineIntersectsCircle(x1, y1, x2, y2, px, py, radius)) {
-                return true
-            }
-        }
-        return false
-    }
-
-    private fun lineIntersectsCircle(x1: Float, y1: Float, x2: Float, y2: Float, cx: Float, cy: Float, r: Float): Boolean {
-        val dx = x2 - x1
-        val dy = y2 - y1
-
-        val fx = x1 - cx
-        val fy = y1 - cy
-
-        val a = dx * dx + dy * dy
-        if (a < 0.0001f) return false // Essentially same point
-
-        val b = 2 * (fx * dx + fy * dy)
-        val c = (fx * fx + fy * fy) - r * r
-
-        var discriminant = b * b - 4 * a * c
-        if (discriminant < 0) {
-            return false
-        } else {
-            discriminant = Math.sqrt(discriminant.toDouble()).toFloat()
-            val t1 = (-b - discriminant) / (2 * a)
-            val t2 = (-b + discriminant) / (2 * a)
-
-            if ((t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1)) {
-                return true
-            }
-            if (t1 < 0 && t2 > 1) return true
-        }
-        return false
-    }
-
-    private fun updateHeldEnemies(state: GameState, currentTimeMs: Long): GameState {
-        var updatedHexes = state.hexes.toMutableMap()
-        var updatedEnemies = state.enemies.toMutableList()
-        var changed = false
-
-        state.hexes.forEach { (coord, tile) ->
-            val stall = tile.stall
-            if (stall != null && stall.heldEnemyId != null) {
-                val enemyIndex = updatedEnemies.indexOfFirst { it.id == stall.heldEnemyId }
-                if (enemyIndex != -1) {
-                    val enemy = updatedEnemies[enemyIndex]
-                    if (currentTimeMs >= stall.releaseTimeMs) {
-                        // Release enemy
-                        var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
-                        if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
-                            // Interrupt buff
-                            releasedEnemy = releasedEnemy.copy(
-                                buffingTargetId = null,
-                                isStopped = false,
-                                stopDurationMs = 0
-                            )
-                        }
-                        updatedEnemies[enemyIndex] = releasedEnemy
-                        updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                        changed = true
-                    } else {
-                        // Move to stall center
-                        if (!enemy.isGrabbed || enemy.position.q != coord.q.toFloat() || enemy.position.r != coord.r.toFloat()) {
-                            updatedEnemies[enemyIndex] = enemy.copy(
-                                isGrabbed = true,
-                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-                            )
-                            changed = true
-                        }
-                    }
-                } else {
-                    // Enemy gone?
-                    updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                    changed = true
-                }
-            }
-        }
-
-        return if (changed) state.copy(hexes = updatedHexes, enemies = updatedEnemies) else state
-    }
 
     private fun releaseEnemy(
         enemy: Enemy,
