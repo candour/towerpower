@@ -653,6 +653,7 @@ fun GameScreen(
                         isOutdoorPuddleModeActive = gameState.isOutdoorPuddleModeActive,
                         gold = gameState.gold,
                         health = gameState.health,
+                        bktToastMessage = gameState.bktToastMessage,
                         onCellClick = { coord -> viewModel.onCellClick(coord) },
                         getOutdoorPuddleChain = { coord -> viewModel.getOutdoorPuddleChain(coord) },
                         modifier = Modifier.fillMaxSize()
@@ -789,6 +790,9 @@ fun GameScreen(
                         }
                     }
                 }
+                val boostResult = remember(gameState.selectedBoardStall, gameState.hexes, gameState.bktBuffType) {
+                    gameState.selectedBoardStall?.let { viewModel.calculateStatBoost(it, gameState.hexes, gameState.bktBuffType) }
+                }
                 GameControlPanel(
                     gold = gameState.gold,
                     health = gameState.health,
@@ -804,7 +808,12 @@ fun GameScreen(
                     onStartWave = { viewModel.startWave() },
                     onShowStallTutorial = { viewModel.showStallTutorial(it) },
                     onTriggerHaptic = { viewModel.triggerHaptic() },
+                    onUndoSell = { viewModel.undoSell() },
                     waveActive = gameState.waveActive,
+                    damageMultiplier = boostResult?.damageMultiplier ?: 1.0f,
+                    rateMultiplier = boostResult?.rateMultiplier ?: 1.0f,
+                    bktBuffType = gameState.bktBuffType,
+                    lastSoldStall = gameState.lastSoldStall,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)

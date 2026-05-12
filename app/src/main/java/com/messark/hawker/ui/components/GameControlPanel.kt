@@ -41,7 +41,12 @@ fun GameControlPanel(
     onStartWave: () -> Unit,
     onShowStallTutorial: (StallType) -> Unit,
     onTriggerHaptic: () -> Unit,
+    onUndoSell: () -> Unit,
     waveActive: Boolean,
+    damageMultiplier: Float = 1.0f,
+    rateMultiplier: Float = 1.0f,
+    bktBuffType: com.messark.hawker.model.BktBuffType? = null,
+    lastSoldStall: Pair<com.messark.hawker.model.AxialCoordinate, Stall>? = null,
     modifier: Modifier = Modifier
 ) {
     val stallsSheet = ImageBitmap.imageResource(id = R.drawable.stalls)
@@ -63,6 +68,9 @@ fun GameControlPanel(
                 onStartWave = onStartWave,
                 onTriggerHaptic = onTriggerHaptic,
                 waveActive = waveActive,
+                damageMultiplier = damageMultiplier,
+                rateMultiplier = rateMultiplier,
+                bktBuffType = bktBuffType,
                 modifier = Modifier.fillMaxHeight().aspectRatio(1080f / 720f)
             )
         } else {
@@ -200,6 +208,30 @@ fun GameControlPanel(
                                 modifier = Modifier.fillMaxHeight()
                             )
                         }
+                    }
+                }
+
+                // UNDO BUTTON OVERLAY
+                if (lastSoldStall != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .width(width * 0.4f)
+                            .height(height * 0.2f)
+                            .background(Color.Red.copy(alpha = 0.8f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .border(2.dp, Color.White, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .clickable {
+                                onTriggerHaptic()
+                                onUndoSell()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "UNDO!",
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 

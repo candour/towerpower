@@ -137,6 +137,10 @@ enum class BuffType {
     ARMOR
 }
 
+enum class BktBuffType {
+    MEATY, HERBAL
+}
+
 data class Buff(
     val type: BuffType,
     val sourceId: String,
@@ -271,5 +275,8 @@ data class GameState(
     val showBonusMessage: Boolean = false,
     val isRemovePillarModeActive: Boolean = false,
     val isOutdoorPuddleModeActive: Boolean = false,
-    val lastShakeTimeMs: Long = 0
+    val lastShakeTimeMs: Long = 0,
+    val lastSoldStall: Pair<AxialCoordinate, Stall>? = null,
+    val bktBuffType: BktBuffType = BktBuffType.MEATY,
+    val bktToastMessage: String? = null
 )
