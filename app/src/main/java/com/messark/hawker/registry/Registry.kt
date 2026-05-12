@@ -3,6 +3,7 @@ package com.messark.hawker.registry
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntRect
 import com.messark.hawker.model.*
+import com.messark.hawker.utils.GridUtils
 import com.messark.hawker.utils.StallUpgradeManager
 import java.util.*
 
@@ -77,7 +78,7 @@ data class StallDefinition(
         val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
         return when (type) {
             StallType.TEH_TARIK -> {
-                val targetCoord = AxialCoordinate(Math.round(target.position.q), Math.round(target.position.r))
+                val targetCoord = GridUtils.hexRound(target.position.q, target.position.r)
                 val isOnDrain = hexes[targetCoord]?.type == TileType.DRAIN
                 val duration = if (isOnDrain) stall.effectDurationMs / 2 else stall.effectDurationMs
                 FireResult.NewPuddle(
@@ -92,9 +93,9 @@ data class StallDefinition(
                 )
             }
             StallType.SATAY -> {
-                val dq = target.position.q - stallCoord.q
-                val dr = target.position.r - stallCoord.r
-                val angle = Math.atan2(dr.toDouble(), dq.toDouble()).toFloat()
+                val dx = (target.position.q + target.position.r / 2f) - (stallCoord.q + stallCoord.r / 2f)
+                val dy = (target.position.r - stallCoord.r) * GridUtils.ISOMETRIC_Y_FACTOR
+                val angle = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
                 FireResult.NewProjectile(
                     projectile = Projectile(
                         id = UUID.randomUUID().toString(),
@@ -102,12 +103,12 @@ data class StallDefinition(
                         targetEnemyId = null,
                         targetPosition = target.position,
                         damage = stall.damage,
-                        color = Color.White,
+                        color = projectileColor,
                         speed = projectileSpeed,
                         aoeRadius = stall.aoeRadius,
                         isArc = true,
                         startPosition = stallPos,
-                        sourceStallType = StallType.SATAY,
+                        sourceStallType = type,
                         sourceStallCoord = stallCoord,
                         sourceStallId = stall.id
                     ),
