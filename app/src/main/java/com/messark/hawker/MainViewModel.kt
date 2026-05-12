@@ -436,59 +436,61 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun updateTransientState(state: GameState, currentTimeMs: Long): GameState {
-        val updatedPuddles = state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
-        val updatedVisualEffects = state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
+        val anyPuddleExpired = state.puddles.any { currentTimeMs - it.spawnTimeMs >= it.durationMs }
+        val anyEffectExpired = state.visualEffects.any { currentTimeMs - it.startTimeMs >= it.durationMs }
 
-        var updatedHexes = state.hexes.toMutableMap()
-        var updatedEnemies = state.enemies.toMutableList()
-        var changed = false
+        var updatedHexes: MutableMap<AxialCoordinate, HexTile>? = null
+        var updatedEnemies: MutableList<Enemy>? = null
 
-        val enemyIndexMap = state.enemies.withIndex().associate { it.value.id to it.index }
+        val enemyIndexMap = if (state.hexes.values.any { it.stall?.heldEnemyId != null }) {
+            state.enemies.withIndex().associate { it.value.id to it.index }
+        } else emptyMap()
 
         state.hexes.forEach { (coord, tile) ->
             val stall = tile.stall
             if (stall?.heldEnemyId != null) {
                 val enemyIndex = enemyIndexMap[stall.heldEnemyId] ?: -1
                 if (enemyIndex != -1) {
-                    val enemy = updatedEnemies[enemyIndex]
+                    val enemy = (updatedEnemies ?: state.enemies)[enemyIndex]
                     if (currentTimeMs >= stall.releaseTimeMs) {
                         // Release enemy
                         var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
                         if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
-                            // Interrupt buff
                             releasedEnemy = releasedEnemy.copy(
                                 buffingTargetId = null,
                                 isStopped = false,
                                 stopDurationMs = 0
                             )
                         }
-                        updatedEnemies[enemyIndex] = releasedEnemy
-                        updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                        changed = true
+                        if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
+                        updatedEnemies!![enemyIndex] = releasedEnemy
+
+                        if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
+                        updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
                     } else {
                         // Move to stall center
                         if (!enemy.isGrabbed || enemy.position.q != coord.q.toFloat() || enemy.position.r != coord.r.toFloat()) {
-                            updatedEnemies[enemyIndex] = enemy.copy(
+                            if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
+                            updatedEnemies!![enemyIndex] = enemy.copy(
                                 isGrabbed = true,
                                 position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
                             )
-                            changed = true
                         }
                     }
                 } else {
                     // Enemy gone?
-                    updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                    changed = true
+                    if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
+                    updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
                 }
             }
         }
 
-        return if (changed || updatedPuddles.size != state.puddles.size || updatedVisualEffects.size != state.visualEffects.size) {
+        return if (anyPuddleExpired || anyEffectExpired || updatedHexes != null || updatedEnemies != null) {
             state.copy(
-                puddles = updatedPuddles,
-                visualEffects = updatedVisualEffects,
-                hexes = updatedHexes,
-                enemies = updatedEnemies
+                puddles = if (anyPuddleExpired) state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs } else state.puddles,
+                visualEffects = if (anyEffectExpired) state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs } else state.visualEffects,
+                hexes = updatedHexes ?: state.hexes,
+                enemies = updatedEnemies ?: state.enemies
             )
         } else state
     }
