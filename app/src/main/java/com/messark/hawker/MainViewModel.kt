@@ -589,12 +589,12 @@ class MainViewModel @JvmOverloads constructor(
             // Permanent Outdoor Puddles
             val currentHex = GridUtils.hexRound(enemy.position.q, enemy.position.r)
             if (state.hexes[currentHex]?.isPermanentlyWet == true) {
-                speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
+                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
             }
 
             state.puddles.forEach { puddle ->
                 if (GridUtils.axialDistance(enemy.position, puddle.position) < 0.8) {
-                    speedMultiplier = enemyDef.getPuddleSlowMultiplier(enemy.type)
+                    speedMultiplier = enemyDef.getPuddleSlowMultiplier()
                     if (puddle.sourceStallCoord != null && puddle.sourceStallId != null) {
                         affectingStalls
                             .getOrPut(puddle.sourceStallCoord to puddle.sourceStallId) { mutableSetOf() }
