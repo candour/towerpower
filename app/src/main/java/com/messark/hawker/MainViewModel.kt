@@ -453,12 +453,23 @@ class MainViewModel @JvmOverloads constructor(
                         // Release enemy
                         var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
                         if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
+                            val tigerMomId = releasedEnemy.id
                             // Interrupt buff
                             releasedEnemy = releasedEnemy.copy(
                                 buffingTargetId = null,
                                 isStopped = false,
                                 stopDurationMs = 0
                             )
+                            // Remove any ARMOR buffs previously applied by this Tiger Mom
+                            updatedEnemies.indices.forEach { i ->
+                                val e = updatedEnemies[i]
+                                if (e.id != tigerMomId) {
+                                    val cleanedBuffs = e.buffs.filterNot { it.type == BuffType.ARMOR && it.sourceId == tigerMomId }
+                                    if (cleanedBuffs.size != e.buffs.size) {
+                                        updatedEnemies[i] = e.copy(buffs = cleanedBuffs)
+                                    }
+                                }
+                            }
                         }
                         updatedEnemies[enemyIndex] = releasedEnemy
                         updatedHexes[coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
