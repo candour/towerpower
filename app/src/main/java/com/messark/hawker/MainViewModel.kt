@@ -142,14 +142,38 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun selectStall(stall: Stall) {
-        _gameState.update { it.copy(selectedStallType = stall) }
+        _gameState.update { it.copy(selectedStallType = stall, lastSoldStall = null) }
     }
 
     fun startWave() {
         val currentState = _gameState.value
         if (currentState.waveActive || currentState.activeTutorial != null) return
 
-        _gameState.update { it.copy(goldEarnedThisWave = 0, showBonusMessage = false) }
+        val hasBkt = currentState.hexes.values.any { it.stall?.stallType == StallType.BAK_KUT_TEH }
+        val (buffType, toast) = if (hasBkt) {
+            if (random.nextBoolean()) {
+                BktBuffType.MEATY to "Meaty!"
+            } else {
+                BktBuffType.HERBAL to "Herbal!"
+            }
+        } else {
+            currentState.bktBuffType to null
+        }
+
+        _gameState.update { it.copy(
+            goldEarnedThisWave = 0,
+            showBonusMessage = false,
+            lastSoldStall = null,
+            bktBuffType = buffType,
+            bktToastMessage = toast
+        ) }
+
+        if (toast != null) {
+            viewModelScope.launch {
+                delay(2000)
+                _gameState.update { it.copy(bktToastMessage = null) }
+            }
+        }
 
         val newWave = currentState.currentWave + 1
         val enemyList = generateEnemyList(newWave)
@@ -362,10 +386,12 @@ class MainViewModel @JvmOverloads constructor(
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
                             // calculateStatBoost uses the updated hexes, so re-enabled BKTs are counted
-                            val (boost, providers) = calculateStatBoost(coord, updatedHexes)
+                        val boostResult = calculateStatBoost(coord, updatedHexes, newState.bktBuffType)
+                        val boost = if (newState.bktBuffType == BktBuffType.MEATY) boostResult.damageMultiplier else 1.0f
                             atmGold += (stallDef.passiveIncome * boost).toInt()
 
                             // Update Bak Kut Teh stats
+                        val providers = boostResult.providerCoords
                             providers.forEach { providerCoord ->
                                 val providerTile = updatedHexes[providerCoord]
                                 if (providerTile?.stall != null) {
@@ -721,8 +747,14 @@ class MainViewModel @JvmOverloads constructor(
     private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
         val firingStalls = state.hexes.entries.filter { (_, tile) ->
             val stall = tile.stall
-            stall != null && stall.fireRateMs > 0 && stall.disabledWaves == 0 &&
-                    stall.heldEnemyId == null && (currentTimeMs - stall.lastFiredMs) >= stall.fireRateMs
+            if (stall == null || stall.fireRateMs <= 0 || stall.disabledWaves > 0 || stall.heldEnemyId != null) return@filter false
+
+            val boostResult = calculateStatBoost(tile.coordinate, state.hexes, state.bktBuffType)
+            val effectiveFireRate = if (state.bktBuffType == BktBuffType.HERBAL) {
+                (stall.fireRateMs / boostResult.rateMultiplier).toLong()
+            } else stall.fireRateMs
+
+            (currentTimeMs - stall.lastFiredMs) >= effectiveFireRate
         }
 
         if (firingStalls.isEmpty() || state.enemies.isEmpty()) return state
@@ -754,10 +786,12 @@ class MainViewModel @JvmOverloads constructor(
                 TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
             } ?: return@forEach
 
-            val (boost, providers) = calculateStatBoost(coord, state.hexes)
+            val boostResult = calculateStatBoost(coord, state.hexes, state.bktBuffType)
+            val damageBoost = boostResult.damageMultiplier
+            val durationBoost = boostResult.rateMultiplier // HERBAL buffs duration too for consistency
 
             // Update Bak Kut Teh stats for adjacency tracking
-            providers.forEach { providerCoord ->
+            boostResult.providerCoords.forEach { providerCoord ->
                 updatedHexes[providerCoord]?.let { tileWithBkt ->
                     tileWithBkt.stall?.let { bktStall ->
                         updatedHexes[providerCoord] = tileWithBkt.copy(
@@ -769,6 +803,7 @@ class MainViewModel @JvmOverloads constructor(
 
             if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
                 newlyGrabbedEnemyIds.add(target.id)
+                val boost = if (state.bktBuffType == BktBuffType.HERBAL) durationBoost else 1.0f
                 val boostedDuration = (stall.effectDurationMs * boost).toLong()
                 updatedHexes[coord] = tile.copy(
                     stall = stall.copy(
@@ -781,11 +816,14 @@ class MainViewModel @JvmOverloads constructor(
             } else {
                 val stallDef = StallRegistry.get(stall.stallType)
                 // Temporarily boost stall for fire calculation
-                val boostedStall = if (boost > 1.0f) {
+                val boost = if (state.bktBuffType == BktBuffType.MEATY) damageBoost else 1.0f
+                val effectBoost = if (state.bktBuffType == BktBuffType.HERBAL) durationBoost else 1.0f
+
+                val boostedStall = if (boost > 1.0f || effectBoost > 1.0f) {
                     stall.copy(
                         damage = stall.damage * boost,
-                        effectDurationMs = (stall.effectDurationMs * boost).toLong(),
-                        freezeDurationMs = (stall.freezeDurationMs * boost).toLong()
+                        effectDurationMs = (stall.effectDurationMs * effectBoost).toLong(),
+                        freezeDurationMs = (stall.freezeDurationMs * effectBoost).toLong()
                     )
                 } else stall
 
@@ -1003,10 +1041,11 @@ class MainViewModel @JvmOverloads constructor(
 
         if (tile.stall != null) {
             // Select existing stall
-            _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null) }
+            _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null, lastSoldStall = null) }
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
+            _gameState.update { it.copy(lastSoldStall = null) }
             if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
@@ -1090,7 +1129,35 @@ class MainViewModel @JvmOverloads constructor(
                 hexes = newHexes,
                 gold = state.gold + refund,
                 enemies = updatedEnemies,
-                selectedBoardStall = null
+                selectedBoardStall = null,
+                lastSoldStall = coord to stall
+            )
+        }
+    }
+
+    fun undoSell() {
+        val currentState = _gameState.value
+        val (coord, stall) = currentState.lastSoldStall ?: return
+        val tile = currentState.hexes[coord] ?: return
+
+        if (tile.stall != null) {
+             _gameState.update { it.copy(lastSoldStall = null) }
+             return
+        }
+
+        val refund = (stall.totalInvestment * 0.5f).toInt()
+        val newHexes = currentState.hexes.toMutableMap()
+        newHexes[coord] = tile.copy(stall = stall)
+
+        val blocked = getBlockedCoordinates(newHexes)
+
+        _gameState.update { state ->
+            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+            state.copy(
+                hexes = newHexes,
+                gold = state.gold - refund,
+                enemies = updatedEnemies,
+                lastSoldStall = null
             )
         }
     }
@@ -1099,7 +1166,7 @@ class MainViewModel @JvmOverloads constructor(
         if (_gameState.value.waveActive) {
             applyUpgrade(isSpecific = false)
         } else {
-            _gameState.update { it.copy(showUpgradeOverlay = true) }
+            _gameState.update { it.copy(showUpgradeOverlay = true, lastSoldStall = null) }
         }
     }
 
@@ -1109,7 +1176,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun openStarActionOverlay() {
         if (!_gameState.value.waveActive && _gameState.value.kitchelinStars > 0) {
-            _gameState.update { it.copy(showStarActionOverlay = true) }
+            _gameState.update { it.copy(showStarActionOverlay = true, lastSoldStall = null) }
         }
     }
 
@@ -1311,7 +1378,7 @@ class MainViewModel @JvmOverloads constructor(
 
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
-        _gameState.update { it.copy(hexes = newHexes) }
+        _gameState.update { it.copy(hexes = newHexes, lastSoldStall = null) }
     }
 
     private fun recalculateEnemyPaths(
@@ -1406,9 +1473,13 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    data class BoostResult(val multiplier: Float, val providerCoords: List<AxialCoordinate>)
+    data class BoostResult(
+        val damageMultiplier: Float,
+        val rateMultiplier: Float,
+        val providerCoords: List<AxialCoordinate>
+    )
 
-    private fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>): BoostResult {
+    fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>, buffType: BktBuffType): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
         var totalBoostPercent = 0f
         val providers = mutableListOf<AxialCoordinate>()
@@ -1419,6 +1490,11 @@ class MainViewModel @JvmOverloads constructor(
                 providers.add(adj)
             }
         }
-        return BoostResult(1.0f + (totalBoostPercent / 100f), providers)
+        val multiplier = 1.0f + (totalBoostPercent / 100f)
+        return if (buffType == BktBuffType.MEATY) {
+            BoostResult(multiplier, 1.0f, providers)
+        } else {
+            BoostResult(1.0f, multiplier, providers)
+        }
     }
 }

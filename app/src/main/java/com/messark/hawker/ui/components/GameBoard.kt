@@ -34,6 +34,7 @@ import com.messark.hawker.registry.EnemyRegistry
 import com.messark.hawker.registry.StallRegistry
 import com.messark.hawker.ui.constants.SpriteConstants
 import com.messark.hawker.utils.GridUtils
+import com.messark.hawker.utils.StallUpgradeManager
 import kotlin.math.*
 
 private data class DrawableEntity(
@@ -153,6 +154,7 @@ fun GameBoard(
     isRemovePillarModeActive: Boolean = false,
     gold: Int,
     health: Int,
+    bktToastMessage: String? = null,
     onCellClick: (AxialCoordinate) -> Unit,
     getOutdoorPuddleChain: (AxialCoordinate) -> List<AxialCoordinate> = { emptyList() },
     isOutdoorPuddleModeActive: Boolean = false,
@@ -435,13 +437,15 @@ fun GameBoard(
                             }
                         })
                     }
-                    drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 31) {
-                        val col = if (gold >= stall.getUpgradeCost()) Color.Green else Color.Gray
-                        val pos = Offset(screenPos.x + ctx.wPx * 0.25f, screenPos.y + ctx.hPx * 0.25f)
-                        drawCircle(col, 7.dp.toPx(), pos)
-                        drawCircle(Color.White, 7.dp.toPx(), pos, style = Stroke(1.dp.toPx()))
-                        drawIntoCanvas { it.nativeCanvas.drawText(stall.upgradeCount.toString(), pos.x, pos.y + 3.dp.toPx(), ctx.upgradePaint.apply { textSize = (if (stall.upgradeCount > 9) 7.dp else 9.dp).toPx() }) }
-                    })
+                    if (StallUpgradeManager.getAvailableUpgradeStats(stall).isNotEmpty()) {
+                        drawables.add(DrawableEntity(coord.q.toFloat(), coord.r.toFloat(), 31) {
+                            val col = if (gold >= stall.getUpgradeCost()) Color.Green else Color.Gray
+                            val pos = Offset(screenPos.x + ctx.wPx * 0.25f, screenPos.y + ctx.hPx * 0.25f)
+                            drawCircle(col, 7.dp.toPx(), pos)
+                            drawCircle(Color.White, 7.dp.toPx(), pos, style = Stroke(1.dp.toPx()))
+                            drawIntoCanvas { it.nativeCanvas.drawText(stall.upgradeCount.toString(), pos.x, pos.y + 3.dp.toPx(), ctx.upgradePaint.apply { textSize = (if (stall.upgradeCount > 9) 7.dp else 9.dp).toPx() }) }
+                        })
+                    }
                 }
             }
 
@@ -499,6 +503,20 @@ fun GameBoard(
                 }
             })
             sortedDrawables.forEach { it.draw(this) }
+
+            // BKT Toast Message
+            bktToastMessage?.let { toast ->
+                drawIntoCanvas { canvas ->
+                    val paint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.YELLOW
+                        textSize = 40.dp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        isFakeBoldText = true
+                        setShadowLayer(4f, 2f, 2f, android.graphics.Color.BLACK)
+                    }
+                    canvas.nativeCanvas.drawText(toast, size.width / 2f, size.height / 2f, paint)
+                }
+            }
         }
     }
 }
