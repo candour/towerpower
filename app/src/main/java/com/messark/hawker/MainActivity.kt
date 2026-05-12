@@ -790,7 +790,9 @@ fun GameScreen(
                         }
                     }
                 }
-                val boostResult = gameState.selectedBoardStall?.let { viewModel.calculateStatBoost(it, gameState.hexes, gameState.bktBuffType) }
+                val boostResult = remember(gameState.selectedBoardStall, gameState.hexes, gameState.bktBuffType) {
+                    gameState.selectedBoardStall?.let { viewModel.calculateStatBoost(it, gameState.hexes, gameState.bktBuffType) }
+                }
                 GameControlPanel(
                     gold = gameState.gold,
                     health = gameState.health,
