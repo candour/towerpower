@@ -1146,12 +1146,15 @@ class MainViewModel @JvmOverloads constructor(
         }
 
         val refund = (stall.totalInvestment * 0.5f).toInt()
+        if (currentState.gold < refund) return
+
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall)
 
         val blocked = getBlockedCoordinates(newHexes)
 
         _gameState.update { state ->
+            if (state.gold < refund) return@update state
             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
             state.copy(
                 hexes = newHexes,
