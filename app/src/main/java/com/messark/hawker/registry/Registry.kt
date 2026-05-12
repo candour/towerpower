@@ -192,7 +192,7 @@ class TouristEnemyBehavior : DefaultEnemyBehavior() {
     override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy {
         var isStopped = enemy.isStopped
         var stopDurationMs = enemy.stopDurationMs
-        var lastStopMs = enemy.lastStopMs
+        var lastStopMs = if (enemy.lastStopMs == 0L) currentTimeMs else enemy.lastStopMs
 
         if (isStopped) {
             stopDurationMs -= 32
