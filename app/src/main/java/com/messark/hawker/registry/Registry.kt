@@ -12,6 +12,210 @@ sealed class FireResult {
     data class NewPuddle(val puddle: StickyPuddle) : FireResult()
 }
 
+interface StallBehavior {
+    fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float
+    fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long
+    fun getSpeedBoost(enemy: Enemy): Long
+    fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult
+}
+
+interface EnemyBehavior {
+    fun getPuddleSlowMultiplier(): Float
+    fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy
+}
+
+open class DefaultStallBehavior : StallBehavior {
+    override fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float = baseDamage
+    override fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long = 0L
+    override fun getSpeedBoost(enemy: Enemy): Long = 0L
+    override fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult {
+        val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
+        return FireResult.NewProjectile(
+            projectile = Projectile(
+                id = UUID.randomUUID().toString(),
+                position = stallPos,
+                targetEnemyId = target.id,
+                targetPosition = target.position,
+                damage = stall.damage,
+                color = stall.color,
+                isFreeze = false,
+                freezeDurationMs = stall.freezeDurationMs,
+                aoeRadius = stall.aoeRadius,
+                sourceStallType = stallDefinition.type,
+                sourceStallCoord = stallCoord,
+                sourceStallId = stall.id
+            )
+        )
+    }
+}
+
+class TehTarikStallBehavior : DefaultStallBehavior() {
+    override fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult {
+        val targetCoord = GridUtils.hexRound(target.position.q, target.position.r)
+        val isOnDrain = hexes[targetCoord]?.type == TileType.DRAIN
+        val duration = if (isOnDrain) stall.effectDurationMs / 2 else stall.effectDurationMs
+        return FireResult.NewPuddle(
+            StickyPuddle(
+                id = UUID.randomUUID().toString(),
+                position = target.position,
+                spawnTimeMs = currentTimeMs,
+                durationMs = duration,
+                sourceStallCoord = stallCoord,
+                sourceStallId = stall.id
+            )
+        )
+    }
+}
+
+class SatayStallBehavior : DefaultStallBehavior() {
+    override fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float {
+        return when (enemy.type) {
+            EnemyType.TOURIST -> baseDamage * 2f
+            EnemyType.AUNTIE -> baseDamage * 0.5f
+            else -> baseDamage
+        }
+    }
+
+    override fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult {
+        val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
+        val dx = (target.position.q + target.position.r / 2f) - (stallCoord.q + stallCoord.r / 2f)
+        val dy = (target.position.r - stallCoord.r) * GridUtils.ISOMETRIC_Y_FACTOR
+        val angle = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
+        return FireResult.NewProjectile(
+            projectile = Projectile(
+                id = UUID.randomUUID().toString(),
+                position = stallPos,
+                targetEnemyId = null,
+                targetPosition = target.position,
+                damage = stall.damage,
+                color = stallDefinition.projectileColor,
+                speed = stallDefinition.projectileSpeed,
+                aoeRadius = stall.aoeRadius,
+                isArc = true,
+                startPosition = stallPos,
+                sourceStallType = stallDefinition.type,
+                sourceStallCoord = stallCoord,
+                sourceStallId = stall.id
+            ),
+            updatedStall = stall.copy(rotation = angle)
+        )
+    }
+}
+
+class DurianStallBehavior : DefaultStallBehavior() {
+    override fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float {
+        return when (enemy.type) {
+            EnemyType.DELIVERY_RIDER -> baseDamage * 1.5f
+            else -> baseDamage
+        }
+    }
+
+    override fun getSpeedBoost(enemy: Enemy): Long {
+        if (enemy.type == EnemyType.SALARYMAN) {
+            return 2000L
+        }
+        return 0L
+    }
+}
+
+class IceKachangStallBehavior : DefaultStallBehavior() {
+    override fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long {
+        return when (enemy.type) {
+            EnemyType.SALARYMAN -> baseDuration * 2
+            EnemyType.TOURIST -> baseDuration / 2
+            else -> baseDuration
+        }
+    }
+
+    override fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult {
+        val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
+        return FireResult.NewProjectile(
+            projectile = Projectile(
+                id = UUID.randomUUID().toString(),
+                position = stallPos,
+                targetEnemyId = target.id,
+                targetPosition = target.position,
+                damage = stall.damage,
+                color = stall.color,
+                isFreeze = true,
+                freezeDurationMs = stall.freezeDurationMs,
+                aoeRadius = stall.aoeRadius,
+                sourceStallType = stallDefinition.type,
+                sourceStallCoord = stallCoord,
+                sourceStallId = stall.id
+            )
+        )
+    }
+}
+
+open class DefaultEnemyBehavior : EnemyBehavior {
+    override fun getPuddleSlowMultiplier(): Float = 0.6f
+    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy = enemy
+}
+
+class TouristEnemyBehavior : DefaultEnemyBehavior() {
+    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy {
+        var isStopped = enemy.isStopped
+        var stopDurationMs = enemy.stopDurationMs
+        var lastStopMs = if (enemy.lastStopMs == 0L) currentTimeMs else enemy.lastStopMs
+
+        if (isStopped) {
+            stopDurationMs -= 32
+            if (stopDurationMs <= 0) {
+                isStopped = false
+                lastStopMs = currentTimeMs
+            }
+        } else if (currentTimeMs - lastStopMs > 8000) {
+            isStopped = true
+            stopDurationMs = 2000L
+        }
+        return enemy.copy(isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs)
+    }
+}
+
+class DeliveryRiderEnemyBehavior : DefaultEnemyBehavior() {
+    override fun getPuddleSlowMultiplier(): Float = 0.2f
+}
+
+class AuntieEnemyBehavior : DefaultEnemyBehavior() {
+    override fun getPuddleSlowMultiplier(): Float = 0.8f
+}
+
 data class StallDefinition(
     val type: StallType,
     val name: String,
@@ -35,37 +239,19 @@ data class StallDefinition(
     val visualEffectType: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE,
     val visualEffectColor: Color? = null,
     val visualEffectDuration: Long = 150L,
-    val isBlockable: Boolean = true
+    val isBlockable: Boolean = true,
+    val behavior: StallBehavior = DefaultStallBehavior()
 ) {
     fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float {
-        return when (type) {
-            StallType.SATAY -> when (enemy.type) {
-                EnemyType.TOURIST -> baseDamage * 2f
-                EnemyType.AUNTIE -> baseDamage * 0.5f
-                else -> baseDamage
-            }
-            StallType.DURIAN -> when (enemy.type) {
-                EnemyType.DELIVERY_RIDER -> baseDamage * 1.5f
-                else -> baseDamage
-            }
-            else -> baseDamage
-        }
+        return behavior.applyDamageModifiers(enemy, baseDamage)
     }
 
     fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long {
-        if (type != StallType.ICE_KACHANG) return 0L
-        return when (enemy.type) {
-            EnemyType.SALARYMAN -> baseDuration * 2
-            EnemyType.TOURIST -> baseDuration / 2
-            else -> baseDuration
-        }
+        return behavior.getFreezeModifier(enemy, baseDuration)
     }
 
     fun getSpeedBoost(enemy: Enemy): Long {
-        if (type == StallType.DURIAN && enemy.type == EnemyType.SALARYMAN) {
-            return 2000L
-        }
-        return 0L
+        return behavior.getSpeedBoost(enemy)
     }
 
     fun fire(
@@ -75,63 +261,7 @@ data class StallDefinition(
         currentTimeMs: Long,
         hexes: Map<AxialCoordinate, HexTile>
     ): FireResult {
-        val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
-        return when (type) {
-            StallType.TEH_TARIK -> {
-                val targetCoord = GridUtils.hexRound(target.position.q, target.position.r)
-                val isOnDrain = hexes[targetCoord]?.type == TileType.DRAIN
-                val duration = if (isOnDrain) stall.effectDurationMs / 2 else stall.effectDurationMs
-                FireResult.NewPuddle(
-                    StickyPuddle(
-                        id = UUID.randomUUID().toString(),
-                        position = target.position,
-                        spawnTimeMs = currentTimeMs,
-                        durationMs = duration,
-                        sourceStallCoord = stallCoord,
-                        sourceStallId = stall.id
-                    )
-                )
-            }
-            StallType.SATAY -> {
-                val dx = (target.position.q + target.position.r / 2f) - (stallCoord.q + stallCoord.r / 2f)
-                val dy = (target.position.r - stallCoord.r) * GridUtils.ISOMETRIC_Y_FACTOR
-                val angle = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
-                FireResult.NewProjectile(
-                    projectile = Projectile(
-                        id = UUID.randomUUID().toString(),
-                        position = stallPos,
-                        targetEnemyId = null,
-                        targetPosition = target.position,
-                        damage = stall.damage,
-                        color = projectileColor,
-                        speed = projectileSpeed,
-                        aoeRadius = stall.aoeRadius,
-                        isArc = true,
-                        startPosition = stallPos,
-                        sourceStallType = type,
-                        sourceStallCoord = stallCoord,
-                        sourceStallId = stall.id
-                    ),
-                    updatedStall = stall.copy(rotation = angle)
-                )
-            }
-            else -> FireResult.NewProjectile(
-                projectile = Projectile(
-                    id = UUID.randomUUID().toString(),
-                    position = stallPos,
-                    targetEnemyId = target.id,
-                    targetPosition = target.position,
-                    damage = stall.damage,
-                    color = stall.color,
-                    isFreeze = type == StallType.ICE_KACHANG,
-                    freezeDurationMs = stall.freezeDurationMs,
-                    aoeRadius = stall.aoeRadius,
-                    sourceStallType = type,
-                    sourceStallCoord = stallCoord,
-                    sourceStallId = stall.id
-                )
-            )
-        }
+        return behavior.fire(this, stall, stallCoord, target, currentTimeMs, hexes)
     }
 
     fun toStall(id: String = UUID.randomUUID().toString()): Stall {
@@ -165,35 +295,15 @@ data class EnemyDefinition(
     val baseHp: Float,
     val baseSpeed: Float,
     val reward: Int,
-    val spriteRow: Int
+    val spriteRow: Int,
+    val behavior: EnemyBehavior = DefaultEnemyBehavior()
 ) {
-    fun getPuddleSlowMultiplier(enemyType: EnemyType): Float {
-        return when (enemyType) {
-            EnemyType.DELIVERY_RIDER -> 0.2f
-            EnemyType.AUNTIE -> 0.8f
-            else -> 0.6f
-        }
+    fun getPuddleSlowMultiplier(): Float {
+        return behavior.getPuddleSlowMultiplier()
     }
 
     fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy {
-        if (type == EnemyType.TOURIST) {
-            var isStopped = enemy.isStopped
-            var stopDurationMs = enemy.stopDurationMs
-            var lastStopMs = enemy.lastStopMs
-
-            if (isStopped) {
-                stopDurationMs -= 32
-                if (stopDurationMs <= 0) {
-                    isStopped = false
-                    lastStopMs = currentTimeMs
-                }
-            } else if (currentTimeMs - lastStopMs > 8000) {
-                isStopped = true
-                stopDurationMs = 2000L
-            }
-            return enemy.copy(isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs)
-        }
-        return enemy
+        return behavior.updateSpecialBehavior(enemy, currentTimeMs)
     }
 
     fun getHp(wave: Int): Float {
@@ -233,7 +343,8 @@ object StallRegistry {
             signatureMove = "The Perpetual Tarik Puddle",
             tutorialDescription = "Welcome to the Teh Tarik Maestro, where the art of 'pulling' tea is a high-level tactical maneuver. This Maestro doesn't just make your enemies slower; he makes the very ground they walk on sticky. Utilizing a massive pair of custom cups, he performs a continuous, mesmerizing 'tarik' high in the air. Each 'pull' perfectly places a wide, frothy Perpetual Tarik Puddle of viscous, sweet milk tea. The tea is so thick and syrupy that enemies stepping into it are immediately bogged down, their speed cut in half as they struggle through the delicious, sticky mess. A crowd favorite for slowing the rush.",
             spriteRect = IntRect(22, 41, 330, 451),
-            effectDurationMs = 3000L
+            effectDurationMs = 3000L,
+            behavior = TehTarikStallBehavior()
         ),
         StallType.SATAY to StallDefinition(
             type = StallType.SATAY,
@@ -254,7 +365,8 @@ object StallRegistry {
             projectileColor = Color.White,
             visualEffectType = VisualEffectType.GAS_CLOUD,
             visualEffectColor = Color.Red.copy(alpha = 0.3f),
-            visualEffectDuration = 500L
+            visualEffectDuration = 500L,
+            behavior = SatayStallBehavior()
         ),
         StallType.CHICKEN_RICE to StallDefinition(
             type = StallType.CHICKEN_RICE,
@@ -284,7 +396,8 @@ object StallRegistry {
             tutorialDescription = "They call the Durian the King of Fruits, and this stall is the King of Damage. The King Durian Bunker is fortified with armor-plating and smells… well, like a durian. When the King’s crew makes a sale, they aren't selling just fruit; they are deploying a localized explosive. Using a heavy-duty pneumatic launcher, they fire an overripe, spikey Durian bomb into the largest cluster of enemies. Upon impact, it delivers a high-damage, single-target blow, followed immediately by a Spiky Cataclysm AoE explosion as the potent, heavy aroma bursts outward. It’s high-cost and slow-reloading, but the raw damage (and the scent) is devastating.",
             spriteRect = IntRect(33, 1041, 341, 1398),
             aoeRadius = 1.0f,
-            visualEffectColor = Color(0xFFCDDC39).copy(alpha = 0.5f)
+            visualEffectColor = Color(0xFFCDDC39).copy(alpha = 0.5f),
+            behavior = DurianStallBehavior()
         ),
         StallType.ICE_KACHANG to StallDefinition(
             type = StallType.ICE_KACHANG,
@@ -299,7 +412,8 @@ object StallRegistry {
             signatureMove = "The Absolute Zero Brain Freeze",
             tutorialDescription = "Want something to really chill out the enemies? Then you need the Auntie at the Ice Kachang Cart! She’s taken traditional dessert techniques to the cryo-level. Her specialized ice shaver can launch a massive, compacted ball of shaved ice, syrup, and cold, cold, red beans, aimed precisely at the lead enemy. Upon impact, it delivers an Absolute Zero Brain Freeze. The target is frozen solid, encased in a giant colorful ice cube, completely immobilized for several precious seconds. A perfect stall for controlling boss units.",
             spriteRect = IntRect(14, 2041, 322, 2471),
-            freezeDurationMs = 500L
+            freezeDurationMs = 500L,
+            behavior = IceKachangStallBehavior()
         ),
         StallType.TRAY_RETURN_UNCLE to StallDefinition(
             type = StallType.TRAY_RETURN_UNCLE,
@@ -369,7 +483,8 @@ object EnemyRegistry {
             baseHp = 100f,
             baseSpeed = 0.04f,
             reward = 20,
-            spriteRow = 1
+            spriteRow = 1,
+            behavior = TouristEnemyBehavior()
         ),
         EnemyType.AUNTIE to EnemyDefinition(
             type = EnemyType.AUNTIE,
@@ -378,7 +493,8 @@ object EnemyRegistry {
             baseHp = 150f,
             baseSpeed = 0.03f,
             reward = 30,
-            spriteRow = 0
+            spriteRow = 0,
+            behavior = AuntieEnemyBehavior()
         ),
         EnemyType.DELIVERY_RIDER to EnemyDefinition(
             type = EnemyType.DELIVERY_RIDER,
@@ -387,7 +503,8 @@ object EnemyRegistry {
             baseHp = 300f,
             baseSpeed = 0.06f,
             reward = 60,
-            spriteRow = 3
+            spriteRow = 3,
+            behavior = DeliveryRiderEnemyBehavior()
         ),
         EnemyType.TIGER_MOM to EnemyDefinition(
             type = EnemyType.TIGER_MOM,
