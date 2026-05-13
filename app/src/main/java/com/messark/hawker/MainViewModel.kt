@@ -115,7 +115,6 @@ class MainViewModel @JvmOverloads constructor(
         if (current.currentScreen == AppScreen.GAME) {
             _gameState.value = cheated
         }
-        }
     }
 
     fun resumeGame() {
