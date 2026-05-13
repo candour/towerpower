@@ -10,12 +10,21 @@ import java.util.*
 sealed class FireResult {
     data class NewProjectile(val projectile: Projectile, val updatedStall: Stall? = null) : FireResult()
     data class NewPuddle(val puddle: StickyPuddle) : FireResult()
+    data class HoldEnemy(val targetId: String, val releaseTimeMs: Long) : FireResult()
 }
 
 interface StallBehavior {
     fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float
     fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long
     fun getSpeedBoost(enemy: Enemy): Long
+    fun selectTarget(
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        enemiesByMode: Map<TargetMode, List<Enemy>>,
+        allEnemies: List<Enemy>,
+        obstructions: List<AxialCoordinate>,
+        newlyGrabbedEnemyIds: Set<String>
+    ): Enemy?
     fun fire(
         stallDefinition: StallDefinition,
         stall: Stall,
@@ -35,6 +44,31 @@ open class DefaultStallBehavior : StallBehavior {
     override fun applyDamageModifiers(enemy: Enemy, baseDamage: Float): Float = baseDamage
     override fun getFreezeModifier(enemy: Enemy, baseDuration: Long): Long = 0L
     override fun getSpeedBoost(enemy: Enemy): Long = 0L
+
+    override fun selectTarget(
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        enemiesByMode: Map<TargetMode, List<Enemy>>,
+        allEnemies: List<Enemy>,
+        obstructions: List<AxialCoordinate>,
+        newlyGrabbedEnemyIds: Set<String>
+    ): Enemy? {
+        val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
+
+        val candidates = if (stall.targetMode == TargetMode.CLOSEST) {
+            allEnemies.filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds && GridUtils.axialDistance(it.position, stallPos) <= stall.range }
+                .sortedBy { GridUtils.axialDistance(it.position, stallPos) }
+        } else {
+            enemiesByMode[stall.targetMode] ?: emptyList()
+        }
+
+        return candidates.firstOrNull { enemy ->
+            !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
+                    GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
+                    (!stall.isBlockable || !GridUtils.isLineOfSightBlocked(stallCoord, enemy.position, obstructions))
+        }
+    }
+
     override fun fire(
         stallDefinition: StallDefinition,
         stall: Stall,
@@ -180,6 +214,19 @@ class IceKachangStallBehavior : DefaultStallBehavior() {
                 sourceStallId = stall.id
             )
         )
+    }
+}
+
+class TrayReturnUncleBehavior : DefaultStallBehavior() {
+    override fun fire(
+        stallDefinition: StallDefinition,
+        stall: Stall,
+        stallCoord: AxialCoordinate,
+        target: Enemy,
+        currentTimeMs: Long,
+        hexes: Map<AxialCoordinate, HexTile>
+    ): FireResult {
+        return FireResult.HoldEnemy(target.id, currentTimeMs + stall.effectDurationMs)
     }
 }
 
@@ -428,7 +475,8 @@ object StallRegistry {
             signatureMove = "THE GREAT TRAY CLEARANCE",
             tutorialDescription = "Don't leave your trays behind, or this Uncle might just clear YOU! The Tray Return Uncle is the master of order in the hawker center. Every 15 seconds, he spots an enemy and decides they need a good cleaning. He'll grab them, pull them into his stall for a few seconds of 'intensive tray-training', and then place them back on the floor in a random nearby spot. While they're being 'cleaned', they're off the board and can't be touched. Efficient, orderly, and slightly terrifying.",
             spriteRect = IntRect(14, 3041, 322, 3471),
-            effectDurationMs = 2000L // Cleaning time
+            effectDurationMs = 2000L, // Cleaning time
+            behavior = TrayReturnUncleBehavior()
         ),
         StallType.ATM to StallDefinition(
             type = StallType.ATM,
