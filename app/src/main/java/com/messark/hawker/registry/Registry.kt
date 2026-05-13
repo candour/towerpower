@@ -55,11 +55,14 @@ open class DefaultStallBehavior : StallBehavior {
     ): Enemy? {
         val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
 
-        val candidates = if (stall.targetMode == TargetMode.CLOSEST) {
-            allEnemies.filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds && GridUtils.axialDistance(it.position, stallPos) <= stall.range }
-                .sortedBy { GridUtils.axialDistance(it.position, stallPos) }
-        } else {
-            enemiesByMode[stall.targetMode] ?: emptyList()
+        val candidates = when (stall.targetMode) {
+            TargetMode.CLOSEST -> {
+                allEnemies.filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds && GridUtils.axialDistance(it.position, stallPos) <= stall.range }
+                    .sortedBy { GridUtils.axialDistance(it.position, stallPos) }
+            }
+            TargetMode.FIRST, TargetMode.STRONGEST, TargetMode.WEAKEST -> {
+                enemiesByMode[stall.targetMode] ?: emptyList()
+            }
         }
 
         return candidates.firstOrNull { enemy ->
