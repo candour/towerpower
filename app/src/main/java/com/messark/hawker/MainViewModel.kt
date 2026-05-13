@@ -101,20 +101,20 @@ class MainViewModel @JvmOverloads constructor(
     fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
 
     fun applyCheat() {
-        val savedState = gameStateRepository.loadGameState() ?: return
-        val newState = savedState.copy(
-            gold = savedState.gold + 5000,
-            kitchelinStars = savedState.kitchelinStars + 1
+        val current = _gameState.value
+        val base = if (current.currentScreen == AppScreen.GAME) {
+            current
+        } else {
+            gameStateRepository.loadGameState() ?: return
+        }
+        val cheated = base.copy(
+            gold = base.gold + 5000,
+            kitchelinStars = base.kitchelinStars + 1
         )
-        gameStateRepository.saveGameState(newState)
-
-        // If we are currently in a game or at a screen where this state is relevant, update it.
-        // Usually, the UI might be observing this state.
-        if (_gameState.value.currentScreen == AppScreen.GAME) {
-            _gameState.update { it.copy(
-                gold = it.gold + 5000,
-                kitchelinStars = it.kitchelinStars + 1
-            ) }
+        gameStateRepository.saveGameState(cheated)
+        if (current.currentScreen == AppScreen.GAME) {
+            _gameState.value = cheated
+        }
         }
     }
 
