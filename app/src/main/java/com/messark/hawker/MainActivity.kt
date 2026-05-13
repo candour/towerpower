@@ -168,6 +168,7 @@ class MainActivity : ComponentActivity() {
                                     onHapticToggle = { viewModel.updateHapticSetting(it) },
                                     onTutorialsToggle = { viewModel.updateTutorialsSetting(it) },
                                     onSave = { viewModel.navigateTo(AppScreen.MAIN_MENU) },
+                                    onCheat = { viewModel.applyCheat() },
                                     onTriggerHaptic = { viewModel.triggerHaptic() }
                                 )
                             }
@@ -194,6 +195,7 @@ fun OptionsScreen(
     onHapticToggle: (Boolean) -> Unit,
     onTutorialsToggle: (Boolean) -> Unit,
     onSave: () -> Unit,
+    onCheat: () -> Unit,
     onTriggerHaptic: () -> Unit
 ) {
     Box(
@@ -262,6 +264,18 @@ fun OptionsScreen(
                             onTriggerHaptic()
                         }
                     )
+                }
+
+                Button(
+                    onClick = {
+                        onTriggerHaptic()
+                        onCheat()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cheat", color = Color.Yellow, fontWeight = FontWeight.Bold)
                 }
 
                 SpriteButton(
