@@ -1130,7 +1130,7 @@ class MainViewModel @JvmOverloads constructor(
                 gold = state.gold + refund,
                 enemies = updatedEnemies,
                 selectedBoardStall = null,
-                lastSoldStall = coord to stall
+                lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
         }
     }
