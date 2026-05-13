@@ -100,6 +100,23 @@ class MainViewModel @JvmOverloads constructor(
 
     fun hasSavedGame(): Boolean = gameStateRepository.hasSavedGame()
 
+    fun applyCheat() {
+        val current = _gameState.value
+        val base = if (current.currentScreen == AppScreen.GAME) {
+            current
+        } else {
+            gameStateRepository.loadGameState() ?: return
+        }
+        val cheated = base.copy(
+            gold = base.gold + 5000,
+            kitchelinStars = base.kitchelinStars + 1
+        )
+        gameStateRepository.saveGameState(cheated)
+        if (current.currentScreen == AppScreen.GAME) {
+            _gameState.value = cheated
+        }
+    }
+
     fun resumeGame() {
         val savedState = gameStateRepository.loadGameState()
         if (savedState != null) {
