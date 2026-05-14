@@ -72,7 +72,8 @@ class SpatialIndexIntegrationTest {
         )
 
         // Run updateGame
-        viewModel.updateGame(System.currentTimeMillis())
+        val fixedNow = 1_700_000_000_000L
+        viewModel.updateGame(fixedNow)
 
         val state = viewModel.gameState.value
         // Both enemies should be hit and killed by AoE
