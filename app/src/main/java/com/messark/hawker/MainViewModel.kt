@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.messark.hawker.model.*
 import com.messark.hawker.registry.*
 import com.messark.hawker.utils.*
+import com.messark.hawker.utils.SpatialIndex
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.Instant
@@ -350,23 +351,29 @@ class MainViewModel @JvmOverloads constructor(
 
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
+
             var newState = state
 
             // 0. Update Transients (Puddles, Effects, and Held Enemies)
             newState = updateTransientState(newState, currentTimeMs)
 
+            // Build spatial indices after transient update to ensure fresh state
+            val puddleSpatialIndex = SpatialIndex(newState.puddles) { it.position }
+
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
 
             // 2. Enemy Movement
-            val (movedState, updatedEnemies) = handleEnemyMovement(newState, currentTimeMs)
+            val (movedState, updatedEnemies) = handleEnemyMovement(newState, currentTimeMs, puddleSpatialIndex)
             newState = movedState.copy(enemies = updatedEnemies)
 
             // 3. Stall Firing
             newState = handleStallFiring(newState, currentTimeMs)
 
             // 4. Projectile Movement and Collision
-            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs)
+            // Build enemy spatial index with updated positions after movement
+            val enemySpatialIndex = SpatialIndex(newState.enemies) { it.position }
+            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex)
             newState = projectilesState
             if (hitHaptic) hapticRequested = true
 
@@ -582,7 +589,11 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state and list of enemies.
      */
-    private fun handleEnemyMovement(state: GameState, currentTimeMs: Long): Pair<GameState, List<Enemy>> {
+    private fun handleEnemyMovement(
+        state: GameState,
+        currentTimeMs: Long,
+        puddleSpatialIndex: SpatialIndex<StickyPuddle>
+    ): Pair<GameState, List<Enemy>> {
         var mutableState = state
         val affectingStalls = mutableMapOf<Pair<AxialCoordinate, String>, MutableSet<String>>()
         val buffActions = mutableListOf<Pair<String, String>>() // TigerMomId, TargetEnemyId
@@ -609,9 +620,10 @@ class MainViewModel @JvmOverloads constructor(
                 speedMultiplier = enemyDef.getPuddleSlowMultiplier()
             }
 
-            state.puddles.forEach { puddle ->
-                if (GridUtils.axialDistance(enemy.position, puddle.position) < 0.8) {
-                    speedMultiplier = enemyDef.getPuddleSlowMultiplier()
+            val nearbyPuddles = puddleSpatialIndex.findNearby(enemy.position, 0.8f)
+            if (nearbyPuddles.isNotEmpty()) {
+                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
+                nearbyPuddles.forEach { puddle ->
                     if (puddle.sourceStallCoord != null && puddle.sourceStallId != null) {
                         affectingStalls
                             .getOrPut(puddle.sourceStallCoord to puddle.sourceStallId) { mutableSetOf() }
@@ -867,7 +879,11 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time.
      * @return Updated state after projectile processing.
      */
-    private fun handleProjectiles(state: GameState, currentTimeMs: Long): Pair<GameState, Boolean> {
+    private fun handleProjectiles(
+        state: GameState,
+        currentTimeMs: Long,
+        enemySpatialIndex: SpatialIndex<Enemy>
+    ): Pair<GameState, Boolean> {
         val finalProjectiles = mutableListOf<Projectile>()
         val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
         val newVisualEffects = state.visualEffects.toMutableList()
@@ -906,11 +922,9 @@ class MainViewModel @JvmOverloads constructor(
 
                 // Collect AoE hits
                 if (proj.aoeRadius > 0) {
-                    state.enemies.forEach { enemy ->
+                    enemySpatialIndex.findNearby(targetPos, proj.aoeRadius).forEach { enemy ->
                         if (enemy.isGrabbed || enemy.id == proj.targetEnemyId) return@forEach
-                        if (GridUtils.axialDistance(enemy.position, targetPos) <= proj.aoeRadius) {
-                            hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
-                        }
+                        hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
                     }
                 }
             } else {
