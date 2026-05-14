@@ -785,27 +785,23 @@ class MainViewModel @JvmOverloads constructor(
             state.hexes.values.filter { it.type is TileType.Obstruction }.map { it.coordinate }
         } else emptyList()
 
+        val enemiesByMode = mapOf(
+            TargetMode.FIRST to state.enemies.sortedByDescending { it.currentPathIndex },
+            TargetMode.STRONGEST to state.enemies.sortedByDescending { it.health },
+            TargetMode.WEAKEST to state.enemies.sortedBy { it.health }
+        )
+
         firingStalls.forEach { (coord, tile) ->
             val stall = tile.stall!!
-            val stallPos = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
+            val stallDef = StallRegistry.get(stall.stallType)
 
-            // Find all potential targets within range that are not already grabbed
-            val potentialTargets = state.enemies.filter { enemy ->
-                !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
-                        GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
-                        (!stall.isBlockable || !GridUtils.isLineOfSightBlocked(coord, enemy.position, obstructions))
-            }
-
-            val target = when (stall.targetMode) {
-                TargetMode.FIRST -> potentialTargets.maxByOrNull { it.currentPathIndex }
-                TargetMode.CLOSEST -> potentialTargets.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
-                TargetMode.STRONGEST -> potentialTargets.maxByOrNull { it.health }
-                TargetMode.WEAKEST -> potentialTargets.minByOrNull { it.health }
-            } ?: return@forEach
+            val target = stallDef.behavior.selectTarget(
+                stall, coord, enemiesByMode, state.enemies, obstructions, newlyGrabbedEnemyIds
+            ) ?: return@forEach
 
             val boostResult = calculateStatBoost(coord, state.hexes, state.bktBuffType)
             val damageBoost = boostResult.damageMultiplier
-            val durationBoost = boostResult.rateMultiplier // HERBAL buffs duration too for consistency
+            val durationBoost = boostResult.rateMultiplier
 
             // Update Bak Kut Teh stats for adjacency tracking
             boostResult.providerCoords.forEach { providerCoord ->
@@ -818,48 +814,45 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
 
-            if (stall.stallType == StallType.TRAY_RETURN_UNCLE) {
-                newlyGrabbedEnemyIds.add(target.id)
-                val boost = if (state.bktBuffType == BktBuffType.HERBAL) durationBoost else 1.0f
-                val boostedDuration = (stall.effectDurationMs * boost).toLong()
-                updatedHexes[coord] = tile.copy(
-                    stall = stall.copy(
+            val boost = if (state.bktBuffType == BktBuffType.MEATY) damageBoost else 1.0f
+            val effectBoost = if (state.bktBuffType == BktBuffType.HERBAL) durationBoost else 1.0f
+
+            val boostedStall = if (boost > 1.0f || effectBoost > 1.0f) {
+                stall.copy(
+                    damage = stall.damage * boost,
+                    effectDurationMs = (stall.effectDurationMs * effectBoost).toLong(),
+                    freezeDurationMs = (stall.freezeDurationMs * effectBoost).toLong()
+                )
+            } else stall
+
+            val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs, state.hexes)
+
+            when (fireResult) {
+                is FireResult.NewProjectile -> {
+                    newProjectiles.add(fireResult.projectile)
+                    val updatedStall = (fireResult.updatedStall ?: stall).copy(
                         lastFiredMs = currentTimeMs,
-                        heldEnemyId = target.id,
-                        releaseTimeMs = currentTimeMs + boostedDuration,
-                        uniqueTargetIds = stall.uniqueTargetIds + target.id
+                        damage = stall.damage,
+                        effectDurationMs = stall.effectDurationMs,
+                        freezeDurationMs = stall.freezeDurationMs
                     )
-                )
-            } else {
-                val stallDef = StallRegistry.get(stall.stallType)
-                // Temporarily boost stall for fire calculation
-                val boost = if (state.bktBuffType == BktBuffType.MEATY) damageBoost else 1.0f
-                val effectBoost = if (state.bktBuffType == BktBuffType.HERBAL) durationBoost else 1.0f
-
-                val boostedStall = if (boost > 1.0f || effectBoost > 1.0f) {
-                    stall.copy(
-                        damage = stall.damage * boost,
-                        effectDurationMs = (stall.effectDurationMs * effectBoost).toLong(),
-                        freezeDurationMs = (stall.freezeDurationMs * effectBoost).toLong()
-                    )
-                } else stall
-
-                val fireResult = stallDef.fire(boostedStall, coord, target, currentTimeMs, state.hexes)
-                var updatedStall = (fireResult as? FireResult.NewProjectile)?.updatedStall ?: stall
-
-                // Reset boosted stats but keep firing metadata (rotation, lastFiredMs)
-                updatedStall = updatedStall.copy(
-                    lastFiredMs = currentTimeMs,
-                    damage = stall.damage,
-                    effectDurationMs = stall.effectDurationMs,
-                    freezeDurationMs = stall.freezeDurationMs
-                )
-
-                when (fireResult) {
-                    is FireResult.NewProjectile -> newProjectiles.add(fireResult.projectile)
-                    is FireResult.NewPuddle -> newPuddles.add(fireResult.puddle)
+                    updatedHexes[coord] = tile.copy(stall = updatedStall)
                 }
-                updatedHexes[coord] = tile.copy(stall = updatedStall)
+                is FireResult.NewPuddle -> {
+                    newPuddles.add(fireResult.puddle)
+                    updatedHexes[coord] = tile.copy(stall = stall.copy(lastFiredMs = currentTimeMs))
+                }
+                is FireResult.HoldEnemy -> {
+                    newlyGrabbedEnemyIds.add(fireResult.targetId)
+                    updatedHexes[coord] = tile.copy(
+                        stall = stall.copy(
+                            lastFiredMs = currentTimeMs,
+                            heldEnemyId = fireResult.targetId,
+                            releaseTimeMs = fireResult.releaseTimeMs,
+                            uniqueTargetIds = stall.uniqueTargetIds + fireResult.targetId
+                        )
+                    )
+                }
             }
         }
 
