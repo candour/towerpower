@@ -166,7 +166,7 @@ class MainViewModel @JvmOverloads constructor(
         val currentState = _gameState.value
         if (currentState.waveActive || currentState.activeTutorial != null) return
 
-        val hasBkt = currentState.hexes.values.any { it.stall?.stallType == StallType.BAK_KUT_TEH }
+        val hasBkt = currentState.hexes.values.any { it.stall?.stallType == StallType.BAK_KUT_TEH && it.stall.disabledWaves == 0 }
         val (buffType, toast) = if (hasBkt) {
             if (random.nextBoolean()) {
                 BktBuffType.MEATY to "Meaty!"

@@ -502,7 +502,7 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF795548), // Brown
             range = 1.1f,
-            damage = 10f, // Used as base boost percentage
+            damage = 20f, // Used as base boost percentage
             fireRateMs = 0L,
             description = "Boosts adjacent stalls",
             tutorialTitle = "The Herbal Bak Kut Teh Stall (Adjacency Booster)",
