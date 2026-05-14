@@ -30,10 +30,10 @@ class SpatialIndex<T>(
         val result = mutableListOf<T>()
         val cq = center.q.toInt()
         val cr = center.r.toInt()
-        val range = ceil(radius).toInt()
+        val range = ceil(radius).toInt() + 1
 
         for (dq in -range..range) {
-            for (dr in maxOf(-range, -dq - range)..minOf(range, -dq + range)) {
+            for (dr in -range..range) {
                 buckets[AxialCoordinate(cq + dq, cr + dr)]?.let { bucket ->
                     bucket.forEach { entity ->
                         if (GridUtils.axialDistance(center, getPosition(entity)) <= radius) {

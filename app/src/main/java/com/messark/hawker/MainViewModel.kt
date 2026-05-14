@@ -352,14 +352,13 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
 
-            // Build spatial indices once per tick
-            val enemySpatialIndex = SpatialIndex(state.enemies) { it.position }
-            val puddleSpatialIndex = SpatialIndex(state.puddles) { it.position }
-
             var newState = state
 
             // 0. Update Transients (Puddles, Effects, and Held Enemies)
             newState = updateTransientState(newState, currentTimeMs)
+
+            // Build spatial indices after transient update to ensure fresh state
+            val puddleSpatialIndex = SpatialIndex(newState.puddles) { it.position }
 
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
@@ -372,6 +371,8 @@ class MainViewModel @JvmOverloads constructor(
             newState = handleStallFiring(newState, currentTimeMs)
 
             // 4. Projectile Movement and Collision
+            // Build enemy spatial index with updated positions after movement
+            val enemySpatialIndex = SpatialIndex(newState.enemies) { it.position }
             val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex)
             newState = projectilesState
             if (hitHaptic) hapticRequested = true
