@@ -10,7 +10,91 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
+private interface StatScaler {
+    fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double
+}
+
+private class DamageScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        val next = if (stallType == StallType.CHICKEN_RICE && baseStall.cost == 100) current + 6.0
+        else (current * 1.15).roundToInt().toDouble()
+        return if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
+    }
+}
+
+private class RangeScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        var next = current + 0.5
+        if (isMilestone) next *= 1.25
+        return (next * 10).roundToInt() / 10.0
+    }
+}
+
+private class RateScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        val rateReduction = when (stallType) {
+            StallType.TRAY_RETURN_UNCLE -> 100.0
+            StallType.CHICKEN_RICE -> 15.0
+            StallType.DURIAN -> 50.0
+            StallType.SATAY -> 25.0
+            else -> baseStall.fireRateMs * 0.1
+        }
+        val rateFloor = when (stallType) {
+            StallType.TRAY_RETURN_UNCLE -> 10000.0
+            StallType.CHICKEN_RICE -> 200.0
+            StallType.DURIAN -> 1000.0
+            StallType.SATAY -> 750.0
+            else -> 50.0
+        }
+        if (current <= rateFloor) return current
+        var potentialRate = current - rateReduction
+        if (isMilestone) potentialRate = (potentialRate * 0.75).roundToLong().toDouble()
+        return max(rateFloor, potentialRate)
+    }
+}
+
+private class RadiusScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        var next = current + 0.2
+        if (isMilestone) next *= 1.25
+        return (next * 10).roundToInt() / 10.0
+    }
+}
+
+private class DurationScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        val durationIncrement = if (stallType == StallType.TRAY_RETURN_UNCLE) 100.0 else 500.0
+        val durationCap = if (stallType == StallType.TRAY_RETURN_UNCLE) 4000.0 else Double.MAX_VALUE
+        val next = min(durationCap, current + durationIncrement)
+        return if (isMilestone) min(durationCap, (next * 1.25).roundToLong().toDouble()) else next
+    }
+}
+
+private class EffectScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        val next = current + 100.0
+        return if (isMilestone) (next * 1.25).roundToLong().toDouble() else next
+    }
+}
+
+private class BoostScaler : StatScaler {
+    override fun calculate(current: Double, level: Int, isMilestone: Boolean, stallType: StallType, baseStall: StallDefinition): Double {
+        val next = current + 20.0
+        return if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
+    }
+}
+
 object StallUpgradeManager {
+
+    private val scalers = mapOf(
+        "Damage" to DamageScaler(),
+        "Range" to RangeScaler(),
+        "Rate" to RateScaler(),
+        "Radius" to RadiusScaler(),
+        "Duration" to DurationScaler(),
+        "Effect" to EffectScaler(),
+        "Boost" to BoostScaler()
+    )
 
     private val valueCache = ConcurrentHashMap<CacheKey, Double>()
 
@@ -64,121 +148,64 @@ object StallUpgradeManager {
 
         return valueCache.getOrPut(cacheKey) {
             val baseStall = StallRegistry.get(stallType)
-            val rateReduction = when (stallType) {
-                StallType.TRAY_RETURN_UNCLE -> 100.0
-                StallType.CHICKEN_RICE -> 15.0
-                StallType.DURIAN -> 50.0
-                StallType.SATAY -> 25.0
-                else -> baseValue * 0.1
-            }
-            val rateFloor = when (stallType) {
-                StallType.TRAY_RETURN_UNCLE -> 10000.0
-                StallType.CHICKEN_RICE -> 200.0
-                StallType.DURIAN -> 1000.0
-                StallType.SATAY -> 750.0
-                else -> 50.0
-            }
-            val durationIncrement = if (stallType == StallType.TRAY_RETURN_UNCLE) 100.0 else 500.0
-            val durationCap = if (stallType == StallType.TRAY_RETURN_UNCLE) 4000.0 else Double.MAX_VALUE
+            val scaler = scalers[canonical]
 
             (1..level).fold(baseValue) { current, l ->
                 val isMilestone = l % 10 == 0
-                when (canonical) {
-                    "Damage" -> {
-                        var next = if (stallType == StallType.CHICKEN_RICE && baseStall.cost == 100) current + 6.0
-                                   else (current * 1.15).roundToInt().toDouble()
-                        if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
-                    }
-                    "Range" -> {
-                        var next = current + 0.5
-                        if (isMilestone) next *= 1.25
-                        (next * 10).roundToInt() / 10.0
-                    }
-                    "Rate" -> {
-                        if (current <= rateFloor) current
-                        else {
-                            var potentialRate = current - rateReduction
-                            if (isMilestone) potentialRate = (potentialRate * 0.75).roundToLong().toDouble()
-                            max(rateFloor, potentialRate)
-                        }
-                    }
-                    "Radius" -> {
-                        var next = current + 0.2
-                        if (isMilestone) next *= 1.25
-                        (next * 10).roundToInt() / 10.0
-                    }
-                    "Duration" -> {
-                        var next = min(durationCap, current + durationIncrement)
-                        if (isMilestone) min(durationCap, (next * 1.25).roundToLong().toDouble()) else next
-                    }
-                    "Effect" -> {
-                        val next = current + 100.0
-                        if (isMilestone) (next * 1.25).roundToLong().toDouble() else next
-                    }
-                    "Boost" -> {
-                        val next = current + 20.0
-                        if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
-                    }
-                    else -> current
-                }
+                scaler?.calculate(current, l, isMilestone, stallType, baseStall) ?: current
             }
         }
     }
 
     fun applyUpgrade(stall: Stall, statName: String, upgradeCost: Int, isSpecific: Boolean): Stall {
+        val canonicalStat = getCanonicalStat(statName, stall.stallType)
         val mutableUpgrades = stall.upgrades.toMutableMap()
 
-        // Normalize all possible stat keys (including aliases and stall-specific ones)
-        val allStatKeys = (mutableUpgrades.keys + getAvailableUpgradeStats(stall)).toSet()
-        allStatKeys.forEach { key ->
+        // Normalize existing aliases to ensure consistent levels
+        getAvailableUpgradeStats(stall).forEach { key ->
             val canonical = getCanonicalStat(key, stall.stallType)
             if (canonical != key) {
-                val level = max(mutableUpgrades.getOrDefault(key, 0), mutableUpgrades.getOrDefault(canonical, 0))
-                if (level > 0) {
-                    mutableUpgrades[key] = level
-                    mutableUpgrades[canonical] = level
+                val existingLevel = max(mutableUpgrades.getOrDefault(key, 0), mutableUpgrades.getOrDefault(canonical, 0))
+                if (existingLevel > 0) {
+                    mutableUpgrades[key] = existingLevel
+                    mutableUpgrades[canonical] = existingLevel
                 }
             }
         }
 
-        val canonicalStat = getCanonicalStat(statName, stall.stallType)
-        val newLevelForStat = mutableUpgrades.getOrDefault(statName, 0) + 1
-        mutableUpgrades[statName] = newLevelForStat
-        if (canonicalStat != statName) mutableUpgrades[canonicalStat] = newLevelForStat
+        val newLevel = max(mutableUpgrades.getOrDefault(statName, 0), mutableUpgrades.getOrDefault(canonicalStat, 0)) + 1
+        mutableUpgrades[statName] = newLevel
+        if (statName != canonicalStat) mutableUpgrades[canonicalStat] = newLevel
 
         val baseDef = StallRegistry.get(stall.stallType)
-        val damageStat = getCanonicalStat("Damage", stall.stallType)
 
         // Legendary Naming
-        var newPrefix = stall.legendaryPrefix
-        var newSuffix = stall.legendarySuffix
-        val newNamingCategories = stall.namingCategories.map { getCanonicalStat(it, stall.stallType) }.toMutableList()
+        var prefix = stall.legendaryPrefix
+        var suffix = stall.legendarySuffix
+        val categories = stall.namingCategories.toMutableList()
 
-        if (newLevelForStat == 10 && !newNamingCategories.contains(canonicalStat)) {
-            val legendaryCat = canonicalStat
-            if (newNamingCategories.isEmpty()) {
-                newSuffix = LegendaryNames.getRandomSuffix(legendaryCat)
-                newNamingCategories.add(canonicalStat)
-            } else if (newNamingCategories.size == 1) {
-                newPrefix = LegendaryNames.getRandomPrefix(legendaryCat)
-                newNamingCategories.add(canonicalStat)
-            }
+        if (newLevel == 10 && !categories.contains(canonicalStat)) {
+            if (categories.isEmpty()) suffix = LegendaryNames.getRandomSuffix(canonicalStat)
+            else if (categories.size == 1) prefix = LegendaryNames.getRandomPrefix(canonicalStat)
+            categories.add(canonicalStat)
         }
 
+        fun getLevel(stat: String) = mutableUpgrades.getOrDefault(getCanonicalStat(stat, stall.stallType), 0)
+
         return stall.copy(
-            name = LegendaryNames.constructName(stall.baseName, newPrefix, newSuffix),
-            damage = calculateValue(damageStat, baseDef.damage.toDouble(), mutableUpgrades.getOrDefault(damageStat, 0), stall.stallType).toFloat(),
-            range = calculateValue("Range", baseDef.range.toDouble(), mutableUpgrades.getOrDefault("Range", 0), stall.stallType).toFloat(),
-            fireRateMs = calculateValue("Rate", baseDef.fireRateMs.toDouble(), mutableUpgrades.getOrDefault("Rate", 0), stall.stallType).toLong(),
-            aoeRadius = calculateValue("Radius", baseDef.aoeRadius.toDouble(), mutableUpgrades.getOrDefault("Radius", 0), stall.stallType).toFloat(),
-            effectDurationMs = calculateValue("Duration", baseDef.effectDurationMs.toDouble(), mutableUpgrades.getOrDefault("Duration", 0), stall.stallType).toLong(),
-            freezeDurationMs = calculateValue("Effect", baseDef.freezeDurationMs.toDouble(), mutableUpgrades.getOrDefault("Effect", 0), stall.stallType).toLong(),
+            name = LegendaryNames.constructName(stall.baseName, prefix, suffix),
+            damage = calculateValue("Damage", baseDef.damage.toDouble(), getLevel("Damage"), stall.stallType).toFloat(),
+            range = calculateValue("Range", baseDef.range.toDouble(), getLevel("Range"), stall.stallType).toFloat(),
+            fireRateMs = calculateValue("Rate", baseDef.fireRateMs.toDouble(), getLevel("Rate"), stall.stallType).toLong(),
+            aoeRadius = calculateValue("Radius", baseDef.aoeRadius.toDouble(), getLevel("Radius"), stall.stallType).toFloat(),
+            effectDurationMs = calculateValue("Duration", baseDef.effectDurationMs.toDouble(), getLevel("Duration"), stall.stallType).toLong(),
+            freezeDurationMs = calculateValue("Effect", baseDef.freezeDurationMs.toDouble(), getLevel("Effect"), stall.stallType).toLong(),
             upgradeCount = stall.upgradeCount + 1,
             totalInvestment = stall.totalInvestment + upgradeCost,
             upgrades = mutableUpgrades,
-            legendaryPrefix = newPrefix,
-            legendarySuffix = newSuffix,
-            namingCategories = newNamingCategories,
+            legendaryPrefix = prefix,
+            legendarySuffix = suffix,
+            namingCategories = categories,
             disabledWaves = stall.disabledWaves + if (isSpecific && upgradeCost > 0) 1 else 0
         )
     }
