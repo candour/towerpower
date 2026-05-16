@@ -40,3 +40,4 @@ This document tracks identified and resolved bugs in the Hawker Rush codebase.
 | REF-009 | 2025-06-18 | Refactored the core game engine pipeline in `MainViewModel.kt` for improved efficiency. Introduced a `SpatialIndex` utility to optimize proximity-based lookups for puddles and projectile AoE, reducing complexity from O(N*M) to O(N). | Resolved |
 | FIX-010 | 2025-06-20 | Corrected Bak Kut Teh boost percentage to 10% across code and documentation, removed incorrect ATM income buffing, and updated tutorial descriptions. | Resolved |
 | FIX-011 | 2025-06-22 | Corrected the enemy death threshold in `MainViewModel.kt` from `1.0f` to `0f` to ensure precise health tracking and prevent premature deaths. | Resolved |
+| REF-010 | 2025-06-25 | Refactored `StallUpgradeManager.kt` to use a declarative `StatScaler` strategy pattern. Optimized efficiency by moving constant calculations out of iteration loops and simplifying the core `calculateValue` logic. | Resolved |
