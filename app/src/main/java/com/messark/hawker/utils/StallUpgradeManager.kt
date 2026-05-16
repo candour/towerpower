@@ -12,6 +12,107 @@ import kotlin.math.roundToLong
 
 object StallUpgradeManager {
 
+    private interface StatScaler {
+        fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double
+    }
+
+    private object DamageScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            val isChickenRiceDPS = stallType == StallType.CHICKEN_RICE && baseCost == 100
+            return (1..level).fold(baseValue) { current, l ->
+                val next = if (isChickenRiceDPS) current + 6.0
+                else (current * 1.15).roundToInt().toDouble()
+                if (l % 10 == 0) (next * 1.25).roundToInt().toDouble() else next
+            }
+        }
+    }
+
+    private object RangeScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            return (1..level).fold(baseValue) { current, l ->
+                var next = current + 0.5
+                if (l % 10 == 0) next *= 1.25
+                (next * 10).roundToInt() / 10.0
+            }
+        }
+    }
+
+    private object RateScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            val rateFloor = when (stallType) {
+                StallType.TRAY_RETURN_UNCLE -> 10000.0
+                StallType.CHICKEN_RICE -> 200.0
+                StallType.DURIAN -> 1000.0
+                StallType.SATAY -> 750.0
+                else -> 50.0
+            }
+            val rateReduction = when (stallType) {
+                StallType.TRAY_RETURN_UNCLE -> 100.0
+                StallType.CHICKEN_RICE -> 15.0
+                StallType.DURIAN -> 50.0
+                StallType.SATAY -> 25.0
+                else -> baseValue * 0.1
+            }
+            return (1..level).fold(baseValue) { current, l ->
+                if (current <= rateFloor) current
+                else {
+                    var potentialRate = current - rateReduction
+                    if (l % 10 == 0) potentialRate = (potentialRate * 0.75).roundToLong().toDouble()
+                    max(rateFloor, potentialRate)
+                }
+            }
+        }
+    }
+
+    private object RadiusScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            return (1..level).fold(baseValue) { current, l ->
+                var next = current + 0.2
+                if (l % 10 == 0) next *= 1.25
+                (next * 10).roundToInt() / 10.0
+            }
+        }
+    }
+
+    private object DurationScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            val durationIncrement = if (stallType == StallType.TRAY_RETURN_UNCLE) 100.0 else 500.0
+            val durationCap = if (stallType == StallType.TRAY_RETURN_UNCLE) 4000.0 else Double.MAX_VALUE
+            return (1..level).fold(baseValue) { current, l ->
+                val next = min(durationCap, current + durationIncrement)
+                if (l % 10 == 0) min(durationCap, (next * 1.25).roundToLong().toDouble()) else next
+            }
+        }
+    }
+
+    private object EffectScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            return (1..level).fold(baseValue) { current, l ->
+                val next = current + 100.0
+                if (l % 10 == 0) (next * 1.25).roundToLong().toDouble() else next
+            }
+        }
+    }
+
+    private object BoostScaler : StatScaler {
+        override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
+            return (1..level).fold(baseValue) { current, l ->
+                val next = current + 10.0
+                if (l % 10 == 0) (next * 1.25).roundToInt().toDouble() else next
+            }
+        }
+    }
+
+    private val scalers = mapOf(
+        "Damage" to DamageScaler,
+        "Range" to RangeScaler,
+        "Rate" to RateScaler,
+        "Radius" to RadiusScaler,
+        "Duration" to DurationScaler,
+        "Effect" to EffectScaler,
+        "Boost" to BoostScaler
+    )
+
     private val valueCache = ConcurrentHashMap<CacheKey, Double>()
 
     private data class CacheKey(
@@ -64,64 +165,7 @@ object StallUpgradeManager {
 
         return valueCache.getOrPut(cacheKey) {
             val baseStall = StallRegistry.get(stallType)
-            val rateReduction = when (stallType) {
-                StallType.TRAY_RETURN_UNCLE -> 100.0
-                StallType.CHICKEN_RICE -> 15.0
-                StallType.DURIAN -> 50.0
-                StallType.SATAY -> 25.0
-                else -> baseValue * 0.1
-            }
-            val rateFloor = when (stallType) {
-                StallType.TRAY_RETURN_UNCLE -> 10000.0
-                StallType.CHICKEN_RICE -> 200.0
-                StallType.DURIAN -> 1000.0
-                StallType.SATAY -> 750.0
-                else -> 50.0
-            }
-            val durationIncrement = if (stallType == StallType.TRAY_RETURN_UNCLE) 100.0 else 500.0
-            val durationCap = if (stallType == StallType.TRAY_RETURN_UNCLE) 4000.0 else Double.MAX_VALUE
-
-            (1..level).fold(baseValue) { current, l ->
-                val isMilestone = l % 10 == 0
-                when (canonical) {
-                    "Damage" -> {
-                        var next = if (stallType == StallType.CHICKEN_RICE && baseStall.cost == 100) current + 6.0
-                                   else (current * 1.15).roundToInt().toDouble()
-                        if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
-                    }
-                    "Range" -> {
-                        var next = current + 0.5
-                        if (isMilestone) next *= 1.25
-                        (next * 10).roundToInt() / 10.0
-                    }
-                    "Rate" -> {
-                        if (current <= rateFloor) current
-                        else {
-                            var potentialRate = current - rateReduction
-                            if (isMilestone) potentialRate = (potentialRate * 0.75).roundToLong().toDouble()
-                            max(rateFloor, potentialRate)
-                        }
-                    }
-                    "Radius" -> {
-                        var next = current + 0.2
-                        if (isMilestone) next *= 1.25
-                        (next * 10).roundToInt() / 10.0
-                    }
-                    "Duration" -> {
-                        var next = min(durationCap, current + durationIncrement)
-                        if (isMilestone) min(durationCap, (next * 1.25).roundToLong().toDouble()) else next
-                    }
-                    "Effect" -> {
-                        val next = current + 100.0
-                        if (isMilestone) (next * 1.25).roundToLong().toDouble() else next
-                    }
-                    "Boost" -> {
-                        val next = current + 10.0
-                        if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
-                    }
-                    else -> current
-                }
-            }
+            scalers[canonical]?.calculate(baseValue, level, stallType, baseStall.cost) ?: baseValue
         }
     }
 
