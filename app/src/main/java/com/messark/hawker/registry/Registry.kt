@@ -502,12 +502,12 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF795548), // Brown
             range = 1.1f,
-            damage = 20f, // Used as base boost percentage
+                damage = 10f, // Used as base boost percentage
             fireRateMs = 0L,
             description = "Boosts adjacent stalls",
             tutorialTitle = "The Herbal Bak Kut Teh Stall (Adjacency Booster)",
             signatureMove = "The Herbal Invigoration",
-            tutorialDescription = "The aroma of these herbs doesn't just attract customers; it invigorates your fellow hawkers! Placing this stall next to others will boost their primary stats—like damage, effect duration, or even ATM income—by 10%. It's the perfect herbal pick-me-up for a busy lunch rush. Note: Boosts from multiple Bak Kut Teh stalls stack additively!",
+            tutorialDescription = "The aroma of these herbs doesn't just attract customers; it invigorates your fellow hawkers! Placing this stall next to others will boost their primary stats—like damage, effect duration, or freeze duration—by 10%. It's the perfect herbal pick-me-up for a busy lunch rush. Note: Boosts from multiple Bak Kut Teh stalls stack additively!",
             spriteRect = IntRect(14, 2541, 322, 2971)
         )
     )

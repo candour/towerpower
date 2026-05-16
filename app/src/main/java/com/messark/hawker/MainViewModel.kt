@@ -409,13 +409,12 @@ class MainViewModel @JvmOverloads constructor(
                     if (stall != null && previouslyEnabledStalls.contains(coord)) {
                         val stallDef = StallRegistry.get(stall.stallType)
                         if (stallDef.passiveIncome > 0) {
-                            // calculateStatBoost uses the updated hexes, so re-enabled BKTs are counted
-                        val boostResult = calculateStatBoost(coord, updatedHexes, newState.bktBuffType)
-                        val boost = if (newState.bktBuffType == BktBuffType.MEATY) boostResult.damageMultiplier else 1.0f
-                            atmGold += (stallDef.passiveIncome * boost).toInt()
+                            atmGold += stallDef.passiveIncome
 
+                            // calculateStatBoost uses the updated hexes, so re-enabled BKTs are counted
+                            val boostResult = calculateStatBoost(coord, updatedHexes, newState.bktBuffType)
                             // Update Bak Kut Teh stats
-                        val providers = boostResult.providerCoords
+                            val providers = boostResult.providerCoords
                             providers.forEach { providerCoord ->
                                 val providerTile = updatedHexes[providerCoord]
                                 if (providerTile?.stall != null) {

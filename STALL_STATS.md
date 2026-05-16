@@ -13,7 +13,7 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 | **Durian** | 150 | 2000 | 0.50 | 75.00 | 3.0 | Damage, Range, Rate, Radius | $300 |
 | **Tray Return Uncle** | 0 | 15000 | 0.07 | 0.00 | 1.1 | Rate, Duration | $250 |
 | **ATM** | 0 | N/A | 0.00 | 0.00 | 0.0 | None | $1000 |
-| **Bak Kut Teh** | 20% | N/A | 0.00 | 0.00 | 1.1 | Boost | $300 |
+| **Bak Kut Teh** | 10% | N/A | 0.00 | 0.00 | 1.1 | Boost | $300 |
 
 ---
 
@@ -54,7 +54,7 @@ The cost of each upgrade increases linearly based on the stall's base price:
 - **Slowing Duration (Teh Tarik):** +500ms per level. Milestone: **1.25x** multiplier.
 - **Freeze Duration (Ice Kachang):** +100ms per level. Milestone: **1.25x** multiplier.
 - **Cleaning Time (Tray Return Uncle):** +100ms per level. Milestone: **1.25x** multiplier (Max: 4s).
-- **Boost Percentage (Bak Kut Teh):** +20% per level. Milestone: **1.25x** multiplier.
+- **Boost Percentage (Bak Kut Teh):** +10% per level. Milestone: **1.25x** multiplier.
 
 ---
 
@@ -76,7 +76,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Durian** | 347 | 1700 | 0.59 | 204.12 | 6.0 | AOE Radius: 2.2 | $10,740 | 0.0190 |
 | **Ice Kachang** | 0 | 300 | 3.33 | 0.00 | 7.5 | 1.3s Freeze duration | $8,950 | 0.0000 |
 | **Tray Return Uncle** | 0 | 10300 | 0.10 | 0.00 | 1.1 | Grabs/Holds customers for 3.95s | $8,950 | 0.0000 |
-| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 674% | $10,740 | 0.0000 |
+| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 337% | $10,740 | 0.0000 |
 
 ### Level 36 Average Stall Comparison
 | Stall Type | Damage | Fire Rate (ms) | Shots / Sec | DPS | Range (hexes) | Special / AOE Properties | Total Cost | DPS / $ |
@@ -87,7 +87,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Durian** | 528 | 1550 | 0.65 | 340.65 | 7.5 | AOE Radius: 2.8 | $22,440 | 0.0152 |
 | **Ice Kachang** | 0 | 50 | 20.00 | 0.00 | 11.6 | 2.1s Freeze duration | $18,700 | 0.0000 |
 | **Tray Return Uncle** | 0 | 10000 | 0.10 | 0.00 | 1.1 | Grabs/Holds customers for 4.00s | $18,700 | 0.0000 |
-| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 1113% | $22,440 | 0.0000 |
+| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 557% | $22,440 | 0.0000 |
 
 ### Level 48 Average Stall Comparison
 | Stall Type | Damage | Fire Rate (ms) | Shots / Sec | DPS | Range (hexes) | Special / AOE Properties | Total Cost | DPS / $ |
@@ -98,7 +98,7 @@ The following tables show the statistics for each stall after receiving a set nu
 | **Durian** | 1004 | 1025 | 0.98 | 979.51 | 11.0 | AOE Radius: 4.2 | $38,460 | 0.0255 |
 | **Ice Kachang** | 0 | 50 | 20.00 | 0.00 | 13.6 | 2.5s Freeze duration | $32,050 | 0.0000 |
 | **Tray Return Uncle** | 0 | 10000 | 0.10 | 0.00 | 1.1 | Grabs/Holds customers for 4.00s | $32,050 | 0.0000 |
-| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 1651% | $38,460 | 0.0000 |
+| **Bak Kut Teh** | 0 | 0 | 0.00 | 0.00 | 1.1 | Boosts adjacent stalls' stats by 825% | $38,460 | 0.0000 |
 
 *Note: DPS is calculated for single-target impact. AOE stalls (Satay/Durian) deal damage to all enemies within their radius. Total Cost includes base price and the cumulative cost of upgrades.*
 
