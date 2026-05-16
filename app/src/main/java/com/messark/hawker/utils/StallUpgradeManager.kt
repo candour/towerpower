@@ -116,7 +116,7 @@ object StallUpgradeManager {
                         if (isMilestone) (next * 1.25).roundToLong().toDouble() else next
                     }
                     "Boost" -> {
-                        val next = current + 20.0
+                        val next = current + 10.0
                         if (isMilestone) (next * 1.25).roundToInt().toDouble() else next
                     }
                     else -> current

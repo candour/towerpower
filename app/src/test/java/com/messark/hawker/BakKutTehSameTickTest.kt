@@ -72,9 +72,9 @@ class BakKutTehSameTickTest {
 
         val finalState = viewModel.gameState.value
 
-        // ATM income is 100. BKT boost is now 20%. Total should be 120.
-        // Initial gold 500 + 120 = 620.
-        assertEquals("Gold should reflect boosted ATM income", 620, finalState.gold)
+        // ATM income is 100. BKT boost is now 10%, but ATMs are no longer buffed.
+        // Initial gold 500 + 100 = 600.
+        assertEquals("Gold should reflect standard ATM income", 600, finalState.gold)
         assertEquals("BKT should be re-enabled", 0, finalState.hexes[bktCoord]?.stall?.disabledWaves)
     }
 }

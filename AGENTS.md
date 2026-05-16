@@ -52,7 +52,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
   - **Radius:** Additive (+0.2 per level).
   - **Fire Rate:** Linear reduction with stall-specific floors (e.g., Chicken Rice -15ms floor 200ms).
   - **Duration/Effect:** Additive (Duration +500ms, Effect +100ms, Uncle Duration +100ms).
-  - **Boost (Bak Kut Teh):** Additive (+20% per level).
+  - **Boost (Bak Kut Teh):** Additive (+10% per level).
 - **Milestone Boost:** Every 10th level applies a 1.25x multiplier (or 0.75x for rate) to the value.
 - **Stat Aliasing:** Some UI stats are aliased (e.g., "Grab Rate" $\rightarrow$ "Rate"). `StallUpgradeManager` normalizes these mappings upfront to prevent state-resetting bugs.
 - **Costs:** Costs increase linearly: $\text{Base} \times (0.2 + \text{next\_level} \times 0.1)$. Specific upgrades cost double and apply a `disabledWaves` penalty unless a Kitchelin Star is used.
@@ -108,9 +108,9 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 - **Instrumented Tests:** `./gradlew connectedAndroidTest`
 
 ### Bak Kut Teh Boost Mechanic
-- **Function:** Boosts the primary stat (Damage, Duration, Freeze, or ATM Income) of all adjacent stalls.
+- **Function:** Boosts the primary stat (Damage, Duration, or Freeze) of all adjacent stalls.
 - **Stacking:** Boosts from multiple Bak Kut Teh stalls stack additively.
-- **Implementation:** The `damage` field of the Bak Kut Teh stall is repurposed to store the current boost percentage (starts at 20%). Adjacency is calculated using `GridUtils.getAdjacentCoordinates`.
+- **Implementation:** The `damage` field of the Bak Kut Teh stall is repurposed to store the current boost percentage (starts at 10%). Adjacency is calculated using `GridUtils.getAdjacentCoordinates`.
 
 ## Agent "Gotchas" & Conventions
 - **AGENTS.md Maintenance:** You **MUST** update this file whenever you introduce new core mechanics, architectural changes, or complex "gotchas".
