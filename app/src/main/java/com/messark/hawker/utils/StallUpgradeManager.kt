@@ -162,7 +162,7 @@ object StallUpgradeManager {
         val mutableUpgrades = stall.upgrades.toMutableMap()
 
         // Normalize existing aliases to ensure consistent levels
-        getAvailableUpgradeStats(stall).forEach { key ->
+        (mutableUpgrades.keys + getAvailableUpgradeStats(stall)).forEach { key ->
             val canonical = getCanonicalStat(key, stall.stallType)
             if (canonical != key) {
                 val existingLevel = max(mutableUpgrades.getOrDefault(key, 0), mutableUpgrades.getOrDefault(canonical, 0))
