@@ -43,7 +43,7 @@ class UndeadEnemyTest {
         val enemyId = "enemy1"
         val enemy = Enemy(
             id = enemyId,
-            health = 1f,
+            health = 0.5f,
             maxHealth = 100f,
             position = PreciseAxialCoordinate(1f, 0f),
             path = listOf(AxialCoordinate(0, 0), AxialCoordinate(1, 0))

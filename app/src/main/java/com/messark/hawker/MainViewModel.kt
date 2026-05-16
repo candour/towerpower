@@ -955,7 +955,7 @@ class MainViewModel @JvmOverloads constructor(
             var speedBoostDuration = enemy.speedBoostDurationMs
 
             hits.forEach { proj ->
-                if (currentHealth < 1.0f) return@forEach
+                if (currentHealth <= 0f) return@forEach
 
                 var damage = proj.damage
                 enemy.buffs.forEach { if (it.type == BuffType.ARMOR) damage *= (1.0f - it.value) }
@@ -976,7 +976,7 @@ class MainViewModel @JvmOverloads constructor(
                     val coord = proj.sourceStallCoord
                     updatedHexes[coord]?.stall?.let { stall ->
                         if (stall.id == proj.sourceStallId) {
-                            val isKill = currentHealth < 1.0f
+                            val isKill = currentHealth <= 0f
                             val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
                             updatedHexes[coord] = updatedHexes[coord]!!.copy(
                                 stall = stall.copy(
@@ -989,7 +989,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
 
-            if (currentHealth < 1.0f) { // Consider dead if health rounds to 0
+            if (currentHealth <= 0f) { // Consider dead if health rounds to 0
                 updatedGold += enemy.reward
                 updatedScore += enemy.reward
                 shouldTriggerHaptic = true
