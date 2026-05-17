@@ -367,12 +367,28 @@ class MainViewModel @JvmOverloads constructor(
             val (movedState, updatedEnemies) = handleEnemyMovement(newState, currentTimeMs, puddleSpatialIndex)
             newState = movedState.copy(enemies = updatedEnemies)
 
-            // 3. Stall Firing
-            newState = handleStallFiring(newState, currentTimeMs)
-
-            // 4. Projectile Movement and Collision
-            // Build enemy spatial index with updated positions after movement
+            // 3. Prepare Engine Data (Spatial Index, Targeting Lists, Boosts)
             val enemySpatialIndex = SpatialIndex(newState.enemies) { it.position }
+            val enemiesByMode = mapOf(
+                TargetMode.FIRST to newState.enemies.sortedByDescending { it.currentPathIndex },
+                TargetMode.STRONGEST to newState.enemies.sortedByDescending { it.health },
+                TargetMode.WEAKEST to newState.enemies.sortedBy { it.health }
+            )
+
+            val firingStalls = newState.hexes.entries.filter { (_, tile) ->
+                val stall = tile.stall
+                if (stall == null || stall.fireRateMs <= 0 || stall.disabledWaves > 0 || stall.heldEnemyId != null) return@filter false
+                true
+            }
+
+            val preCalculatedBoosts = firingStalls.associate { (coord, _) ->
+                coord to calculateStatBoost(coord, newState.hexes, newState.bktBuffType)
+            }
+
+            // 4. Stall Firing
+            newState = handleStallFiring(newState, currentTimeMs, enemySpatialIndex, enemiesByMode, preCalculatedBoosts)
+
+            // 5. Projectile Movement and Collision
             val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex)
             newState = projectilesState
             if (hitHaptic) hapticRequested = true
@@ -593,7 +609,7 @@ class MainViewModel @JvmOverloads constructor(
         currentTimeMs: Long,
         puddleSpatialIndex: SpatialIndex<StickyPuddle>
     ): Pair<GameState, List<Enemy>> {
-        var mutableState = state
+        var healthLoss = 0
         val affectingStalls = mutableMapOf<Pair<AxialCoordinate, String>, MutableSet<String>>()
         val buffActions = mutableListOf<Pair<String, String>>() // TigerMomId, TargetEnemyId
         val stopBuffingIds = mutableSetOf<String>() // TigerMomIds
@@ -657,7 +673,7 @@ class MainViewModel @JvmOverloads constructor(
 
             val targetIndex = enemy.currentPathIndex + 1
             if (targetIndex >= enemy.path.size) {
-                mutableState = mutableState.copy(health = maxOf(0, mutableState.health - 1))
+                healthLoss++
                 return@mapNotNull null
             }
 
@@ -747,8 +763,13 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
 
+        var newState = state
+        if (healthLoss > 0) {
+            newState = newState.copy(health = maxOf(0, newState.health - healthLoss))
+        }
+
         if (affectingStalls.isNotEmpty()) {
-            val updatedHexes = mutableState.hexes.toMutableMap()
+            val updatedHexes = newState.hexes.toMutableMap()
             affectingStalls.forEach { (source, enemyIds) ->
                 val (coord, stallId) = source
                 updatedHexes[coord]?.stall?.let { stall ->
@@ -758,10 +779,10 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
             }
-            mutableState = mutableState.copy(hexes = updatedHexes)
+            newState = newState.copy(hexes = updatedHexes)
         }
 
-        return Pair(mutableState, finalEnemies)
+        return Pair(newState, finalEnemies)
     }
 
     /**
@@ -772,12 +793,18 @@ class MainViewModel @JvmOverloads constructor(
      * @param currentTimeMs Current game time in milliseconds.
      * @return Updated game state with new projectiles, puddles, and stall states.
      */
-    private fun handleStallFiring(state: GameState, currentTimeMs: Long): GameState {
-        val firingStalls = state.hexes.entries.filter { (_, tile) ->
+    private fun handleStallFiring(
+        state: GameState,
+        currentTimeMs: Long,
+        enemySpatialIndex: SpatialIndex<Enemy>,
+        enemiesByMode: Map<TargetMode, List<Enemy>>,
+        preCalculatedBoosts: Map<AxialCoordinate, BoostResult>
+    ): GameState {
+        val firingStalls = state.hexes.entries.filter { (coord, tile) ->
             val stall = tile.stall
             if (stall == null || stall.fireRateMs <= 0 || stall.disabledWaves > 0 || stall.heldEnemyId != null) return@filter false
 
-            val boostResult = calculateStatBoost(tile.coordinate, state.hexes, state.bktBuffType)
+            val boostResult = preCalculatedBoosts[coord] ?: return@filter false
             val effectiveFireRate = if (state.bktBuffType == BktBuffType.HERBAL) {
                 (stall.fireRateMs / boostResult.rateMultiplier).toLong()
             } else stall.fireRateMs
@@ -796,33 +823,23 @@ class MainViewModel @JvmOverloads constructor(
             state.hexes.values.filter { it.type is TileType.Obstruction }.map { it.coordinate }
         } else emptyList()
 
-        val enemiesByMode = mapOf(
-            TargetMode.FIRST to state.enemies.sortedByDescending { it.currentPathIndex },
-            TargetMode.STRONGEST to state.enemies.sortedByDescending { it.health },
-            TargetMode.WEAKEST to state.enemies.sortedBy { it.health }
-        )
+        val bktUpdates = mutableMapOf<AxialCoordinate, MutableSet<String>>()
 
         firingStalls.forEach { (coord, tile) ->
             val stall = tile.stall!!
             val stallDef = StallRegistry.get(stall.stallType)
 
             val target = stallDef.behavior.selectTarget(
-                stall, coord, enemiesByMode, state.enemies, obstructions, newlyGrabbedEnemyIds
+                stall, coord, enemiesByMode, enemySpatialIndex, obstructions, newlyGrabbedEnemyIds
             ) ?: return@forEach
 
-            val boostResult = calculateStatBoost(coord, state.hexes, state.bktBuffType)
+            val boostResult = preCalculatedBoosts[coord]!!
             val damageBoost = boostResult.damageMultiplier
             val durationBoost = boostResult.rateMultiplier
 
-            // Update Bak Kut Teh stats for adjacency tracking
+            // Collect Bak Kut Teh updates for adjacency tracking
             boostResult.providerCoords.forEach { providerCoord ->
-                updatedHexes[providerCoord]?.let { tileWithBkt ->
-                    tileWithBkt.stall?.let { bktStall ->
-                        updatedHexes[providerCoord] = tileWithBkt.copy(
-                            stall = bktStall.copy(uniqueTargetIds = bktStall.uniqueTargetIds + stall.id)
-                        )
-                    }
-                }
+                bktUpdates.getOrPut(providerCoord) { mutableSetOf() }.add(stall.id)
             }
 
             val boost = if (state.bktBuffType == BktBuffType.MEATY) damageBoost else 1.0f
@@ -863,6 +880,20 @@ class MainViewModel @JvmOverloads constructor(
                             uniqueTargetIds = stall.uniqueTargetIds + fireResult.targetId
                         )
                     )
+                }
+            }
+        }
+
+        // Apply collected Bak Kut Teh updates in a batch
+        bktUpdates.forEach { (providerCoord, consumerIds) ->
+            updatedHexes[providerCoord]?.let { tileWithBkt ->
+                tileWithBkt.stall?.let { bktStall ->
+                    val newTargets = bktStall.uniqueTargetIds + consumerIds
+                    if (newTargets.size > bktStall.uniqueTargetIds.size) {
+                        updatedHexes[providerCoord] = tileWithBkt.copy(
+                            stall = bktStall.copy(uniqueTargetIds = newTargets)
+                        )
+                    }
                 }
             }
         }
@@ -978,12 +1009,15 @@ class MainViewModel @JvmOverloads constructor(
                         if (stall.id == proj.sourceStallId) {
                             val isKill = currentHealth <= 0f
                             val newKills = if (isKill && !stall.stallType.isUtility) stall.kills + 1 else stall.kills
-                            updatedHexes[coord] = updatedHexes[coord]!!.copy(
-                                stall = stall.copy(
-                                    uniqueTargetIds = stall.uniqueTargetIds + enemy.id,
-                                    kills = newKills
+                            val newUniqueTargets = stall.uniqueTargetIds + enemy.id
+                            if (newKills != stall.kills || newUniqueTargets.size != stall.uniqueTargetIds.size) {
+                                updatedHexes[coord] = updatedHexes[coord]!!.copy(
+                                    stall = stall.copy(
+                                        uniqueTargetIds = newUniqueTargets,
+                                        kills = newKills
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }

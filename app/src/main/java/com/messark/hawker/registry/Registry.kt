@@ -21,7 +21,7 @@ interface StallBehavior {
         stall: Stall,
         stallCoord: AxialCoordinate,
         enemiesByMode: Map<TargetMode, List<Enemy>>,
-        allEnemies: List<Enemy>,
+        enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
         newlyGrabbedEnemyIds: Set<String>
     ): Enemy?
@@ -49,7 +49,7 @@ open class DefaultStallBehavior : StallBehavior {
         stall: Stall,
         stallCoord: AxialCoordinate,
         enemiesByMode: Map<TargetMode, List<Enemy>>,
-        allEnemies: List<Enemy>,
+        enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
         newlyGrabbedEnemyIds: Set<String>
     ): Enemy? {
@@ -57,7 +57,8 @@ open class DefaultStallBehavior : StallBehavior {
 
         val candidates = when (stall.targetMode) {
             TargetMode.CLOSEST -> {
-                allEnemies.filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds && GridUtils.axialDistance(it.position, stallPos) <= stall.range }
+                enemySpatialIndex.findNearby(stallPos, stall.range)
+                    .filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds }
                     .sortedBy { GridUtils.axialDistance(it.position, stallPos) }
             }
             TargetMode.FIRST, TargetMode.STRONGEST, TargetMode.WEAKEST -> {
