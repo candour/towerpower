@@ -1068,8 +1068,16 @@ class MainViewModel @JvmOverloads constructor(
         } else if (currentState.selectedStallType != null) {
             // Place new stall
             val stallToPlace = currentState.selectedStallType
-            _gameState.update { it.copy(lastSoldStall = null) }
             if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
+                // Prevent building on or immediately in front of enemies
+                val isEnemyNear = currentState.enemies.any { enemy ->
+                    val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1)
+                    GridUtils.hexRound(enemy.position.q, enemy.position.r) == coord || currentTarget == coord
+                }
+                if (isEnemyNear) return
+
+                _gameState.update { it.copy(lastSoldStall = null) }
+
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
