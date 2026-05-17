@@ -1076,8 +1076,6 @@ class MainViewModel @JvmOverloads constructor(
                 }
                 if (isEnemyNear) return
 
-                _gameState.update { it.copy(lastSoldStall = null) }
-
                 val blocked = getBlockedCoordinates(currentState.hexes) + coord
                 val startPos = currentState.startPosition ?: return
                 val endPos = currentState.endPosition ?: return
@@ -1123,7 +1121,12 @@ class MainViewModel @JvmOverloads constructor(
 
                         _gameState.update { state ->
                             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                            state.copy(hexes = newHexes, gold = state.gold - stallToPlace.cost, enemies = updatedEnemies)
+                            state.copy(
+                                hexes = newHexes,
+                                gold = state.gold - stallToPlace.cost,
+                                enemies = updatedEnemies,
+                                lastSoldStall = null
+                            )
                         }
                     }
                 }
