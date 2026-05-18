@@ -1216,6 +1216,13 @@ class MainViewModel @JvmOverloads constructor(
         val refund = (stall.totalInvestment * 0.5f).toInt()
         if (currentState.gold < refund) return
 
+        // Prevent restoring on or immediately in front of enemies
+        val isEnemyNear = currentState.enemies.any { enemy ->
+            val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1)
+            GridUtils.hexRound(enemy.position.q, enemy.position.r) == coord || currentTarget == coord
+        }
+        if (isEnemyNear) return
+
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall)
 
