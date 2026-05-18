@@ -338,6 +338,11 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    private class EngineUpdateBatch {
+        var healthLoss: Int = 0
+        val updatedHexes = mutableMapOf<AxialCoordinate, HexTile>()
+    }
+
     /**
      * Updates game state by advancing spawning, movement, and combat.
      *
@@ -352,20 +357,36 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
 
-            var newState = state
+            val batch = EngineUpdateBatch()
 
-            // 0. Update Transients (Puddles, Effects, and Held Enemies)
-            newState = updateTransientState(newState, currentTimeMs)
+            // 0. Expired Transients
+            val puddles = if (state.puddles.any { currentTimeMs - it.spawnTimeMs >= it.durationMs }) {
+                state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs }
+            } else state.puddles
 
-            // Build spatial indices after transient update to ensure fresh state
-            val puddleSpatialIndex = SpatialIndex(newState.puddles) { it.position }
+            val effects = if (state.visualEffects.any { currentTimeMs - it.startTimeMs >= it.durationMs }) {
+                state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
+            } else state.visualEffects
+
+            var newState = state.copy(puddles = puddles, visualEffects = effects)
 
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
 
-            // 2. Enemy Movement
-            val (movedState, updatedEnemies) = handleEnemyMovement(newState, currentTimeMs, puddleSpatialIndex)
-            newState = movedState.copy(enemies = updatedEnemies)
+            // 2. Enemy Pipeline (Consolidated Movement and Transients)
+            val puddleSpatialIndex = SpatialIndex(newState.puddles) { it.position }
+            val updatedEnemies = handleEnemyPipeline(newState, currentTimeMs, puddleSpatialIndex, batch)
+
+            // Apply batch updates from pipeline
+            val hexesAfterPipeline = if (batch.updatedHexes.isNotEmpty()) {
+                newState.hexes + batch.updatedHexes
+            } else newState.hexes
+
+            newState = newState.copy(
+                enemies = updatedEnemies,
+                health = maxOf(0, newState.health - batch.healthLoss),
+                hexes = hexesAfterPipeline
+            )
 
             // 3. Prepare Engine Data (Spatial Index, Targeting Lists, Boosts)
             val enemySpatialIndex = SpatialIndex(newState.enemies) { it.position }
@@ -500,66 +521,6 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun updateTransientState(state: GameState, currentTimeMs: Long): GameState {
-        val anyPuddleExpired = state.puddles.any { currentTimeMs - it.spawnTimeMs >= it.durationMs }
-        val anyEffectExpired = state.visualEffects.any { currentTimeMs - it.startTimeMs >= it.durationMs }
-
-        var updatedHexes: MutableMap<AxialCoordinate, HexTile>? = null
-        var updatedEnemies: MutableList<Enemy>? = null
-
-        val enemyIndexMap = if (state.hexes.values.any { it.stall?.heldEnemyId != null }) {
-            state.enemies.withIndex().associate { it.value.id to it.index }
-        } else emptyMap()
-
-        state.hexes.forEach { (coord, tile) ->
-            val stall = tile.stall
-            if (stall?.heldEnemyId != null) {
-                val enemyIndex = enemyIndexMap[stall.heldEnemyId] ?: -1
-                if (enemyIndex != -1) {
-                    val enemy = (updatedEnemies ?: state.enemies)[enemyIndex]
-                    if (currentTimeMs >= stall.releaseTimeMs) {
-                        // Release enemy
-                        var releasedEnemy = releaseEnemy(enemy, coord, state.hexes, state.endPosition)
-                        if (releasedEnemy.type == EnemyType.TIGER_MOM && releasedEnemy.buffingTargetId != null) {
-                            releasedEnemy = releasedEnemy.copy(
-                                buffingTargetId = null,
-                                isStopped = false,
-                                stopDurationMs = 0
-                            )
-                        }
-                        if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
-                        updatedEnemies!![enemyIndex] = releasedEnemy
-
-                        if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
-                        updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                    } else {
-                        // Move to stall center
-                        if (!enemy.isGrabbed || enemy.position.q != coord.q.toFloat() || enemy.position.r != coord.r.toFloat()) {
-                            if (updatedEnemies == null) updatedEnemies = state.enemies.toMutableList()
-                            updatedEnemies!![enemyIndex] = enemy.copy(
-                                isGrabbed = true,
-                                position = PreciseAxialCoordinate(coord.q.toFloat(), coord.r.toFloat())
-                            )
-                        }
-                    }
-                } else {
-                    // Enemy gone?
-                    if (updatedHexes == null) updatedHexes = state.hexes.toMutableMap()
-                    updatedHexes!![coord] = tile.copy(stall = stall.copy(heldEnemyId = null))
-                }
-            }
-        }
-
-        return if (anyPuddleExpired || anyEffectExpired || updatedHexes != null || updatedEnemies != null) {
-            state.copy(
-                puddles = if (anyPuddleExpired) state.puddles.filter { currentTimeMs - it.spawnTimeMs < it.durationMs } else state.puddles,
-                visualEffects = if (anyEffectExpired) state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs } else state.visualEffects,
-                hexes = updatedHexes ?: state.hexes,
-                enemies = updatedEnemies ?: state.enemies
-            )
-        } else state
-    }
-
     private fun handleSpawning(state: GameState, currentTimeMs: Long): GameState {
         if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
             val type = state.enemiesToSpawnList.first()
@@ -598,143 +559,150 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Handles movement for all active enemies and applies puddle effects.
+     * Optimized consolidated pipeline for processing all enemy logic:
+     * - Status updates (freeze, speed boost)
+     * - Grab/Hold mechanics (Tray Return Uncle)
+     * - Special behaviors (Tourist stalling, Tiger Mom buffing)
+     * - Movement and pathing
+     * - AoE/Puddle effects
      *
-     * @param state Current game state.
-     * @param currentTimeMs Current game time.
-     * @return Updated state and list of enemies.
+     * @return List of updated enemies.
      */
-    private fun handleEnemyMovement(
+    private fun handleEnemyPipeline(
         state: GameState,
         currentTimeMs: Long,
-        puddleSpatialIndex: SpatialIndex<StickyPuddle>
-    ): Pair<GameState, List<Enemy>> {
-        var healthLoss = 0
-        val affectingStalls = mutableMapOf<Pair<AxialCoordinate, String>, MutableSet<String>>()
+        puddleSpatialIndex: SpatialIndex<StickyPuddle>,
+        batch: EngineUpdateBatch
+    ): List<Enemy> {
+        val stallCoordMap = if (state.hexes.values.any { it.stall?.heldEnemyId != null }) {
+            state.hexes.values.filter { it.stall?.heldEnemyId != null }
+                .associate { it.stall!!.heldEnemyId!! to it.coordinate }
+        } else emptyMap()
+
         val buffActions = mutableListOf<Pair<String, String>>() // TigerMomId, TargetEnemyId
         val stopBuffingIds = mutableSetOf<String>() // TigerMomIds
 
-        val updatedEnemies = state.enemies.mapNotNull { enemy ->
+        val initialUpdatedEnemies = state.enemies.mapNotNull { enemy ->
             if (enemy.isDead) return@mapNotNull null
-            if (enemy.isGrabbed) return@mapNotNull enemy
 
-            val enemyDef = EnemyRegistry.get(enemy.type)
+            var currentEnemy = enemy
 
-            var freezeDuration = maxOf(0, enemy.freezeDurationMs - 32)
-            var speedBoostDuration = maxOf(0, enemy.speedBoostDurationMs - 32)
+            // 1. Handle Held Enemies (Transients)
+            val stallCoord = stallCoordMap[currentEnemy.id]
+            if (stallCoord != null) {
+                val tile = state.hexes[stallCoord]!!
+                val stall = tile.stall!!
 
-            val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(enemy, currentTimeMs)
+                if (currentTimeMs >= stall.releaseTimeMs) {
+                    // Release enemy logic
+                    currentEnemy = releaseEnemy(currentEnemy, stallCoord, state.hexes, state.endPosition)
+                    if (currentEnemy.type == EnemyType.TIGER_MOM && currentEnemy.buffingTargetId != null) {
+                        currentEnemy = currentEnemy.copy(buffingTargetId = null, isStopped = false, stopDurationMs = 0)
+                    }
+                    batch.updatedHexes[stallCoord] = tile.copy(stall = stall.copy(heldEnemyId = null))
+                    // Continue to move in the same frame
+                } else {
+                    // Maintain hold
+                    return@mapNotNull if (!currentEnemy.isGrabbed || currentEnemy.position.q != stallCoord.q.toFloat() || currentEnemy.position.r != stallCoord.r.toFloat()) {
+                        currentEnemy.copy(isGrabbed = true, position = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat()))
+                    } else currentEnemy
+                }
+            }
+
+            // 2. Process Active Enemies
+            val enemyDef = EnemyRegistry.get(currentEnemy.type)
+            var freezeDuration = maxOf(0, currentEnemy.freezeDurationMs - 32)
+            var speedBoostDuration = maxOf(0, currentEnemy.speedBoostDurationMs - 32)
+
+            val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(currentEnemy, currentTimeMs)
             var isStopped = behaviorUpdatedEnemy.isStopped
             var stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
             var lastStopMs = behaviorUpdatedEnemy.lastStopMs
 
-            var speedMultiplier = 1.0f
-            // Permanent Outdoor Puddles
-            val currentHex = GridUtils.hexRound(enemy.position.q, enemy.position.r)
-            if (state.hexes[currentHex]?.isPermanentlyWet == true) {
-                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
-            }
-
-            val nearbyPuddles = puddleSpatialIndex.findNearby(enemy.position, 0.8f)
-            if (nearbyPuddles.isNotEmpty()) {
-                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
-                nearbyPuddles.forEach { puddle ->
-                    if (puddle.sourceStallCoord != null && puddle.sourceStallId != null) {
-                        affectingStalls
-                            .getOrPut(puddle.sourceStallCoord to puddle.sourceStallId) { mutableSetOf() }
-                            .add(enemy.id)
-                    }
+            // Status Check: Tiger Mom target validation
+            if (isStopped && currentEnemy.type == EnemyType.TIGER_MOM && currentEnemy.buffingTargetId != null) {
+                val targetExists = state.enemies.any { it.id == currentEnemy.buffingTargetId && !it.isDead }
+                if (!targetExists) {
+                    stopBuffingIds.add(currentEnemy.id)
+                    isStopped = false
                 }
             }
 
             if (isStopped || freezeDuration > 0) {
-                if (enemy.type == EnemyType.TIGER_MOM && enemy.buffingTargetId != null) {
-                    val targetExists = state.enemies.any { it.id == enemy.buffingTargetId && !it.isDead }
-                    if (!targetExists) {
-                        stopBuffingIds.add(enemy.id)
-                        isStopped = false
-                    }
-                }
-
-                return@mapNotNull enemy.copy(
-                    isStopped = isStopped,
-                    stopDurationMs = stopDurationMs,
-                    lastStopMs = lastStopMs,
-                    freezeDurationMs = freezeDuration,
-                    speedBoostDurationMs = speedBoostDuration
+                return@mapNotNull currentEnemy.copy(
+                    isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration, speedBoostDurationMs = speedBoostDuration
                 )
             }
 
-            if (speedBoostDuration > 0) {
-                speedMultiplier *= 1.5f
+            // 3. Movement and Puddles
+            var speedMultiplier = 1.0f
+            val currentHex = GridUtils.hexRound(currentEnemy.position.q, currentEnemy.position.r)
+            if (state.hexes[currentHex]?.isPermanentlyWet == true) {
+                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
             }
 
-            val effectiveSpeed = enemy.baseSpeed * speedMultiplier
+            val nearbyPuddles = puddleSpatialIndex.findNearby(currentEnemy.position, 0.8f)
+            if (nearbyPuddles.isNotEmpty()) {
+                speedMultiplier = enemyDef.getPuddleSlowMultiplier()
+                nearbyPuddles.forEach { puddle ->
+                    if (puddle.sourceStallCoord != null && puddle.sourceStallId != null) {
+                        val tile = state.hexes[puddle.sourceStallCoord]
+                        if (tile?.stall?.id == puddle.sourceStallId) {
+                            val currentUpdated = batch.updatedHexes[puddle.sourceStallCoord] ?: tile
+                            batch.updatedHexes[puddle.sourceStallCoord] = currentUpdated.copy(
+                                stall = currentUpdated.stall!!.copy(uniqueTargetIds = currentUpdated.stall.uniqueTargetIds + currentEnemy.id)
+                            )
+                        }
+                    }
+                }
+            }
 
-            val targetIndex = enemy.currentPathIndex + 1
-            if (targetIndex >= enemy.path.size) {
-                healthLoss++
+            if (speedBoostDuration > 0) speedMultiplier *= 1.5f
+            val effectiveSpeed = currentEnemy.baseSpeed * speedMultiplier
+
+            val targetIndex = currentEnemy.currentPathIndex + 1
+            if (targetIndex >= currentEnemy.path.size) {
+                batch.healthLoss++
                 return@mapNotNull null
             }
 
-            val target = enemy.path[targetIndex]
+            val target = currentEnemy.path[targetIndex]
             val targetPrecise = PreciseAxialCoordinate(target.q.toFloat(), target.r.toFloat())
-            val dq = targetPrecise.q - enemy.position.q
-            val dr = targetPrecise.r - enemy.position.r
-            val dist = GridUtils.axialDistance(enemy.position, targetPrecise)
+            val dq = targetPrecise.q - currentEnemy.position.q
+            val dr = targetPrecise.r - currentEnemy.position.r
+            val dist = GridUtils.axialDistance(currentEnemy.position, targetPrecise)
 
-            val newIsFacingLeft = if (targetPrecise.q + targetPrecise.r / 2f != enemy.position.q + enemy.position.r / 2f) {
-                targetPrecise.q + targetPrecise.r / 2f < enemy.position.q + enemy.position.r / 2f
-            } else {
-                enemy.isFacingLeft
-            }
+            val newIsFacingLeft = if (targetPrecise.q + targetPrecise.r / 2f != currentEnemy.position.q + currentEnemy.position.r / 2f) {
+                targetPrecise.q + targetPrecise.r / 2f < currentEnemy.position.q + currentEnemy.position.r / 2f
+            } else currentEnemy.isFacingLeft
 
             var nextEnemy = if (dist < effectiveSpeed) {
-                enemy.copy(
-                    position = targetPrecise,
-                    currentPathIndex = targetIndex,
-                    currentSpeed = effectiveSpeed,
-                    isStopped = isStopped,
-                    stopDurationMs = stopDurationMs,
-                    lastStopMs = lastStopMs,
-                    freezeDurationMs = freezeDuration,
-                    speedBoostDurationMs = speedBoostDuration,
-                    animationTimeMs = enemy.animationTimeMs + 32,
-                    isFacingLeft = newIsFacingLeft
+                currentEnemy.copy(
+                    position = targetPrecise, currentPathIndex = targetIndex, currentSpeed = effectiveSpeed,
+                    isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration, speedBoostDurationMs = speedBoostDuration,
+                    animationTimeMs = currentEnemy.animationTimeMs + 32, isFacingLeft = newIsFacingLeft
                 )
             } else {
-                enemy.copy(
-                    position = PreciseAxialCoordinate(
-                        enemy.position.q + (dq / dist) * effectiveSpeed,
-                        enemy.position.r + (dr / dist) * effectiveSpeed
-                    ),
-                    currentSpeed = effectiveSpeed,
-                    isStopped = isStopped,
-                    stopDurationMs = stopDurationMs,
-                    lastStopMs = lastStopMs,
-                    freezeDurationMs = freezeDuration,
-                    speedBoostDurationMs = speedBoostDuration,
-                    animationTimeMs = enemy.animationTimeMs + 32,
-                    isFacingLeft = newIsFacingLeft
+                currentEnemy.copy(
+                    position = PreciseAxialCoordinate(currentEnemy.position.q + (dq / dist) * effectiveSpeed, currentEnemy.position.r + (dr / dist) * effectiveSpeed),
+                    currentSpeed = effectiveSpeed, isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs,
+                    freezeDurationMs = freezeDuration, speedBoostDurationMs = speedBoostDuration,
+                    animationTimeMs = currentEnemy.animationTimeMs + 32, isFacingLeft = newIsFacingLeft
                 )
             }
 
-            // Tiger Mom activation check
-            if (nextEnemy.type == EnemyType.TIGER_MOM && !nextEnemy.hasActivatedBuff && nextEnemy.currentPathIndex > enemy.currentPathIndex) {
-                if (random.nextFloat() < 0.125f) { // 1/8 chance
-                    // Find nearest non-buffed enemy
+            // 4. Tiger Mom Activation
+            if (nextEnemy.type == EnemyType.TIGER_MOM && !nextEnemy.hasActivatedBuff && nextEnemy.currentPathIndex > currentEnemy.currentPathIndex) {
+                if (random.nextFloat() < 0.125f) {
                     val targetEnemy = state.enemies
                         .filter { it.id != nextEnemy.id && it.buffs.none { b -> b.type == BuffType.ARMOR } && !it.isDead && !it.isGrabbed }
                         .minByOrNull { GridUtils.axialDistance(nextEnemy.position, it.position) }
 
                     if (targetEnemy != null) {
                         buffActions.add(nextEnemy.id to targetEnemy.id)
-                        nextEnemy = nextEnemy.copy(
-                            isStopped = true,
-                            stopDurationMs = 999999L, // "Until she is fully fed"
-                            hasActivatedBuff = true,
-                            buffingTargetId = targetEnemy.id
-                        )
+                        nextEnemy = nextEnemy.copy(isStopped = true, stopDurationMs = 999999L, hasActivatedBuff = true, buffingTargetId = targetEnemy.id)
                     }
                 }
             }
@@ -742,47 +710,22 @@ class MainViewModel @JvmOverloads constructor(
             nextEnemy
         }
 
-        var finalEnemies = updatedEnemies
-        if (buffActions.isNotEmpty()) {
-            finalEnemies = finalEnemies.map { e ->
-                val buffAction = buffActions.find { it.second == e.id }
-                if (buffAction != null) {
-                    e.copy(buffs = e.buffs + Buff(BuffType.ARMOR, buffAction.first, 0.9f))
-                } else e
+        // Apply Buffs and Cleanups in secondary passes (still within pipeline)
+        return initialUpdatedEnemies.map { e ->
+            var updated = e
+            // Apply new buffs
+            buffActions.find { it.second == e.id }?.let {
+                updated = updated.copy(buffs = updated.buffs + Buff(BuffType.ARMOR, it.first, 0.9f))
             }
-        }
-
-        if (stopBuffingIds.isNotEmpty()) {
-            finalEnemies = finalEnemies.map { e ->
-                if (stopBuffingIds.contains(e.id)) {
-                    e.copy(buffingTargetId = null)
-                } else {
-                    // Also remove the buff from anyone who was being buffed by these Tiger Moms
-                    e.copy(buffs = e.buffs.filter { !stopBuffingIds.contains(it.sourceId) })
-                }
+            // Cleanup expired/stopped Tiger Mom buffs
+            if (stopBuffingIds.contains(e.id)) {
+                updated = updated.copy(buffingTargetId = null)
             }
-        }
-
-        var newState = state
-        if (healthLoss > 0) {
-            newState = newState.copy(health = maxOf(0, newState.health - healthLoss))
-        }
-
-        if (affectingStalls.isNotEmpty()) {
-            val updatedHexes = newState.hexes.toMutableMap()
-            affectingStalls.forEach { (source, enemyIds) ->
-                val (coord, stallId) = source
-                updatedHexes[coord]?.stall?.let { stall ->
-                    if (stall.id == stallId) {
-                        val newTargetIds = stall.uniqueTargetIds + enemyIds
-                        updatedHexes[coord] = updatedHexes[coord]!!.copy(stall = stall.copy(uniqueTargetIds = newTargetIds))
-                    }
-                }
+            if (updated.buffs.any { stopBuffingIds.contains(it.sourceId) }) {
+                updated = updated.copy(buffs = updated.buffs.filter { !stopBuffingIds.contains(it.sourceId) })
             }
-            newState = newState.copy(hexes = updatedHexes)
+            updated
         }
-
-        return Pair(newState, finalEnemies)
     }
 
     /**
