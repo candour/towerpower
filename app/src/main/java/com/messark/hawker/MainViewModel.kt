@@ -1096,7 +1096,7 @@ class MainViewModel @JvmOverloads constructor(
         if (tile.stall != null || currentState.selectedStallType == null) {
             handleStallSelection(coord, tile)
         } else {
-            handleBuildStall(coord, tile, currentState)
+            handleBuildStall(coord)
         }
     }
 
@@ -1108,21 +1108,23 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun handleBuildStall(coord: AxialCoordinate, tile: HexTile, currentState: GameState) {
-        val stallToPlace = currentState.selectedStallType ?: return
-        if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
-            val blocked = validateStallPlacement(coord, stallToPlace, currentState)
+    private fun handleBuildStall(coord: AxialCoordinate) {
+        _gameState.update { state ->
+            val tile = state.hexes[coord] ?: return@update state
+            val stallToPlace = state.selectedStallType ?: return@update state
 
-            if (blocked != null) {
-                val newHexes = currentState.hexes.toMutableMap()
-                newHexes[coord] = tile.copy(
-                    stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
-                    isPermanentlyWet = false
-                )
+            if (state.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
+                val blocked = validateStallPlacement(coord, stallToPlace, state)
 
-                _gameState.update { state ->
+                if (blocked != null) {
+                    val newHexes = state.hexes.toMutableMap()
+                    newHexes[coord] = tile.copy(
+                        stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
+                        isPermanentlyWet = false
+                    )
+
                     val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                    state.copy(
+                    return@update state.copy(
                         hexes = newHexes,
                         gold = state.gold - stallToPlace.cost,
                         enemies = updatedEnemies,
@@ -1130,6 +1132,7 @@ class MainViewModel @JvmOverloads constructor(
                     )
                 }
             }
+            state
         }
     }
 
