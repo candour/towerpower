@@ -19,6 +19,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -69,7 +70,9 @@ class UndoUncleTeleportTest {
         val hexes = mapOf(
             uncleCoord to HexTile(uncleCoord, TileType.FLOOR, uncle),
             AxialCoordinate(1, 0) to HexTile(AxialCoordinate(1, 0), TileType.FLOOR),
-            AxialCoordinate(2, 0) to HexTile(AxialCoordinate(2, 0), TileType.GOAL_TABLE)
+            AxialCoordinate(2, 0) to HexTile(AxialCoordinate(2, 0), TileType.GOAL_TABLE),
+            AxialCoordinate(0, -1) to HexTile(AxialCoordinate(0, -1), TileType.FLOOR),
+            AxialCoordinate(1, -1) to HexTile(AxialCoordinate(1, -1), TileType.FLOOR)
         )
 
         viewModel._gameState.value = GameState(
@@ -99,7 +102,9 @@ class UndoUncleTeleportTest {
         viewModel.undoSell()
 
         state = viewModel.gameState.value
-        val restoredUncle = state.hexes[uncleCoord]?.stall!!
+        val restoredUncle = state.hexes[uncleCoord]?.stall
+        assertNotNull("Uncle should be restored", restoredUncle)
+        restoredUncle!!
         assertEquals("Uncle should be restored", StallType.TRAY_RETURN_UNCLE, restoredUncle.stallType)
 
         // If the bug exists, heldEnemyId is still "victim"
