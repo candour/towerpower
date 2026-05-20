@@ -1045,24 +1045,18 @@ class MainViewModel @JvmOverloads constructor(
         val endPos = state.endPosition ?: return null
 
         // 2. Check "last empty space" rule for Tray Return Uncle
-        val trayUncles = state.hexes.filter { it.value.stall?.stallType == StallType.TRAY_RETURN_UNCLE }.toMutableMap()
-        if (stallToPlace.stallType == StallType.TRAY_RETURN_UNCLE) {
-            trayUncles[coord] = tile
-        }
+        val unclesToCheck = state.hexes.entries
+            .filter { it.value.stall?.stallType == StallType.TRAY_RETURN_UNCLE }
+            .map { it.key }
+            .toMutableList()
+        if (stallToPlace.stallType == StallType.TRAY_RETURN_UNCLE) unclesToCheck.add(coord)
 
-        var violatesTrayUncleRule = false
-        for ((uncleCoord, _) in trayUncles) {
-            val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
-            val freeUncleNeighbors = uncleNeighbors.filter {
-                val neighborTile = state.hexes[it] ?: return@filter false
-                val isWalkableFloor = (neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN) && !blocked.contains(it)
-                it != coord && (isWalkableFloor ||
-                        neighborTile.type == TileType.START ||
-                        neighborTile.type == TileType.GOAL_TABLE)
-            }
-            if (freeUncleNeighbors.isEmpty()) {
-                violatesTrayUncleRule = true
-                break
+        val violatesTrayUncleRule = unclesToCheck.any { uncleCoord ->
+            GridUtils.getNeighbors(uncleCoord).none { neighbor ->
+                val neighborTile = state.hexes[neighbor] ?: return@none false
+                val isWalkable = (neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN) && !blocked.contains(neighbor)
+                val isFixedWalkable = neighborTile.type == TileType.START || neighborTile.type == TileType.GOAL_TABLE
+                isWalkable || isFixedWalkable
             }
         }
         if (violatesTrayUncleRule) return null
@@ -1073,6 +1067,10 @@ class MainViewModel @JvmOverloads constructor(
 
         // 4. Check if all existing enemies can still find a path
         val canRepathAll = state.enemies.all { enemy ->
+            // Optimization: Only re-path if the new stall actually blocks their current path
+            val pathRemainder = enemy.path.subList(enemy.currentPathIndex, enemy.path.size)
+            if (!pathRemainder.contains(coord)) return@all true
+
             val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1) ?: endPos
             Pathfinding.findPath(currentTarget, endPos, blocked, state.hexes.keys) != null
         }
@@ -1086,66 +1084,80 @@ class MainViewModel @JvmOverloads constructor(
         val tile = currentState.hexes[coord] ?: return
 
         if (currentState.isRemovePillarModeActive) {
-            if (tile.type == TileType.PILLAR) {
-                removePillar(coord)
-            }
+            handleRemovePillarClick(coord, tile)
             return
         }
 
         if (currentState.isOutdoorPuddleModeActive) {
-            val chain = getOutdoorPuddleChain(coord)
-            if (chain.size == 4) {
-                applyOutdoorPuddles(chain)
-            }
+            handleOutdoorPuddleClick(coord)
             return
         }
 
-        if (tile.stall != null) {
-            // Select existing stall
-            _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null, lastSoldStall = null) }
-        } else if (currentState.selectedStallType != null) {
-            // Place new stall
-            val stallToPlace = currentState.selectedStallType
-            if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
-                val blocked = validateStallPlacement(coord, stallToPlace, currentState)
-
-                if (blocked != null) {
-                    val newHexes = currentState.hexes.toMutableMap()
-                    newHexes[coord] = tile.copy(
-                        stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
-                        isPermanentlyWet = false
-                    )
-
-                    _gameState.update { state ->
-                        val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                        state.copy(
-                            hexes = newHexes,
-                            gold = state.gold - stallToPlace.cost,
-                            enemies = updatedEnemies,
-                            lastSoldStall = null
-                        )
-                    }
-                }
-            }
+        if (tile.stall != null || currentState.selectedStallType == null) {
+            handleStallSelection(coord, tile)
         } else {
-            // Deselect
+            handleBuildStall(coord, tile, currentState)
+        }
+    }
+
+    private fun handleStallSelection(coord: AxialCoordinate, tile: HexTile) {
+        if (tile.stall != null) {
+            _gameState.update { it.copy(selectedBoardStall = coord, selectedStallType = null, lastSoldStall = null) }
+        } else {
             _gameState.update { it.copy(selectedBoardStall = null, selectedStallType = null) }
         }
     }
 
+    private fun handleBuildStall(coord: AxialCoordinate, tile: HexTile, currentState: GameState) {
+        val stallToPlace = currentState.selectedStallType ?: return
+        if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
+            val blocked = validateStallPlacement(coord, stallToPlace, currentState)
+
+            if (blocked != null) {
+                val newHexes = currentState.hexes.toMutableMap()
+                newHexes[coord] = tile.copy(
+                    stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
+                    isPermanentlyWet = false
+                )
+
+                _gameState.update { state ->
+                    val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+                    state.copy(
+                        hexes = newHexes,
+                        gold = state.gold - stallToPlace.cost,
+                        enemies = updatedEnemies,
+                        lastSoldStall = null
+                    )
+                }
+            }
+        }
+    }
+
+    private fun handleOutdoorPuddleClick(coord: AxialCoordinate) {
+        val chain = getOutdoorPuddleChain(coord)
+        if (chain.size == 4) {
+            applyOutdoorPuddles(chain)
+        }
+    }
+
+    private fun handleRemovePillarClick(coord: AxialCoordinate, tile: HexTile) {
+        if (tile.type == TileType.PILLAR) {
+            removePillar(coord)
+        }
+    }
+
     fun sellStall() {
-        val currentState = _gameState.value
-        val coord = currentState.selectedBoardStall ?: return
-        val tile = currentState.hexes[coord] ?: return
-        val stall = tile.stall ?: return
-
-        val refund = (stall.totalInvestment * 0.5f).toInt()
-        val newHexes = currentState.hexes.toMutableMap()
-        newHexes[coord] = tile.copy(stall = null)
-
-        val blocked = getBlockedCoordinates(newHexes)
-
         _gameState.update { state ->
+            val coord = state.selectedBoardStall ?: return@update state
+            val tile = state.hexes[coord] ?: return@update state
+            val stall = tile.stall ?: return@update state
+
+            val refund = (stall.totalInvestment * 0.5f).toInt()
+            val newHexes = state.hexes.toMutableMap()
+            newHexes[coord] = tile.copy(stall = null)
+
+            val blocked = getBlockedCoordinates(newHexes)
+
             var updatedEnemies = state.enemies
             if (stall.heldEnemyId != null) {
                 updatedEnemies = updatedEnemies.map { enemy ->
@@ -1155,6 +1167,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
             updatedEnemies = recalculateEnemyPaths(state.copy(enemies = updatedEnemies), blocked, newHexes)
+
             state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
@@ -1166,34 +1179,28 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun undoSell() {
-        val currentState = _gameState.value
-        val (coord, stall) = currentState.lastSoldStall ?: return
-        val tile = currentState.hexes[coord] ?: return
+        _gameState.update { state ->
+            val (coord, stall) = state.lastSoldStall ?: return@update state
+            val tile = state.hexes[coord] ?: return@update state
 
-        if (tile.stall != null) {
-             _gameState.update { it.copy(lastSoldStall = null) }
-             return
-        }
+            if (tile.stall != null) {
+                return@update state.copy(lastSoldStall = null)
+            }
 
-        val refund = (stall.totalInvestment * 0.5f).toInt()
-        if (currentState.gold < refund) return
+            val refund = (stall.totalInvestment * 0.5f).toInt()
+            if (state.gold < refund) return@update state
 
-        val blocked = validateStallPlacement(coord, stall, currentState)
-
-        if (blocked != null) {
-            val newHexes = currentState.hexes.toMutableMap()
+            val blocked = validateStallPlacement(coord, stall, state) ?: return@update state
+            val newHexes = state.hexes.toMutableMap()
             newHexes[coord] = tile.copy(stall = stall)
 
-            _gameState.update { state ->
-                if (state.gold < refund) return@update state
-                val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                state.copy(
-                    hexes = newHexes,
-                    gold = state.gold - refund,
-                    enemies = updatedEnemies,
-                    lastSoldStall = null
-                )
-            }
+            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+            state.copy(
+                hexes = newHexes,
+                gold = state.gold - refund,
+                enemies = updatedEnemies,
+                lastSoldStall = null
+            )
         }
     }
 
