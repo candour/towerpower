@@ -1020,6 +1020,67 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Validates if a stall can be placed at the given coordinate.
+     * Checks for enemy proximity, path blocking, and Tray Return Uncle rules.
+     *
+     * @return The updated set of blocked coordinates if valid, null otherwise.
+     */
+    private fun validateStallPlacement(
+        coord: AxialCoordinate,
+        stallToPlace: Stall,
+        state: GameState
+    ): Set<AxialCoordinate>? {
+        val tile = state.hexes[coord] ?: return null
+
+        // 1. Prevent building on or immediately in front of enemies
+        val isEnemyNear = state.enemies.any { enemy ->
+            val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1)
+            GridUtils.hexRound(enemy.position.q, enemy.position.r) == coord || currentTarget == coord
+        }
+        if (isEnemyNear) return null
+
+        val blocked = getBlockedCoordinates(state.hexes) + coord
+        val startPos = state.startPosition ?: return null
+        val endPos = state.endPosition ?: return null
+
+        // 2. Check "last empty space" rule for Tray Return Uncle
+        val trayUncles = state.hexes.filter { it.value.stall?.stallType == StallType.TRAY_RETURN_UNCLE }.toMutableMap()
+        if (stallToPlace.stallType == StallType.TRAY_RETURN_UNCLE) {
+            trayUncles[coord] = tile
+        }
+
+        var violatesTrayUncleRule = false
+        for ((uncleCoord, _) in trayUncles) {
+            val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
+            val freeUncleNeighbors = uncleNeighbors.filter {
+                val neighborTile = state.hexes[it] ?: return@filter false
+                val isWalkableFloor = (neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN) && !blocked.contains(it)
+                it != coord && (isWalkableFloor ||
+                        neighborTile.type == TileType.START ||
+                        neighborTile.type == TileType.GOAL_TABLE)
+            }
+            if (freeUncleNeighbors.isEmpty()) {
+                violatesTrayUncleRule = true
+                break
+            }
+        }
+        if (violatesTrayUncleRule) return null
+
+        // 3. Check if main path is still possible
+        val startPath = Pathfinding.findPath(startPos, endPos, blocked, state.hexes.keys)
+        if (startPath == null) return null
+
+        // 4. Check if all existing enemies can still find a path
+        val canRepathAll = state.enemies.all { enemy ->
+            val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1) ?: endPos
+            Pathfinding.findPath(currentTarget, endPos, blocked, state.hexes.keys) != null
+        }
+        if (!canRepathAll) return null
+
+        return blocked
+    }
+
     fun onCellClick(coord: AxialCoordinate) {
         val currentState = _gameState.value
         val tile = currentState.hexes[coord] ?: return
@@ -1046,65 +1107,23 @@ class MainViewModel @JvmOverloads constructor(
             // Place new stall
             val stallToPlace = currentState.selectedStallType
             if (currentState.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
-                // Prevent building on or immediately in front of enemies
-                val isEnemyNear = currentState.enemies.any { enemy ->
-                    val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1)
-                    GridUtils.hexRound(enemy.position.q, enemy.position.r) == coord || currentTarget == coord
-                }
-                if (isEnemyNear) return
+                val blocked = validateStallPlacement(coord, stallToPlace, currentState)
 
-                val blocked = getBlockedCoordinates(currentState.hexes) + coord
-                val startPos = currentState.startPosition ?: return
-                val endPos = currentState.endPosition ?: return
+                if (blocked != null) {
+                    val newHexes = currentState.hexes.toMutableMap()
+                    newHexes[coord] = tile.copy(
+                        stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
+                        isPermanentlyWet = false
+                    )
 
-                // Check "last empty space" rule for Tray Return Uncle
-                val trayUncles = currentState.hexes.filter { it.value.stall?.stallType == StallType.TRAY_RETURN_UNCLE }.toMutableMap()
-                if (stallToPlace.stallType == StallType.TRAY_RETURN_UNCLE) {
-                    trayUncles[coord] = tile // Add current tile as potential Uncle
-                }
-
-                var violatesTrayUncleRule = false
-                for ((uncleCoord, _) in trayUncles) {
-                    val uncleNeighbors = GridUtils.getNeighbors(uncleCoord)
-                    val freeUncleNeighbors = uncleNeighbors.filter {
-                        val neighborTile = currentState.hexes[it] ?: return@filter false
-                        val isWalkableFloor = (neighborTile.type == TileType.FLOOR || neighborTile.type == TileType.DRAIN) && !blocked.contains(it)
-                        it != coord && (isWalkableFloor ||
-                                neighborTile.type == TileType.START ||
-                                neighborTile.type == TileType.GOAL_TABLE)
-                    }
-                    if (freeUncleNeighbors.isEmpty()) {
-                        violatesTrayUncleRule = true
-                        break
-                    }
-                }
-
-                if (violatesTrayUncleRule) return
-
-                val startPath = Pathfinding.findPath(startPos, endPos, blocked, currentState.hexes.keys)
-
-                if (startPath != null) {
-                    val canRepathAll = currentState.enemies.all { enemy ->
-                        val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1) ?: endPos
-                        Pathfinding.findPath(currentTarget, endPos, blocked, currentState.hexes.keys) != null
-                    }
-
-                    if (canRepathAll) {
-                        val newHexes = currentState.hexes.toMutableMap()
-                        newHexes[coord] = tile.copy(
-                            stall = stallToPlace.copy(id = UUID.randomUUID().toString()),
-                            isPermanentlyWet = false
+                    _gameState.update { state ->
+                        val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+                        state.copy(
+                            hexes = newHexes,
+                            gold = state.gold - stallToPlace.cost,
+                            enemies = updatedEnemies,
+                            lastSoldStall = null
                         )
-
-                        _gameState.update { state ->
-                            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                            state.copy(
-                                hexes = newHexes,
-                                gold = state.gold - stallToPlace.cost,
-                                enemies = updatedEnemies,
-                                lastSoldStall = null
-                            )
-                        }
                     }
                 }
             }
@@ -1159,27 +1178,22 @@ class MainViewModel @JvmOverloads constructor(
         val refund = (stall.totalInvestment * 0.5f).toInt()
         if (currentState.gold < refund) return
 
-        // Prevent restoring on or immediately in front of enemies
-        val isEnemyNear = currentState.enemies.any { enemy ->
-            val currentTarget = enemy.path.getOrNull(enemy.currentPathIndex + 1)
-            GridUtils.hexRound(enemy.position.q, enemy.position.r) == coord || currentTarget == coord
-        }
-        if (isEnemyNear) return
+        val blocked = validateStallPlacement(coord, stall, currentState)
 
-        val newHexes = currentState.hexes.toMutableMap()
-        newHexes[coord] = tile.copy(stall = stall)
+        if (blocked != null) {
+            val newHexes = currentState.hexes.toMutableMap()
+            newHexes[coord] = tile.copy(stall = stall)
 
-        val blocked = getBlockedCoordinates(newHexes)
-
-        _gameState.update { state ->
-            if (state.gold < refund) return@update state
-            val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-            state.copy(
-                hexes = newHexes,
-                gold = state.gold - refund,
-                enemies = updatedEnemies,
-                lastSoldStall = null
-            )
+            _gameState.update { state ->
+                if (state.gold < refund) return@update state
+                val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+                state.copy(
+                    hexes = newHexes,
+                    gold = state.gold - refund,
+                    enemies = updatedEnemies,
+                    lastSoldStall = null
+                )
+            }
         }
     }
 
