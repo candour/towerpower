@@ -88,9 +88,13 @@ class UndoPathBlockTest {
         val uncle = StallRegistry.get(StallType.TRAY_RETURN_UNCLE).toStall().copy(id = "uncle1")
         val stall = StallRegistry.get(StallType.CHICKEN_RICE).toStall().copy(id = "stall1")
 
+        val startPos = AxialCoordinate(1, 1)
+        val endPos = AxialCoordinate(2, 0)
         val hexes = mutableMapOf(
             uncleCoord to HexTile(uncleCoord, TileType.FLOOR, uncle),
             blockCoord to HexTile(blockCoord, TileType.FLOOR),
+            startPos to HexTile(startPos, TileType.START),
+            endPos to HexTile(endPos, TileType.GOAL_TABLE),
             AxialCoordinate(0, 1) to HexTile(AxialCoordinate(0, 1), TileType.PILLAR),
             AxialCoordinate(1, -1) to HexTile(AxialCoordinate(1, -1), TileType.PILLAR),
             AxialCoordinate(0, -1) to HexTile(AxialCoordinate(0, -1), TileType.PILLAR),
@@ -101,8 +105,8 @@ class UndoPathBlockTest {
         viewModel._gameState.value = GameState(
             currentScreen = AppScreen.GAME,
             hexes = hexes,
-            startPosition = AxialCoordinate(-2, 0),
-            endPosition = AxialCoordinate(2, 0),
+            startPosition = startPos,
+            endPosition = endPos,
             gold = 1000,
             lastSoldStall = blockCoord to stall
         )
