@@ -129,12 +129,6 @@ fun StallConsole(
                     StallType.BAK_KUT_TEH -> "Boost"
                     else -> "Damage"
                 }
-                val hungerValue = when (stall.stallType) {
-                    StallType.TEH_TARIK, StallType.TRAY_RETURN_UNCLE -> "${stall.effectDurationMs}ms"
-                    StallType.ICE_KACHANG -> "${stall.freezeDurationMs}ms"
-                    StallType.BAK_KUT_TEH -> "+${stall.damage.toInt()}%"
-                    else -> "${stall.damage.toInt()}"
-                }
                 val hungerLabel = if (stall.stallType == StallType.BAK_KUT_TEH) {
                     if (bktBuffType == com.messark.hawker.model.BktBuffType.HERBAL) "Rate Boost" else "Dmg Boost"
                 } else hungerWord
@@ -147,11 +141,14 @@ fun StallConsole(
                 }
                 StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerDisplayValue)
 
-                StatLine(label = buildInlinedLabel(stall, "Range", "Range"), value = String.format("%.1f", stall.range))
+                val rangeLabel = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost Range" else "Range"
+                StatLine(label = buildInlinedLabel(stall, rangeLabel, "Range"), value = String.format("%.1f", stall.range))
 
-                val rateCategory = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
-                val displayRate = if (stall.stallType == StallType.BAK_KUT_TEH) 0f else (stall.fireRateMs / rateMultiplier) / 1000f
-                StatLine(label = buildInlinedLabel(stall, "Rate", rateCategory), value = String.format("%.1fs", displayRate))
+                if (stall.stallType != StallType.BAK_KUT_TEH) {
+                    val rateLabel = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
+                    val displayRate = (stall.fireRateMs / rateMultiplier) / 1000f
+                    StatLine(label = buildInlinedLabel(stall, rateLabel, rateLabel), value = String.format("%.1fs", displayRate))
+                }
 
                 if (stall.aoeRadius > 0) {
                     StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
