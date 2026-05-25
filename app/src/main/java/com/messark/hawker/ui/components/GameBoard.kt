@@ -121,15 +121,17 @@ private enum class WorldItemType { PILLAR, GOAL_TABLE, STALL, ENEMY }
 private class WorldItem {
     var q: Float = 0f
     var r: Float = 0f
+    var zOrder: Int = 0
     var type: WorldItemType = WorldItemType.PILLAR
     var coord: AxialCoordinate? = null
     var tile: HexTile? = null
     var enemy: Enemy? = null
     var screenPos: Offset = Offset.Zero
 
-    fun set(q: Float, r: Float, type: WorldItemType, coord: AxialCoordinate?, tile: HexTile?, enemy: Enemy?, screenPos: Offset) {
+    fun set(q: Float, r: Float, zOrder: Int, type: WorldItemType, coord: AxialCoordinate?, tile: HexTile?, enemy: Enemy?, screenPos: Offset) {
         this.q = q
         this.r = r
+        this.zOrder = zOrder
         this.type = type
         this.coord = coord
         this.tile = tile
@@ -141,7 +143,9 @@ private class WorldItem {
 private object WorldItemComparator : Comparator<WorldItem> {
     override fun compare(a: WorldItem, b: WorldItem): Int {
         val rComp = a.r.compareTo(b.r)
-        return if (rComp != 0) rComp else a.q.compareTo(b.q)
+        if (rComp != 0) return rComp
+        val zComp = a.zOrder.compareTo(b.zOrder)
+        return if (zComp != 0) zComp else a.q.compareTo(b.q)
     }
 }
 
@@ -338,7 +342,7 @@ fun GameBoard(
                             tile.type is TileType.GOAL_TABLE -> WorldItemType.GOAL_TABLE
                             else -> WorldItemType.STALL
                         }
-                        item.set(coord.q.toFloat(), coord.r.toFloat(), type, coord, tile, null, ctx.toScreen(coord))
+                        item.set(coord.q.toFloat(), coord.r.toFloat(), 2, type, coord, tile, null, ctx.toScreen(coord))
                         activeWorldItems.add(item)
                     }
                 }
@@ -347,7 +351,7 @@ fun GameBoard(
             enemies.forEach { enemy ->
                 if (poolIdx < worldItemPool.size) {
                     val item = worldItemPool[poolIdx++]
-                    item.set(enemy.position.q, enemy.position.r, WorldItemType.ENEMY, null, null, enemy, ctx.toScreenPrecise(enemy.position.q, enemy.position.r))
+                    item.set(enemy.position.q, enemy.position.r, 2, WorldItemType.ENEMY, null, null, enemy, ctx.toScreenPrecise(enemy.position.q, enemy.position.r))
                     activeWorldItems.add(item)
                 }
             }
