@@ -55,207 +55,217 @@ fun GameControlPanel(
         modifier = modifier.background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        if (selectedBoardStall != null) {
-            val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxHeight(),
+            contentAlignment = Alignment.Center
+        ) {
+            val panelHeight = maxHeight
+            val panelWidth = panelHeight * 1.5f
+            val scaleFactor = panelHeight / 160.dp // 160dp is roughly the original height at 0.25f on a 640dp screen
 
-            StallConsole(
-                stall = selectedBoardStall,
-                baseStall = baseStall,
-                gold = gold,
-                onSell = onSellStall,
-                onUpgrade = onUpgradeStall,
-                onCycleTarget = onCycleTargetMode,
-                onStartWave = onStartWave,
-                onTriggerHaptic = onTriggerHaptic,
-                waveActive = waveActive,
-                damageMultiplier = damageMultiplier,
-                rateMultiplier = rateMultiplier,
-                bktBuffType = bktBuffType,
-                modifier = Modifier.fillMaxHeight().aspectRatio(1080f / 720f)
-            )
-        } else {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .aspectRatio(1080f / 720f)
-            ) {
-                val width = maxWidth
-                val height = maxHeight
-                val backgroundImage = ImageBitmap.imageResource(id = R.drawable.control_panel_unselected)
+            if (selectedBoardStall != null) {
+                val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
 
-                // Background Image
-                Image(
-                    bitmap = backgroundImage,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.FillBounds
+                StallConsole(
+                    stall = selectedBoardStall,
+                    baseStall = baseStall,
+                    gold = gold,
+                    onSell = onSellStall,
+                    onUpgrade = onUpgradeStall,
+                    onCycleTarget = onCycleTargetMode,
+                    onStartWave = onStartWave,
+                    onTriggerHaptic = onTriggerHaptic,
+                    waveActive = waveActive,
+                    damageMultiplier = damageMultiplier,
+                    rateMultiplier = rateMultiplier,
+                    bktBuffType = bktBuffType,
+                    modifier = Modifier.fillMaxHeight().width(panelWidth)
                 )
-
-                // BUDGET (Top Left)
-                OutlinedText(
-                    text = "$gold",
-                    fillColor = Color(0xFF00FF00), // Bright Green
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (width * 0.16f), y = (height * 0.15f))
-                )
-
-                // BLUE TITLE BAR (Top Right)
+            } else {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (width * 0.34f), y = (height * 0.08f))
-                        .width(width * 0.58f)
-                        .height(height * 0.08f),
-                    contentAlignment = Alignment.Center
+                        .fillMaxHeight()
+                        .width(panelWidth)
                 ) {
-                    OutlinedText(
-                        text = if (selectedStall != null) selectedStall.name.uppercase() else if (currentWave > 0) "WAVE $currentWave" else "STALL SHOP",
-                        fillColor = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxSize()
+                    val width = panelWidth
+                    val height = panelHeight
+                    val backgroundImage = ImageBitmap.imageResource(id = R.drawable.control_panel_unselected)
+
+                    // Background Image
+                    Image(
+                        bitmap = backgroundImage,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillBounds
                     )
-                }
 
-                // CREAM BOX (Below Blue Bar)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (width * 0.34f), y = (height * 0.18f))
-                        .width(width * 0.58f)
-                        .height(height * 0.12f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (selectedStall != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp)
-                        ) {
-                            Text(
-                                text = selectedStall.description,
-                                color = Color.Black,
-                                fontSize = 10.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Box(
+                    // BUDGET (Top Left)
+                    OutlinedText(
+                        text = "$gold",
+                        fillColor = Color(0xFF00FF00), // Bright Green
+                        fontSize = (20 * scaleFactor).sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = (width * 0.16f), y = (height * 0.15f))
+                    )
+
+                    // BLUE TITLE BAR (Top Right)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = (width * 0.34f), y = (height * 0.08f))
+                            .width(width * 0.58f)
+                            .height(height * 0.08f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        OutlinedText(
+                            text = if (selectedStall != null) selectedStall.name.uppercase() else if (currentWave > 0) "WAVE $currentWave" else "STALL SHOP",
+                            fillColor = Color.White,
+                            fontSize = (16 * scaleFactor).sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    // CREAM BOX (Below Blue Bar)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = (width * 0.34f), y = (height * 0.18f))
+                            .width(width * 0.58f)
+                            .height(height * 0.12f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedStall != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier
-                                    .size(18.dp)
-                                    .border(1.dp, Color.Black, androidx.compose.foundation.shape.CircleShape)
-                                    .clickable {
-                                        onShowStallTutorial(selectedStall.stallType)
-                                        onTriggerHaptic()
-                                    },
-                                contentAlignment = Alignment.Center
+                                    .fillMaxSize()
+                                    .padding(horizontal = 8.dp * scaleFactor)
                             ) {
                                 Text(
-                                    text = "?",
+                                    text = selectedStall.description,
                                     color = Color.Black,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    style = androidx.compose.ui.text.TextStyle(
-                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
-                                            includeFontPadding = false
-                                        )
-                                    ),
-                                    modifier = Modifier.offset(y = (-1).dp)
+                                    fontSize = (10 * scaleFactor).sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp * scaleFactor))
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp * scaleFactor)
+                                        .border((1 * scaleFactor).dp, Color.Black, androidx.compose.foundation.shape.CircleShape)
+                                        .clickable {
+                                            onShowStallTutorial(selectedStall.stallType)
+                                            onTriggerHaptic()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "?",
+                                        color = Color.Black,
+                                        fontSize = (12 * scaleFactor).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        style = androidx.compose.ui.text.TextStyle(
+                                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                                includeFontPadding = false
+                                            )
+                                        ),
+                                        modifier = Modifier.offset(y = (-1 * scaleFactor).dp)
+                                    )
+                                }
+                            }
+                        } else if (score >= 0) {
+                            Text(
+                                text = "SCORE: $score",
+                                color = Color.Black,
+                                fontSize = (14 * scaleFactor).sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(Alignment.CenterVertically)
+                            )
+                        }
+                    }
+
+                    // LARGE CENTRAL CREAM BOX (Stall Selector)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = (width * 0.08f), y = (height * 0.30f))
+                            .width(width * 0.84f)
+                            .height(height * 0.45f)
+                            .padding(8.dp * scaleFactor)
+                    ) {
+                        LazyRow(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp * scaleFactor),
+                            contentPadding = PaddingValues(horizontal = 4.dp * scaleFactor, vertical = 2.dp * scaleFactor)
+                        ) {
+                            items(availableStalls) { stall ->
+                                StallSlot(
+                                    stall = stall,
+                                    isSelected = selectedStall?.id == stall.id,
+                                    canAfford = gold >= stall.cost,
+                                    onClick = { onStallSelected(stall) },
+                                    stallsSheet = stallsSheet,
+                                    scaleFactor = scaleFactor,
+                                    modifier = Modifier.fillMaxHeight()
                                 )
                             }
                         }
-                    } else if (score >= 0) {
-                        Text(
-                            text = "SCORE: $score",
-                            color = Color.Black,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight(Alignment.CenterVertically)
-                        )
                     }
-                }
 
-                // LARGE CENTRAL CREAM BOX (Stall Selector)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (width * 0.08f), y = (height * 0.30f))
-                        .width(width * 0.84f)
-                        .height(height * 0.45f)
-                        .padding(8.dp)
-                ) {
-                    LazyRow(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        items(availableStalls) { stall ->
-                            StallSlot(
-                                stall = stall,
-                                isSelected = selectedStall?.id == stall.id,
-                                canAfford = gold >= stall.cost,
-                                onClick = { onStallSelected(stall) },
-                                stallsSheet = stallsSheet,
-                                modifier = Modifier.fillMaxHeight()
+                    // UNDO BUTTON OVERLAY
+                    if (lastSoldStall != null) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .width(width * 0.4f)
+                                .height(height * 0.2f)
+                                .background(Color.Red.copy(alpha = 0.8f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp * scaleFactor))
+                                .border((2 * scaleFactor).dp, Color.White, androidx.compose.foundation.shape.RoundedCornerShape(8.dp * scaleFactor))
+                                .clickable {
+                                    onTriggerHaptic()
+                                    onUndoSell()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "UNDO!",
+                                color = Color.White,
+                                fontSize = (24 * scaleFactor).sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
-                }
 
-                // UNDO BUTTON OVERLAY
-                if (lastSoldStall != null) {
+                    // START LUNCH RUSH BUTTON (Bottom)
                     Box(
                         modifier = Modifier
-                            .align(Alignment.Center)
-                            .width(width * 0.4f)
-                            .height(height * 0.2f)
-                            .background(Color.Red.copy(alpha = 0.8f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .border(2.dp, Color.White, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .clickable {
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(height * 0.22f)
+                            .clickable(
+                                enabled = !waveActive,
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
                                 onTriggerHaptic()
-                                onUndoSell()
-                            },
-                        contentAlignment = Alignment.Center
+                                onStartWave()
+                            }
                     ) {
-                        Text(
-                            text = "UNDO!",
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // START LUNCH RUSH BUTTON (Bottom)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(height * 0.22f)
-                        .clickable(
-                            enabled = !waveActive,
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            onTriggerHaptic()
-                            onStartWave()
+                        if (waveActive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.3f))
+                            )
                         }
-                ) {
-                    if (waveActive) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f))
-                        )
                     }
                 }
             }

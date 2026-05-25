@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -641,14 +642,30 @@ fun GameScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().offset { IntOffset(shakeOffset.value.x.toInt(), shakeOffset.value.y.toInt()) }
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+
+            // Calculate dynamic height for control panel
+            // Goal: Width = screenWidth + 20px (to allow 10px trim on each side)
+            // Height = Width / 1.5
+            val density = LocalDensity.current
+            val twentyPixelsDp = with(density) { 20.toDp() }
+            val targetWidth = screenWidth + twentyPixelsDp
+            val dynamicPanelHeight = targetWidth / 1.5f
+
+            // Ensure the panel doesn't take up TOO much of the screen, e.g., max 45%
+            val finalPanelHeight = dynamicPanelHeight.coerceAtMost(screenHeight * 0.45f)
+            val boardHeight = screenHeight - finalPanelHeight
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
                 Box(
                     modifier = Modifier
-                        .weight(LayoutConstants.BOARD_HEIGHT_FRACTION)
+                        .height(boardHeight)
+                        .fillMaxWidth()
                         .padding(
                             top = LayoutConstants.BOARD_BORDER_SIZE,
                             start = LayoutConstants.BOARD_BORDER_SIZE,
@@ -830,7 +847,7 @@ fun GameScreen(
                     lastSoldStall = gameState.lastSoldStall,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(LayoutConstants.CONTROL_PANEL_HEIGHT_FRACTION)
+                        .height(finalPanelHeight)
                 )
             }
 
