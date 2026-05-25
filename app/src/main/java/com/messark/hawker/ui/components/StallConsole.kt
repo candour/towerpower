@@ -51,8 +51,7 @@ fun StallConsole(
     BoxWithConstraints(modifier = modifier) {
         val width = maxWidth
         val height = maxHeight
-
-        // Background Image
+        val scaleFactor = height / 160.dp
         Image(
             bitmap = backgroundImage,
             contentDescription = null,
@@ -64,7 +63,7 @@ fun StallConsole(
         OutlinedText(
             text = "$gold",
             fillColor = Color(0xFF00FF00), // Bright Green - budget is usually highlighted this way in game UIs
-            fontSize = 20.sp,
+            fontSize = (20 * scaleFactor).sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -103,10 +102,10 @@ fun StallConsole(
             OutlinedText(
                 text = stall.name.uppercase(),
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
+                fontSize = (16 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = 16.sp // Tighter line height
+                lineHeight = (16 * scaleFactor).sp // Tighter line height
             )
         }
 
@@ -139,19 +138,19 @@ fun StallConsole(
                     StallType.BAK_KUT_TEH -> "+${stall.damage.toInt()}%"
                     else -> "${(stall.damage * damageMultiplier).toInt()}"
                 }
-                StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerDisplayValue)
+                StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerDisplayValue, scaleFactor = scaleFactor)
 
                 val rangeLabel = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost Range" else "Range"
-                StatLine(label = buildInlinedLabel(stall, rangeLabel, "Range"), value = String.format("%.1f", stall.range))
+                StatLine(label = buildInlinedLabel(stall, rangeLabel, "Range"), value = String.format("%.1f", stall.range), scaleFactor = scaleFactor)
 
                 if (stall.stallType != StallType.BAK_KUT_TEH) {
                     val rateLabel = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
                     val displayRate = (stall.fireRateMs / rateMultiplier) / 1000f
-                    StatLine(label = buildInlinedLabel(stall, rateLabel, rateLabel), value = String.format("%.1fs", displayRate))
+                    StatLine(label = buildInlinedLabel(stall, rateLabel, rateLabel), value = String.format("%.1fs", displayRate), scaleFactor = scaleFactor)
                 }
 
                 if (stall.aoeRadius > 0) {
-                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius))
+                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius), scaleFactor = scaleFactor)
                 }
 
                 // Reduced spacing
@@ -168,7 +167,8 @@ fun StallConsole(
                     label = statLabel,
                     value = "$statValue",
                     valueColor = Color(0xFF4CAF50), // Themed Green
-                    outlineColor = Color.Black
+                    outlineColor = Color.Black,
+                    scaleFactor = scaleFactor
                 )
             }
         }
@@ -193,9 +193,9 @@ fun StallConsole(
             OutlinedText(
                 text = "$${(stall.totalInvestment * 0.5f).toInt()}",
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = 12.sp,
+                fontSize = (12 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
             )
         }
 
@@ -219,17 +219,17 @@ fun StallConsole(
                 OutlinedText(
                     text = "$$upgradeCost",
                     fillColor = if (canAffordUpgrade) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
+                    fontSize = (12 * scaleFactor).sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
                 )
             } else {
                 OutlinedText(
                     text = "MAXED",
                     fillColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
+                    fontSize = (12 * scaleFactor).sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
                 )
             }
         }
@@ -252,12 +252,12 @@ fun StallConsole(
             OutlinedText(
                 text = stall.targetMode.name,
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = 11.sp,
+                fontSize = (11 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 16.dp)
-                    .offset(y = (-6).dp) // Moved up by half height (text is approx 11-12sp/dp)
+                    .padding(end = 16.dp * scaleFactor)
+                    .offset(y = (-6 * scaleFactor).dp) // Moved up by half height (text is approx 11-12sp/dp)
             )
         }
 
@@ -295,7 +295,8 @@ fun StatLine(
     labelColor: Color = Color.Black,
     valueColor: Color = Color.Black,
     outlineColor: Color? = null,
-    labelOffset: androidx.compose.ui.unit.Dp = 12.dp
+    labelOffset: androidx.compose.ui.unit.Dp = 12.dp,
+    scaleFactor: Float = 1f
 ) {
     StatLine(
         label = buildAnnotatedString { append(label) },
@@ -303,7 +304,8 @@ fun StatLine(
         labelColor = labelColor,
         valueColor = valueColor,
         outlineColor = outlineColor,
-        labelOffset = labelOffset
+        labelOffset = labelOffset,
+        scaleFactor = scaleFactor
     )
 }
 
@@ -315,7 +317,8 @@ fun StatLine(
     labelColor: Color = Color.Black,
     valueColor: Color = Color.Black,
     outlineColor: Color? = null,
-    labelOffset: androidx.compose.ui.unit.Dp = 12.dp // Approx 2 characters
+    labelOffset: androidx.compose.ui.unit.Dp = 12.dp, // Approx 2 characters
+    scaleFactor: Float = 1f
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -328,25 +331,25 @@ fun StatLine(
                 append(":")
             },
             color = labelColor,
-            fontSize = 9.sp,
-            lineHeight = 9.sp,
-            modifier = Modifier.padding(start = labelOffset)
+            fontSize = (9 * scaleFactor).sp,
+            lineHeight = (9 * scaleFactor).sp,
+            modifier = Modifier.padding(start = labelOffset * scaleFactor)
         )
         if (outlineColor != null) {
             OutlinedText(
                 text = value,
                 fillColor = valueColor,
                 outlineColor = outlineColor,
-                fontSize = 9.sp,
-                lineHeight = 9.sp,
+                fontSize = (9 * scaleFactor).sp,
+                lineHeight = (9 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold
             )
         } else {
             Text(
                 text = value,
                 color = valueColor,
-                fontSize = 9.sp,
-                lineHeight = 9.sp,
+                fontSize = (9 * scaleFactor).sp,
+                lineHeight = (9 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold
             )
         }

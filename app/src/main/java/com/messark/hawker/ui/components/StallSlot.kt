@@ -29,6 +29,7 @@ fun StallSlot(
     canAfford: Boolean,
     onClick: () -> Unit,
     stallsSheet: ImageBitmap,
+    scaleFactor: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     val spriteRect = StallRegistry.get(stall.stallType).spriteRect
@@ -37,16 +38,16 @@ fun StallSlot(
         modifier = modifier
             .aspectRatio(0.7f) // Slightly taller to accommodate text below
             .background(if (isSelected) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f))
-            .border(1.dp, if (isSelected) Color.White else Color.Gray)
+            .border((1 * scaleFactor).dp, if (isSelected) Color.White else Color.Gray)
             .clickable { onClick() }
-            .padding(2.dp),
+            .padding(2.dp * scaleFactor),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Canvas(modifier = Modifier.size(width = 29.dp, height = 39.dp)) {
+            Canvas(modifier = Modifier.size(width = 29.dp * scaleFactor, height = 39.dp * scaleFactor)) {
                 drawImage(
                     image = stallsSheet,
                     srcOffset = spriteRect.topLeft,
@@ -59,14 +60,14 @@ fun StallSlot(
                 )
             }
             Box(
-                modifier = Modifier.height(28.dp),
+                modifier = Modifier.height(28.dp * scaleFactor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stall.name,
                     color = Color.Black,
-                    fontSize = 10.sp,
-                    lineHeight = 12.sp,
+                    fontSize = (10 * scaleFactor).sp,
+                    lineHeight = (12 * scaleFactor).sp,
                     maxLines = 2,
                     textAlign = TextAlign.Center
                 )
@@ -75,7 +76,7 @@ fun StallSlot(
                 text = "\$${stall.cost}",
                 fillColor = if (canAfford) Color(0xFF00DD00) else Color.Red,
                 outlineColor = Color.Black,
-                fontSize = 11.sp,
+                fontSize = (11 * scaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
