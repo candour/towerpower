@@ -335,15 +335,21 @@ fun GameBoard(
 
             hexes.forEach { (coord, tile) ->
                 if (tile.type is TileType.PILLAR || tile.type is TileType.GOAL_TABLE || tile.stall != null) {
+                    val type = when {
+                        tile.type is TileType.PILLAR -> WorldItemType.PILLAR
+                        tile.type is TileType.GOAL_TABLE -> WorldItemType.GOAL_TABLE
+                        else -> WorldItemType.STALL
+                    }
                     if (poolIdx < worldItemPool.size) {
                         val item = worldItemPool[poolIdx++]
-                        val type = when {
-                            tile.type is TileType.PILLAR -> WorldItemType.PILLAR
-                            tile.type is TileType.GOAL_TABLE -> WorldItemType.GOAL_TABLE
-                            else -> WorldItemType.STALL
-                        }
                         item.set(coord.q.toFloat(), coord.r.toFloat(), 2, type, coord, tile, null, ctx.toScreen(coord))
                         activeWorldItems.add(item)
+                    } else {
+                        // Log warning once per frame if pool exhausted
+                        if (poolIdx == worldItemPool.size) {
+                            android.util.Log.w("GameBoard", "WorldItem pool exhausted (size ${worldItemPool.size})")
+                        }
+                        poolIdx++
                     }
                 }
             }
@@ -353,6 +359,11 @@ fun GameBoard(
                     val item = worldItemPool[poolIdx++]
                     item.set(enemy.position.q, enemy.position.r, 2, WorldItemType.ENEMY, null, null, enemy, ctx.toScreenPrecise(enemy.position.q, enemy.position.r))
                     activeWorldItems.add(item)
+                } else {
+                    if (poolIdx == worldItemPool.size) {
+                        android.util.Log.w("GameBoard", "WorldItem pool exhausted (size ${worldItemPool.size})")
+                    }
+                    poolIdx++
                 }
             }
 
