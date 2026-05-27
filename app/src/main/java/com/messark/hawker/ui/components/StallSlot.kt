@@ -37,7 +37,7 @@ fun StallSlot(
 
     Box(
         modifier = modifier
-            .aspectRatio(0.7f) // Slightly taller to accommodate text below
+            .aspectRatio(0.6f) // Slightly taller to accommodate text below
             .background(if (isSelected) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f))
             .border((1 * scaleFactor).dp, if (isSelected) Color.White else Color.Gray)
             .clickable { onClick() }
@@ -61,14 +61,14 @@ fun StallSlot(
                 )
             }
             Box(
-                modifier = Modifier.height(28.dp * scaleFactor),
+                modifier = Modifier.height(34.dp * scaleFactor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stall.name,
                     color = Color.Black,
-                    fontSize = (10 * textScaleFactor).sp,
-                    lineHeight = (12 * textScaleFactor).sp,
+                    fontSize = (9 * textScaleFactor).sp,
+                    lineHeight = (10 * textScaleFactor).sp,
                     maxLines = 2,
                     textAlign = TextAlign.Center
                 )
