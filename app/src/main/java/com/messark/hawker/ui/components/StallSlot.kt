@@ -33,10 +33,11 @@ fun StallSlot(
     modifier: Modifier = Modifier
 ) {
     val spriteRect = StallRegistry.get(stall.stallType).spriteRect
+    val textScaleFactor = 1f + (scaleFactor - 1f) * 0.5f
 
     Box(
         modifier = modifier
-            .aspectRatio(0.7f) // Slightly taller to accommodate text below
+            .aspectRatio(0.6f) // Slightly taller to accommodate text below
             .background(if (isSelected) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f))
             .border((1 * scaleFactor).dp, if (isSelected) Color.White else Color.Gray)
             .clickable { onClick() }
@@ -60,14 +61,14 @@ fun StallSlot(
                 )
             }
             Box(
-                modifier = Modifier.height(28.dp * scaleFactor),
+                modifier = Modifier.height(34.dp * scaleFactor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stall.name,
                     color = Color.Black,
-                    fontSize = (10 * scaleFactor).sp,
-                    lineHeight = (12 * scaleFactor).sp,
+                    fontSize = (9 * textScaleFactor).sp,
+                    lineHeight = (10 * textScaleFactor).sp,
                     maxLines = 2,
                     textAlign = TextAlign.Center
                 )
@@ -76,7 +77,7 @@ fun StallSlot(
                 text = "\$${stall.cost}",
                 fillColor = if (canAfford) Color(0xFF00DD00) else Color.Red,
                 outlineColor = Color.Black,
-                fontSize = (11 * scaleFactor).sp,
+                fontSize = (11 * textScaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
