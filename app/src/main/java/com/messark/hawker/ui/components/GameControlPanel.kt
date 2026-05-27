@@ -62,6 +62,7 @@ fun GameControlPanel(
             val panelHeight = maxHeight
             val panelWidth = panelHeight * 1.5f
             val scaleFactor = panelHeight / 160.dp // 160dp is roughly the original height at 0.25f on a 640dp screen
+            val textScaleFactor = 1f + (scaleFactor - 1f) * 0.5f
 
             if (selectedBoardStall != null) {
                 val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
@@ -103,7 +104,7 @@ fun GameControlPanel(
                     OutlinedText(
                         text = "$gold",
                         fillColor = Color(0xFF00FF00), // Bright Green
-                        fontSize = (20 * scaleFactor).sp,
+                        fontSize = (20 * textScaleFactor).sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -122,7 +123,7 @@ fun GameControlPanel(
                         OutlinedText(
                             text = if (selectedStall != null) selectedStall.name.uppercase() else if (currentWave > 0) "WAVE $currentWave" else "STALL SHOP",
                             fillColor = Color.White,
-                            fontSize = (16 * scaleFactor).sp,
+                            fontSize = (16 * textScaleFactor).sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxSize()
@@ -149,7 +150,7 @@ fun GameControlPanel(
                                 Text(
                                     text = selectedStall.description,
                                     color = Color.Black,
-                                    fontSize = (10 * scaleFactor).sp,
+                                    fontSize = (10 * textScaleFactor).sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
@@ -167,7 +168,7 @@ fun GameControlPanel(
                                     Text(
                                         text = "?",
                                         color = Color.Black,
-                                        fontSize = (12 * scaleFactor).sp,
+                                        fontSize = (12 * textScaleFactor).sp,
                                         fontWeight = FontWeight.Bold,
                                         style = androidx.compose.ui.text.TextStyle(
                                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -182,7 +183,7 @@ fun GameControlPanel(
                             Text(
                                 text = "SCORE: $score",
                                 color = Color.Black,
-                                fontSize = (14 * scaleFactor).sp,
+                                fontSize = (14 * textScaleFactor).sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
@@ -238,7 +239,7 @@ fun GameControlPanel(
                             Text(
                                 text = "UNDO!",
                                 color = Color.White,
-                                fontSize = (24 * scaleFactor).sp,
+                                fontSize = (24 * textScaleFactor).sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }

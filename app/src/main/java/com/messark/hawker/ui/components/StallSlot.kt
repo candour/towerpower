@@ -33,6 +33,7 @@ fun StallSlot(
     modifier: Modifier = Modifier
 ) {
     val spriteRect = StallRegistry.get(stall.stallType).spriteRect
+    val textScaleFactor = 1f + (scaleFactor - 1f) * 0.5f
 
     Box(
         modifier = modifier
@@ -66,8 +67,8 @@ fun StallSlot(
                 Text(
                     text = stall.name,
                     color = Color.Black,
-                    fontSize = (10 * scaleFactor).sp,
-                    lineHeight = (12 * scaleFactor).sp,
+                    fontSize = (10 * textScaleFactor).sp,
+                    lineHeight = (12 * textScaleFactor).sp,
                     maxLines = 2,
                     textAlign = TextAlign.Center
                 )
@@ -76,7 +77,7 @@ fun StallSlot(
                 text = "\$${stall.cost}",
                 fillColor = if (canAfford) Color(0xFF00DD00) else Color.Red,
                 outlineColor = Color.Black,
-                fontSize = (11 * scaleFactor).sp,
+                fontSize = (11 * textScaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )

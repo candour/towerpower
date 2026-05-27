@@ -52,6 +52,7 @@ fun StallConsole(
         val width = maxWidth
         val height = maxHeight
         val scaleFactor = height / 160.dp
+        val textScaleFactor = 1f + (scaleFactor - 1f) * 0.5f
         Image(
             bitmap = backgroundImage,
             contentDescription = null,
@@ -63,7 +64,7 @@ fun StallConsole(
         OutlinedText(
             text = "$gold",
             fillColor = Color(0xFF00FF00), // Bright Green - budget is usually highlighted this way in game UIs
-            fontSize = (20 * scaleFactor).sp,
+            fontSize = (20 * textScaleFactor).sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -102,10 +103,10 @@ fun StallConsole(
             OutlinedText(
                 text = stall.name.uppercase(),
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = (16 * scaleFactor).sp,
+                fontSize = (16 * textScaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = (16 * scaleFactor).sp // Tighter line height
+                lineHeight = (16 * textScaleFactor).sp // Tighter line height
             )
         }
 
@@ -138,19 +139,19 @@ fun StallConsole(
                     StallType.BAK_KUT_TEH -> "+${stall.damage.toInt()}%"
                     else -> "${(stall.damage * damageMultiplier).toInt()}"
                 }
-                StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerDisplayValue, scaleFactor = scaleFactor)
+                StatLine(label = buildInlinedLabel(stall, hungerLabel, hungerCategory), value = hungerDisplayValue, scaleFactor = textScaleFactor)
 
                 val rangeLabel = if (stall.stallType == StallType.BAK_KUT_TEH) "Boost Range" else "Range"
-                StatLine(label = buildInlinedLabel(stall, rangeLabel, "Range"), value = String.format("%.1f", stall.range), scaleFactor = scaleFactor)
+                StatLine(label = buildInlinedLabel(stall, rangeLabel, "Range"), value = String.format("%.1f", stall.range), scaleFactor = textScaleFactor)
 
                 if (stall.stallType != StallType.BAK_KUT_TEH) {
                     val rateLabel = if (stall.stallType == StallType.TRAY_RETURN_UNCLE) "Grab Rate" else "Rate"
                     val displayRate = (stall.fireRateMs / rateMultiplier) / 1000f
-                    StatLine(label = buildInlinedLabel(stall, rateLabel, rateLabel), value = String.format("%.1fs", displayRate), scaleFactor = scaleFactor)
+                    StatLine(label = buildInlinedLabel(stall, rateLabel, rateLabel), value = String.format("%.1fs", displayRate), scaleFactor = textScaleFactor)
                 }
 
                 if (stall.aoeRadius > 0) {
-                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius), scaleFactor = scaleFactor)
+                    StatLine(label = buildInlinedLabel(stall, "Area", "Radius"), value = String.format("%.1f", stall.aoeRadius), scaleFactor = textScaleFactor)
                 }
 
                 // Reduced spacing
@@ -168,7 +169,7 @@ fun StallConsole(
                     value = "$statValue",
                     valueColor = Color(0xFF4CAF50), // Themed Green
                     outlineColor = Color.Black,
-                    scaleFactor = scaleFactor
+                    scaleFactor = textScaleFactor
                 )
             }
         }
@@ -193,7 +194,7 @@ fun StallConsole(
             OutlinedText(
                 text = "$${(stall.totalInvestment * 0.5f).toInt()}",
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = (12 * scaleFactor).sp,
+                fontSize = (12 * textScaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
             )
@@ -219,7 +220,7 @@ fun StallConsole(
                 OutlinedText(
                     text = "$$upgradeCost",
                     fillColor = if (canAffordUpgrade) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                    fontSize = (12 * scaleFactor).sp,
+                    fontSize = (12 * textScaleFactor).sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
                 )
@@ -227,7 +228,7 @@ fun StallConsole(
                 OutlinedText(
                     text = "MAXED",
                     fillColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = (12 * scaleFactor).sp,
+                    fontSize = (12 * textScaleFactor).sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp * scaleFactor)
                 )
@@ -252,7 +253,7 @@ fun StallConsole(
             OutlinedText(
                 text = stall.targetMode.name,
                 fillColor = MaterialTheme.colorScheme.onSurface,
-                fontSize = (11 * scaleFactor).sp,
+                fontSize = (11 * textScaleFactor).sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
