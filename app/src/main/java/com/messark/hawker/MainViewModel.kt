@@ -580,7 +580,6 @@ class MainViewModel @JvmOverloads constructor(
         } else emptyMap()
 
         val buffActions = mutableListOf<Pair<String, String>>() // TigerMomId, TargetEnemyId
-        val stopBuffingIds = mutableSetOf<String>() // TigerMomIds
 
         val initialUpdatedEnemies = state.enemies.mapNotNull { enemy ->
             if (enemy.isDead) return@mapNotNull null
@@ -596,9 +595,6 @@ class MainViewModel @JvmOverloads constructor(
                 if (currentTimeMs >= stall.releaseTimeMs) {
                     // Release enemy logic
                     currentEnemy = releaseEnemy(currentEnemy, stallCoord, state.hexes, state.endPosition)
-                    if (currentEnemy.type == EnemyType.TIGER_MOM && currentEnemy.buffingTargetId != null) {
-                        currentEnemy = currentEnemy.copy(buffingTargetId = null, isStopped = false, stopDurationMs = 0)
-                    }
                     batch.updatedHexes[stallCoord] = tile.copy(stall = stall.copy(heldEnemyId = null))
                     // Continue to move in the same frame
                 } else {
@@ -615,18 +611,9 @@ class MainViewModel @JvmOverloads constructor(
             var speedBoostDuration = maxOf(0, currentEnemy.speedBoostDurationMs - 32)
 
             val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(currentEnemy, currentTimeMs)
-            var isStopped = behaviorUpdatedEnemy.isStopped
-            var stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
-            var lastStopMs = behaviorUpdatedEnemy.lastStopMs
-
-            // Status Check: Tiger Mom target validation
-            if (isStopped && currentEnemy.type == EnemyType.TIGER_MOM && currentEnemy.buffingTargetId != null) {
-                val targetExists = state.enemies.any { it.id == currentEnemy.buffingTargetId && !it.isDead }
-                if (!targetExists) {
-                    stopBuffingIds.add(currentEnemy.id)
-                    isStopped = false
-                }
-            }
+            val isStopped = behaviorUpdatedEnemy.isStopped
+            val stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
+            val lastStopMs = behaviorUpdatedEnemy.lastStopMs
 
             if (isStopped || freezeDuration > 0) {
                 return@mapNotNull currentEnemy.copy(
@@ -710,22 +697,15 @@ class MainViewModel @JvmOverloads constructor(
             nextEnemy
         }
 
-        // Apply Buffs and Cleanups in secondary passes (still within pipeline)
-        return initialUpdatedEnemies.map { e ->
-            var updated = e
-            // Apply new buffs
+        // Apply new buffs from this tick
+        val enemiesWithNewBuffs = initialUpdatedEnemies.map { e ->
             buffActions.find { it.second == e.id }?.let {
-                updated = updated.copy(buffs = updated.buffs + Buff(BuffType.ARMOR, it.first, 0.9f))
-            }
-            // Cleanup expired/stopped Tiger Mom buffs
-            if (stopBuffingIds.contains(e.id)) {
-                updated = updated.copy(buffingTargetId = null)
-            }
-            if (updated.buffs.any { stopBuffingIds.contains(it.sourceId) }) {
-                updated = updated.copy(buffs = updated.buffs.filter { !stopBuffingIds.contains(it.sourceId) })
-            }
-            updated
+                e.copy(buffs = e.buffs + Buff(BuffType.ARMOR, it.first, 0.9f))
+            } ?: e
         }
+
+        // Final comprehensive cleanup pass
+        return cleanupEnemyBuffs(enemiesWithNewBuffs)
     }
 
     /**
@@ -980,17 +960,7 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
 
-        val survivingEnemyLookup = finalEnemies.associateBy { it.id }
-        val fullyUpdatedEnemies = finalEnemies.map { e ->
-            // Clean up buffs: source must be alive, still targeting this enemy, and not grabbed
-            val validBuffs = e.buffs.filter { buff ->
-                val source = survivingEnemyLookup[buff.sourceId]
-                source != null && source.buffingTargetId == e.id && !source.isGrabbed
-            }
-            if (validBuffs.size != e.buffs.size) {
-                e.copy(buffs = validBuffs)
-            } else e
-        }
+        val fullyUpdatedEnemies = cleanupEnemyBuffs(finalEnemies)
 
         return state.copy(
             hexes = updatedHexes,
@@ -1523,6 +1493,51 @@ class MainViewModel @JvmOverloads constructor(
         val rateMultiplier: Float,
         val providerCoords: List<AxialCoordinate>
     )
+
+    /**
+     * Ensures all enemy buffs are valid based on the current state of their sources.
+     * Removes ARMOR buffs if the source Tiger Mom is dead, no longer targeting the enemy, or is grabbed.
+     * Also clears buffingTargetId and stops the stalling behavior if the target no longer exists.
+     */
+    private fun cleanupEnemyBuffs(enemies: List<Enemy>): List<Enemy> {
+        val enemyLookup = enemies.associateBy { it.id }
+        return enemies.map { enemy ->
+            // 1. Clean up ARMOR buffs
+            val validBuffs = enemy.buffs.filter { buff ->
+                if (buff.type == BuffType.ARMOR) {
+                    val source = enemyLookup[buff.sourceId]
+                    // Source must exist, still be targeting this enemy, and NOT be grabbed
+                    source != null && source.buffingTargetId == enemy.id && !source.isGrabbed
+                } else true
+            }
+
+            // 2. Clean up own buffingTargetId if target is gone/dead or we are grabbed
+            var updatedBuffingTargetId = enemy.buffingTargetId
+            var isStopped = enemy.isStopped
+            var stopDurationMs = enemy.stopDurationMs
+
+            if (updatedBuffingTargetId != null) {
+                val target = enemyLookup[updatedBuffingTargetId]
+                val shouldClear = target == null || target.isDead || enemy.isGrabbed
+                if (shouldClear) {
+                    updatedBuffingTargetId = null
+                    if (enemy.type == EnemyType.TIGER_MOM) {
+                        isStopped = false
+                        stopDurationMs = 0L
+                    }
+                }
+            }
+
+            if (validBuffs.size != enemy.buffs.size || updatedBuffingTargetId != enemy.buffingTargetId) {
+                enemy.copy(
+                    buffs = validBuffs,
+                    buffingTargetId = updatedBuffingTargetId,
+                    isStopped = isStopped,
+                    stopDurationMs = stopDurationMs
+                )
+            } else enemy
+        }
+    }
 
     fun calculateStatBoost(coord: AxialCoordinate, hexes: Map<AxialCoordinate, HexTile>, buffType: BktBuffType): BoostResult {
         val adjacentCoords = GridUtils.getNeighbors(coord)
