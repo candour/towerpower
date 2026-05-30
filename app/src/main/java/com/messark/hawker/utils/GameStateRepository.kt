@@ -37,7 +37,8 @@ data class PersistentGameState(
     val currentWave: Int,
     val score: Int,
     val kitchelinStars: Int = 0,
-    val currentLevel: Int = 1
+    val currentLevel: Int = 1,
+    val showGraduationOverlay: Boolean = false
 )
 
 class GameStateRepository(private val context: Context) {
@@ -57,7 +58,8 @@ class GameStateRepository(private val context: Context) {
             currentWave = state.currentWave,
             score = state.score,
             kitchelinStars = state.kitchelinStars,
-            currentLevel = state.currentLevel
+            currentLevel = state.currentLevel,
+            showGraduationOverlay = state.showGraduationOverlay
         )
         file.writeText(gson.toJson(persistentState))
     }
@@ -77,6 +79,7 @@ class GameStateRepository(private val context: Context) {
                 score = persistentState.score,
                 kitchelinStars = persistentState.kitchelinStars,
                 currentLevel = persistentState.currentLevel,
+                showGraduationOverlay = persistentState.showGraduationOverlay,
                 waveActive = false
             )
         } catch (e: Exception) {

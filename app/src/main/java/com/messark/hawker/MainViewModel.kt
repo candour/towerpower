@@ -171,7 +171,10 @@ class MainViewModel @JvmOverloads constructor(
                     gold = 500,
                     score = 0,
                     activeTutorial = tutorialToShow,
-                    currentLevel = 1
+                    currentLevel = 1,
+                    health = 10,
+                    kitchelinStars = 0,
+                    currentWave = 0
                 )
             }
         }
@@ -1012,12 +1015,12 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun graduateToNextLevel() {
+        val dimensions = getLevelDimensions(_gameState.value.currentLevel + 1)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
+
         _gameState.update { state ->
             val nextLevel = state.currentLevel + 1
-            val dimensions = getLevelDimensions(nextLevel)
-            val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
-
-            state.copy(
+            val newState = state.copy(
                 currentLevel = nextLevel,
                 currentWave = 0,
                 gold = 500,
@@ -1033,11 +1036,21 @@ class MainViewModel @JvmOverloads constructor(
                 showGraduationOverlay = false,
                 waveActive = false,
                 goldEarnedThisWave = 0,
-                score = state.score // Keep total score? Or reset? User said "Fresh everything", usually includes score?
-                // But usually in levels you want to see your total score.
-                // "Reset too" for difficulty scaling.
-                // Let's reset score too if it's "Fresh everything".
-            ).copy(score = 0)
+                score = 0,
+                selectedBoardStall = null,
+                selectedStallType = null,
+                lastSoldStall = null,
+                bktToastMessage = null,
+                isRemovePillarModeActive = false,
+                isOutdoorPuddleModeActive = false,
+                freeSpecificUpgrades = 0,
+                activeBudgetBonuses = 0,
+                showUpgradeOverlay = false,
+                showStarActionOverlay = false,
+                activeTutorial = null // Maybe keep or clear? user said "Fresh everything".
+            )
+            gameStateRepository.saveGameState(newState)
+            newState
         }
     }
 
