@@ -1518,7 +1518,7 @@ class MainViewModel @JvmOverloads constructor(
 
             if (updatedBuffingTargetId != null) {
                 val target = enemyLookup[updatedBuffingTargetId]
-                val shouldClear = target == null || enemy.isGrabbed
+                val shouldClear = target == null || target.isDead || enemy.isGrabbed
                 if (shouldClear) {
                     updatedBuffingTargetId = null
                     if (enemy.type == EnemyType.TIGER_MOM) {
