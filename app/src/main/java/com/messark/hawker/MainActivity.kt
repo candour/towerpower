@@ -31,6 +31,7 @@ import android.view.animation.OvershootInterpolator
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -547,6 +548,62 @@ fun GameOverOverlay(
 }
 
 @Composable
+fun GraduationOverlay(
+    level: Int,
+    onGraduate: () -> Unit,
+    onTriggerHaptic: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            .clickable(enabled = true, onClick = {}),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color(0xFF1B5E20), // Dark Green
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(4.dp, Color.Yellow),
+            modifier = Modifier.padding(32.dp).widthIn(max = 400.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "SHIOK! LEVEL $level CLEAR!",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "You graduated to a bigger hawker center! Steady pom pi pi!",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        onTriggerHaptic()
+                        onGraduate()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(64.dp)
+                ) {
+                    Text("HUAT AH!", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun BossWaveOverlay(show: Boolean) {
     AnimatedVisibility(
         visible = show,
@@ -860,6 +917,14 @@ fun GameScreen(
                     showTutorialsSetting = showTutorialsSetting,
                     onToggleTutorialsSetting = { viewModel.updateTutorialsSetting(it) },
                     onDismiss = { viewModel.dismissTutorial() },
+                    onTriggerHaptic = { viewModel.triggerHaptic() }
+                )
+            }
+
+            if (gameState.showGraduationOverlay) {
+                GraduationOverlay(
+                    level = gameState.currentLevel,
+                    onGraduate = { viewModel.graduateToNextLevel() },
                     onTriggerHaptic = { viewModel.triggerHaptic() }
                 )
             }
