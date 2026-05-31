@@ -278,5 +278,7 @@ data class GameState(
     val lastShakeTimeMs: Long = 0,
     val lastSoldStall: Pair<AxialCoordinate, Stall>? = null,
     val bktBuffType: BktBuffType = BktBuffType.MEATY,
-    val bktToastMessage: String? = null
+    val bktToastMessage: String? = null,
+    val currentLevel: Int = 1,
+    val showGraduationOverlay: Boolean = false
 )

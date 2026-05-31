@@ -43,6 +43,20 @@ class MainViewModel @JvmOverloads constructor(
         6 to listOf(EnemyType.SALARYMAN to 4, EnemyType.TOURIST to 2, EnemyType.AUNTIE to 1)
     )
 
+    private val levelConfigs = listOf(
+        6 to 8,
+        6 to 10,
+        6 to 12,
+        6 to 14,
+        6 to 16,
+        8 to 16
+    )
+
+    private fun getLevelDimensions(level: Int): Pair<Int, Int> {
+        val index = (level - 1).coerceIn(0, levelConfigs.size - 1)
+        return levelConfigs[index]
+    }
+
     private val _availableStalls = MutableStateFlow(
         StallRegistry.all().map { it.toStall() }
     )
@@ -60,14 +74,16 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun initializeGame() {
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
+        val dimensions = getLevelDimensions(1)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
 
         _gameState.update { it.copy(
             hexes = hexes,
             startPosition = startPos,
             endPosition = endPos,
             gold = 500, // Start with some gold to place stalls
-            currentScreen = AppScreen.LOADING
+            currentScreen = AppScreen.LOADING,
+            currentLevel = 1
         ) }
     }
 
@@ -127,7 +143,8 @@ class MainViewModel @JvmOverloads constructor(
 
     fun resetGame() {
         gameStateRepository.deleteGameState()
-        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = 8, height = 16, random = random)
+        val dimensions = getLevelDimensions(1)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
 
         viewModelScope.launch {
             val settings = settingsRepository.settingsFlow.first()
@@ -153,7 +170,11 @@ class MainViewModel @JvmOverloads constructor(
                     endPosition = endPos,
                     gold = 500,
                     score = 0,
-                    activeTutorial = tutorialToShow
+                    activeTutorial = tutorialToShow,
+                    currentLevel = 1,
+                    health = 10,
+                    kitchelinStars = 0,
+                    currentWave = 0
                 )
             }
         }
@@ -476,6 +497,8 @@ class MainViewModel @JvmOverloads constructor(
                     }
                 }
 
+                val isGraduating = newState.currentWave == 50
+
                 newState = newState.copy(
                     waveActive = false,
                     isBossWave = false,
@@ -485,7 +508,8 @@ class MainViewModel @JvmOverloads constructor(
                     lastWaveBonusGold = bonusBudget,
                     showBonusMessage = bonusBudget > 0,
                     activeBudgetBonuses = 0,
-                    visualEffects = newState.visualEffects + atmEffects
+                    visualEffects = newState.visualEffects + atmEffects,
+                    showGraduationOverlay = isGraduating
                 )
                 gameStateRepository.saveGameState(newState)
             }
@@ -987,6 +1011,46 @@ class MainViewModel @JvmOverloads constructor(
                 currentSettings.copy(highScores = updatedScores)
             }
             gameStateRepository.deleteGameState()
+        }
+    }
+
+    fun graduateToNextLevel() {
+        val dimensions = getLevelDimensions(_gameState.value.currentLevel + 1)
+        val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
+
+        _gameState.update { state ->
+            val nextLevel = state.currentLevel + 1
+            val newState = state.copy(
+                currentLevel = nextLevel,
+                currentWave = 0,
+                gold = 500,
+                health = 10,
+                kitchelinStars = 0,
+                hexes = hexes,
+                startPosition = startPos,
+                endPosition = endPos,
+                enemies = emptyList(),
+                projectiles = emptyList(),
+                puddles = emptyList(),
+                visualEffects = emptyList(),
+                showGraduationOverlay = false,
+                waveActive = false,
+                goldEarnedThisWave = 0,
+                score = 0,
+                selectedBoardStall = null,
+                selectedStallType = null,
+                lastSoldStall = null,
+                bktToastMessage = null,
+                isRemovePillarModeActive = false,
+                isOutdoorPuddleModeActive = false,
+                freeSpecificUpgrades = 0,
+                activeBudgetBonuses = 0,
+                showUpgradeOverlay = false,
+                showStarActionOverlay = false,
+                activeTutorial = null // Maybe keep or clear? user said "Fresh everything".
+            )
+            gameStateRepository.saveGameState(newState)
+            newState
         }
     }
 
