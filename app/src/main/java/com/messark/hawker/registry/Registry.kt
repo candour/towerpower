@@ -55,21 +55,27 @@ open class DefaultStallBehavior : StallBehavior {
     ): Enemy? {
         val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
 
-        val candidates = when (stall.targetMode) {
-            TargetMode.CLOSEST -> {
-                enemySpatialIndex.findNearby(stallPos, stall.range)
-                    .filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds }
-                    .sortedBy { GridUtils.axialDistance(it.position, stallPos) }
-            }
-            TargetMode.FIRST, TargetMode.STRONGEST, TargetMode.WEAKEST -> {
-                enemiesByMode[stall.targetMode] ?: emptyList()
-            }
+        // 1. Efficiently pre-filter enemies within range using Spatial Index
+        val nearbyEnemies = enemySpatialIndex.findNearby(stallPos, stall.range)
+            .filter { !it.isGrabbed && it.id !in newlyGrabbedEnemyIds }
+
+        if (nearbyEnemies.isEmpty()) return null
+
+        // 2. Filter by Line-of-Sight if the stall is blockable
+        val visibleEnemies = if (stall.isBlockable && obstructions.isNotEmpty()) {
+            nearbyEnemies.filter { !GridUtils.isLineOfSightBlocked(stallCoord, it.position, obstructions) }
+        } else {
+            nearbyEnemies
         }
 
-        return candidates.firstOrNull { enemy ->
-            !enemy.isGrabbed && enemy.id !in newlyGrabbedEnemyIds &&
-                    GridUtils.axialDistance(enemy.position, stallPos) <= stall.range &&
-                    (!stall.isBlockable || !GridUtils.isLineOfSightBlocked(stallCoord, enemy.position, obstructions))
+        if (visibleEnemies.isEmpty()) return null
+
+        // 3. Select best target from visible candidates based on target mode
+        return when (stall.targetMode) {
+            TargetMode.CLOSEST -> visibleEnemies.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
+            TargetMode.FIRST -> visibleEnemies.maxByOrNull { it.currentPathIndex }
+            TargetMode.STRONGEST -> visibleEnemies.maxByOrNull { it.health }
+            TargetMode.WEAKEST -> visibleEnemies.minByOrNull { it.health }
         }
     }
 
