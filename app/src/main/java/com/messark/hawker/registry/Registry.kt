@@ -73,7 +73,10 @@ open class DefaultStallBehavior : StallBehavior {
         // 3. Select best target from visible candidates based on target mode
         return when (stall.targetMode) {
             TargetMode.CLOSEST -> visibleEnemies.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
-            TargetMode.FIRST -> visibleEnemies.maxByOrNull { it.currentPathIndex }
+            TargetMode.FIRST -> {
+                val visibleIds = visibleEnemies.mapTo(mutableSetOf()) { it.id }
+                enemiesByMode[TargetMode.FIRST]?.firstOrNull { it.id in visibleIds }
+            }
             TargetMode.STRONGEST -> visibleEnemies.maxByOrNull { it.health }
             TargetMode.WEAKEST -> visibleEnemies.minByOrNull { it.health }
         }
