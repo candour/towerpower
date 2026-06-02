@@ -747,78 +747,6 @@ fun GameScreen(
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    if (gameState.isRemovePillarModeActive) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.7f),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            ) {
-                                Text(
-                                    text = "SELECT A PILLAR TO REMOVE",
-                                    color = Color.Yellow,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    viewModel.triggerHaptic()
-                                    viewModel.exitRemovePillarMode()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
-                                Spacer(Modifier.width(8.dp))
-                                Text("CANCEL DESTRUCTION", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    if (gameState.isOutdoorPuddleModeActive) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.7f),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            ) {
-                                Text(
-                                    text = "SELECT STARTING OUTDOOR TILE (4 TILES)",
-                                    color = Color.Cyan,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    viewModel.triggerHaptic()
-                                    viewModel.exitOutdoorPuddleMode()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
-                                Spacer(Modifier.width(8.dp))
-                                Text("CANCEL ACTION", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
                     // Kitchelin Stars Display
                     Row(
                         modifier = Modifier
@@ -900,6 +828,10 @@ fun GameScreen(
                     waveActive = gameState.waveActive,
                     damageMultiplier = boostResult?.damageMultiplier ?: 1.0f,
                     rateMultiplier = boostResult?.rateMultiplier ?: 1.0f,
+                    isRemovePillarModeActive = gameState.isRemovePillarModeActive,
+                    isOutdoorPuddleModeActive = gameState.isOutdoorPuddleModeActive,
+                    onExitRemovePillarMode = { viewModel.exitRemovePillarMode() },
+                    onExitOutdoorPuddleMode = { viewModel.exitOutdoorPuddleMode() },
                     bktBuffType = gameState.bktBuffType,
                     lastSoldStall = gameState.lastSoldStall,
                     modifier = Modifier
