@@ -20,8 +20,7 @@ object StallUpgradeManager {
         override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
             val isChickenRiceDPS = stallType == StallType.CHICKEN_RICE && baseCost == 100
             return (1..level).fold(baseValue) { current, l ->
-                val next = if (isChickenRiceDPS) current + 6.0
-                else (current * 1.15).roundToInt().toDouble()
+                val next = (current * 1.15).roundToInt().toDouble()
                 if (l % 10 == 0) (next * 1.25).roundToInt().toDouble() else next
             }
         }
@@ -41,16 +40,16 @@ object StallUpgradeManager {
         override fun calculate(baseValue: Double, level: Int, stallType: StallType, baseCost: Int): Double {
             val rateFloor = when (stallType) {
                 StallType.TRAY_RETURN_UNCLE -> 10000.0
-                StallType.CHICKEN_RICE -> 200.0
+                StallType.CHICKEN_RICE -> 100.0
                 StallType.DURIAN -> 1000.0
                 StallType.SATAY -> 750.0
                 else -> 50.0
             }
             val rateReduction = when (stallType) {
                 StallType.TRAY_RETURN_UNCLE -> 100.0
-                StallType.CHICKEN_RICE -> 15.0
-                StallType.DURIAN -> 50.0
-                StallType.SATAY -> 25.0
+                StallType.CHICKEN_RICE -> 50.0
+                StallType.DURIAN -> 30.0
+                StallType.SATAY -> 50.0
                 else -> baseValue * 0.1
             }
             return (1..level).fold(baseValue) { current, l ->
