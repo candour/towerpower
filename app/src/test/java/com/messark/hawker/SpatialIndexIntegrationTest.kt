@@ -27,6 +27,34 @@ class SpatialIndexIntegrationTest {
     }
 
     @Test
+    fun `test SpatialIndex findNearby with negative coordinates`() {
+        val enemies = listOf(
+            createEnemy("N1", -0.1f, -0.1f), // bucket (-1, -1)
+            createEnemy("N2", -0.9f, -0.9f), // bucket (-1, -1)
+            createEnemy("N3", -1.1f, -1.1f)  // bucket (-2, -2)
+        )
+        val index = SpatialIndex(enemies) { it.position }
+
+        // Center at (-0.5, -0.5), radius 1.5
+        val center = PreciseAxialCoordinate(-0.5f, -0.5f)
+        val nearby = index.findNearby(center, 1.5f)
+
+        assertEquals(3, nearby.size)
+        assertTrue(nearby.any { it.id == "N1" })
+        assertTrue(nearby.any { it.id == "N2" })
+        assertTrue(nearby.any { it.id == "N3" })
+
+        // Check center at (-2.0, -2.0), radius 0.5
+        val nearbyFar = index.findNearby(PreciseAxialCoordinate(-2.0f, -2.0f), 0.5f)
+        assertEquals(0, nearbyFar.size)
+
+        // Check center at (-1.0, -1.0), radius 0.2
+        val nearbyClose = index.findNearby(PreciseAxialCoordinate(-1.1f, -1.1f), 0.1f)
+        assertEquals(1, nearbyClose.size)
+        assertEquals("N3", nearbyClose[0].id)
+    }
+
+    @Test
     fun `test SpatialIndex findNearby`() {
         val enemies = listOf(
             createEnemy("1", 0f, 0f),
