@@ -325,7 +325,35 @@ fun GameBoard(
                     val screenPos = ctx.toScreenPrecise(effect.position.q, effect.position.r)
                     val progress = ((ctx.now - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
                     val alpha = 1f - progress
-                    drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
+
+                    if (effect.sourceStallType == StallType.DURIAN && effect.type == VisualEffectType.EXPANDING_CIRCLE) {
+                        val radius = effect.radius * ctx.wPx
+                        val rx = radius
+                        val ry = radius * rowSpacingFactor
+
+                        drawIntoCanvas { canvas ->
+                            val radialPaint = android.graphics.Paint().apply {
+                                isAntiAlias = true
+                                shader = android.graphics.RadialGradient(
+                                    screenPos.x, screenPos.y, rx,
+                                    intArrayOf(
+                                        effect.color.copy(alpha = effect.color.alpha * alpha).toArgb(),
+                                        effect.color.copy(alpha = effect.color.alpha * alpha * 0.25f).toArgb(),
+                                        android.graphics.Color.TRANSPARENT
+                                    ),
+                                    floatArrayOf(0f, 1f, 1.01f),
+                                    android.graphics.Shader.TileMode.CLAMP
+                                )
+                            }
+                            canvas.nativeCanvas.drawOval(
+                                screenPos.x - rx, screenPos.y - ry,
+                                screenPos.x + rx, screenPos.y + ry,
+                                radialPaint
+                            )
+                        }
+                    } else {
+                        drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
+                    }
                 }
             }
 

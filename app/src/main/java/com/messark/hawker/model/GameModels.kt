@@ -240,7 +240,9 @@ data class VisualEffect(
     val color: Color,
     val startTimeMs: Long,
     val durationMs: Long = 150L,
-    val type: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE
+    val type: VisualEffectType = VisualEffectType.EXPANDING_CIRCLE,
+    val radius: Float = 0f,
+    val sourceStallType: StallType? = null
 )
 
 data class GameState(
