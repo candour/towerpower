@@ -862,7 +862,8 @@ class MainViewModel @JvmOverloads constructor(
         enemySpatialIndex: SpatialIndex<Enemy>
     ): Pair<GameState, Boolean> {
         val finalProjectiles = mutableListOf<Projectile>()
-        val hitEnemiesDetails = mutableMapOf<String, MutableList<Projectile>>()
+        // mapOf(EnemyId to listOf(Pair(Projectile, DistanceFromImpact)))
+        val hitEnemiesDetails = mutableMapOf<String, MutableList<Pair<Projectile, Float>>>()
         val newVisualEffects = state.visualEffects.toMutableList()
         val enemyLookup = state.enemies.associateBy { it.id }
 
@@ -888,20 +889,23 @@ class MainViewModel @JvmOverloads constructor(
                         color = stallDef.visualEffectColor ?: proj.color.copy(alpha = 0.5f),
                         startTimeMs = currentTimeMs,
                         durationMs = stallDef.visualEffectDuration,
-                        type = stallDef.visualEffectType
+                        type = stallDef.visualEffectType,
+                        radius = proj.aoeRadius,
+                        sourceStallType = proj.sourceStallType
                     ))
                 }
 
                 // Collect hits - Direct target first
                 if (proj.targetEnemyId != null && enemyLookup.containsKey(proj.targetEnemyId) && !enemyLookup[proj.targetEnemyId]!!.isGrabbed) {
-                    hitEnemiesDetails.getOrPut(proj.targetEnemyId) { mutableListOf() }.add(proj)
+                    hitEnemiesDetails.getOrPut(proj.targetEnemyId) { mutableListOf() }.add(proj to 0f)
                 }
 
                 // Collect AoE hits
                 if (proj.aoeRadius > 0) {
                     enemySpatialIndex.findNearby(targetPos, proj.aoeRadius).forEach { enemy ->
                         if (enemy.isGrabbed || enemy.id == proj.targetEnemyId) return@forEach
-                        hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj)
+                        val distToImpact = GridUtils.axialDistance(enemy.position, targetPos)
+                        hitEnemiesDetails.getOrPut(enemy.id) { mutableListOf() }.add(proj to distToImpact)
                     }
                 }
             } else {
@@ -932,10 +936,18 @@ class MainViewModel @JvmOverloads constructor(
             var maxFreezeDuration = enemy.freezeDurationMs
             var speedBoostDuration = enemy.speedBoostDurationMs
 
-            hits.forEach { proj ->
+            hits.forEach { (proj, dist) ->
                 if (currentHealth <= 0f) return@forEach
 
                 var damage = proj.damage
+
+                // Apply Durian AoE damage falloff
+                if (proj.sourceStallType == StallType.DURIAN && proj.aoeRadius > 0) {
+                    val ratio = (dist / proj.aoeRadius).coerceIn(0f, 1f)
+                    // damage at edge (ratio=1) is 25% of center (ratio=0)
+                    // Damage = centerDamage * (1 - ratio * 0.75)
+                    damage *= (1f - ratio * 0.75f)
+                }
                 enemy.buffs.forEach { if (it.type == BuffType.ARMOR) damage *= (1.0f - it.value) }
 
                 var freezeDuration = proj.freezeDurationMs

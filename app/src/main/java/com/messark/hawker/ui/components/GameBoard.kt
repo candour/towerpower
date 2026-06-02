@@ -325,7 +325,36 @@ fun GameBoard(
                     val screenPos = ctx.toScreenPrecise(effect.position.q, effect.position.r)
                     val progress = ((ctx.now - effect.startTimeMs).toFloat() / effect.durationMs).coerceIn(0f, 1f)
                     val alpha = 1f - progress
-                    drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
+
+                    if (effect.sourceStallType == StallType.DURIAN && effect.type == VisualEffectType.EXPANDING_CIRCLE) {
+                        val rx = effect.radius * ctx.wPx
+                        val ry = effect.radius * ctx.wPx * GridUtils.ISOMETRIC_Y_FACTOR
+
+                        drawIntoCanvas { canvas ->
+                            canvas.save()
+                            // Scale the canvas vertically to match the isometric projection
+                            // This ensures the RadialGradient is also squashed into an oval
+                            canvas.scale(1f, ry / rx, screenPos.x, screenPos.y)
+
+                            val radialPaint = android.graphics.Paint().apply {
+                                isAntiAlias = true
+                                shader = android.graphics.RadialGradient(
+                                    screenPos.x, screenPos.y, rx,
+                                    intArrayOf(
+                                        effect.color.copy(alpha = effect.color.alpha * alpha).toArgb(),
+                                        effect.color.copy(alpha = effect.color.alpha * alpha * 0.25f).toArgb(),
+                                        android.graphics.Color.TRANSPARENT
+                                    ),
+                                    floatArrayOf(0f, 1f, 1.01f),
+                                    android.graphics.Shader.TileMode.CLAMP
+                                )
+                            }
+                            canvas.nativeCanvas.drawCircle(screenPos.x, screenPos.y, rx, radialPaint)
+                            canvas.restore()
+                        }
+                    } else {
+                        drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
+                    }
                 }
             }
 
