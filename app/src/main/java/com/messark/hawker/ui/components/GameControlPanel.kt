@@ -8,7 +8,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,6 +48,10 @@ fun GameControlPanel(
     waveActive: Boolean,
     damageMultiplier: Float = 1.0f,
     rateMultiplier: Float = 1.0f,
+    isRemovePillarModeActive: Boolean = false,
+    isOutdoorPuddleModeActive: Boolean = false,
+    onExitRemovePillarMode: () -> Unit = {},
+    onExitOutdoorPuddleMode: () -> Unit = {},
     bktBuffType: com.messark.hawker.model.BktBuffType? = null,
     lastSoldStall: Pair<com.messark.hawker.model.AxialCoordinate, Stall>? = null,
     modifier: Modifier = Modifier
@@ -64,7 +71,17 @@ fun GameControlPanel(
             val scaleFactor = panelHeight / 160.dp // 160dp is roughly the original height at 0.25f on a 640dp screen
             val textScaleFactor = 1f + (scaleFactor - 1f) * 0.5f
 
-            if (selectedBoardStall != null) {
+            if (isRemovePillarModeActive || isOutdoorPuddleModeActive) {
+                ActionControlPanel(
+                    isRemovePillarModeActive = isRemovePillarModeActive,
+                    onExitRemovePillarMode = onExitRemovePillarMode,
+                    onExitOutdoorPuddleMode = onExitOutdoorPuddleMode,
+                    onTriggerHaptic = onTriggerHaptic,
+                    scaleFactor = scaleFactor,
+                    textScaleFactor = textScaleFactor,
+                    modifier = Modifier.fillMaxHeight().width(panelWidth)
+                )
+            } else if (selectedBoardStall != null) {
                 val baseStall = availableStalls.find { it.stallType == selectedBoardStall.stallType } ?: selectedBoardStall
 
                 StallConsole(
@@ -269,6 +286,75 @@ fun GameControlPanel(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionControlPanel(
+    isRemovePillarModeActive: Boolean,
+    onExitRemovePillarMode: () -> Unit,
+    onExitOutdoorPuddleMode: () -> Unit,
+    onTriggerHaptic: () -> Unit,
+    scaleFactor: Float,
+    textScaleFactor: Float,
+    modifier: Modifier = Modifier
+) {
+    val backgroundImage = ImageBitmap.imageResource(id = R.drawable.control_panel_unselected)
+
+    Box(modifier = modifier) {
+        Image(
+            bitmap = backgroundImage,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp * scaleFactor),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(8.dp * scaleFactor),
+                modifier = Modifier.padding(bottom = 16.dp * scaleFactor)
+            ) {
+                Text(
+                    text = if (isRemovePillarModeActive) "SELECT A PILLAR TO REMOVE" else "SELECT STARTING OUTDOOR TILE (4 TILES)",
+                    color = if (isRemovePillarModeActive) Color.Yellow else Color.Cyan,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (16 * textScaleFactor).sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp * scaleFactor, vertical = 8.dp * scaleFactor)
+                )
+            }
+
+            Button(
+                onClick = {
+                    onTriggerHaptic()
+                    if (isRemovePillarModeActive) onExitRemovePillarMode() else onExitOutdoorPuddleMode()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                shape = RoundedCornerShape(8.dp * scaleFactor),
+                modifier = Modifier.height(48.dp * scaleFactor)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp * scaleFactor)
+                )
+                Spacer(Modifier.width(8.dp * scaleFactor))
+                Text(
+                    text = if (isRemovePillarModeActive) "CANCEL DESTRUCTION" else "CANCEL ACTION",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (14 * textScaleFactor).sp
+                )
             }
         }
     }
