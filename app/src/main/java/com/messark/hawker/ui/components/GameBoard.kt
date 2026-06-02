@@ -327,11 +327,15 @@ fun GameBoard(
                     val alpha = 1f - progress
 
                     if (effect.sourceStallType == StallType.DURIAN && effect.type == VisualEffectType.EXPANDING_CIRCLE) {
-                        val radius = effect.radius * ctx.wPx
-                        val rx = radius
-                        val ry = radius * rowSpacingFactor
+                        val rx = effect.radius * ctx.wPx
+                        val ry = effect.radius * ctx.wPx * GridUtils.ISOMETRIC_Y_FACTOR
 
                         drawIntoCanvas { canvas ->
+                            canvas.save()
+                            // Scale the canvas vertically to match the isometric projection
+                            // This ensures the RadialGradient is also squashed into an oval
+                            canvas.scale(1f, ry / rx, screenPos.x, screenPos.y)
+
                             val radialPaint = android.graphics.Paint().apply {
                                 isAntiAlias = true
                                 shader = android.graphics.RadialGradient(
@@ -345,11 +349,8 @@ fun GameBoard(
                                     android.graphics.Shader.TileMode.CLAMP
                                 )
                             }
-                            canvas.nativeCanvas.drawOval(
-                                screenPos.x - rx, screenPos.y - ry,
-                                screenPos.x + rx, screenPos.y + ry,
-                                radialPaint
-                            )
+                            canvas.nativeCanvas.drawCircle(screenPos.x, screenPos.y, rx, radialPaint)
+                            canvas.restore()
                         }
                     } else {
                         drawCircle(effect.color.copy(alpha = effect.color.alpha * alpha), ctx.wPx * 1.2f, screenPos)
