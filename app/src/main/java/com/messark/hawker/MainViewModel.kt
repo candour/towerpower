@@ -44,12 +44,11 @@ class MainViewModel @JvmOverloads constructor(
     )
 
     private val levelConfigs = listOf(
-        6 to 8,
-        6 to 10,
-        6 to 12,
-        6 to 14,
-        6 to 16,
-        8 to 16
+        8 to 14,
+        8 to 12,
+        8 to 10,
+        8 to 8,
+        6 to 8
     )
 
     private fun getLevelDimensions(level: Int): Pair<Int, Int> {
