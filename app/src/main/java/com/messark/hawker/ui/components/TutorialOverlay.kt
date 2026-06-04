@@ -173,8 +173,8 @@ fun TutorialOverlay(
                                 val androidDst = android.graphics.RectF(
                                     0f,
                                     0f,
-                                    drawWidth * 1f,
-                                    drawHeight * 1f,
+                                    drawWidth * 2f,
+                                    drawHeight * 2f,
                                 )
                                 canvas.nativeCanvas.drawBitmap(endTableBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
                             }
