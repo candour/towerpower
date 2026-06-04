@@ -161,10 +161,7 @@ fun TutorialOverlay(
                         Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
                             // Empty goal table is the first frame (index 0)
                             val srcRect = IntRect(0, 0, SpriteConstants.END_TABLE_SPRITE_WIDTH, SpriteConstants.END_TABLE_SPRITE_HEIGHT)
-                            //                   2400 / 600 = 4, 1080 / 450 = 2.4
                             val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
-                            //               600 x 450 , 2400 x 1080
-                            //               600 * 2.4 / 2 = 720, 450 * 2.4 / 2 = 540
                             val drawWidth = (srcRect.width * scale) / 2
                             val drawHeight = (srcRect.height * scale) / 2
 
@@ -175,9 +172,9 @@ fun TutorialOverlay(
                                 val androidSrc = android.graphics.Rect(srcRect.left, srcRect.top, srcRect.right, srcRect.bottom)
                                 val androidDst = android.graphics.RectF(
                                     (size.width - drawWidth) / 2f,
-                                    0,
+                                    0f,
                                     (size.width + drawWidth) / 2f,
-                                    drawHeight,
+                                    drawHeight * 1f,
                                 )
                                 canvas.nativeCanvas.drawBitmap(endTableBitmap.asAndroidBitmap(), androidSrc, androidDst, paint)
                             }
