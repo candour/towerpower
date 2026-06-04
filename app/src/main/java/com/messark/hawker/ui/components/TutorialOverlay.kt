@@ -160,10 +160,10 @@ fun TutorialOverlay(
                     } else if (tutorialData.type == TutorialType.GAME_AIM) {
                         Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
                             // Empty goal table is the first frame (index 0)
-                            val srcRect = IntRect(0, 0, SpriteConstants.END_TABLE_SPRITE_WIDTH, SpriteConstants.END_TABLE_SPRITE_HEIGHT)
+                            val srcRect = IntRect(0, 0, SpriteConstants.END_TABLE_SPRITE_WIDTH * 2, SpriteConstants.END_TABLE_SPRITE_HEIGHT * 2)
                             val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
-                            val drawWidth = (srcRect.width * scale) / 2
-                            val drawHeight = (srcRect.height * scale) / 2
+                            val drawWidth = (srcRect.width * scale)
+                            val drawHeight = (srcRect.height * scale)
 
                             drawIntoCanvas { canvas ->
                                 val paint = android.graphics.Paint().apply {
