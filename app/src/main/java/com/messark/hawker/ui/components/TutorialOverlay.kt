@@ -161,7 +161,7 @@ fun TutorialOverlay(
                         Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
                             // Empty goal table is the first frame (index 0)
                             val srcRect = IntRect(0, 0, SpriteConstants.END_TABLE_SPRITE_WIDTH, SpriteConstants.END_TABLE_SPRITE_HEIGHT)
-                            val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height)
+                            val scale = Math.min(size.width / srcRect.width, size.height / srcRect.height) / 2
                             val drawWidth = srcRect.width * scale
                             val drawHeight = srcRect.height * scale
 
