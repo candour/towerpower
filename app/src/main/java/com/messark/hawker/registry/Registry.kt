@@ -20,7 +20,6 @@ interface StallBehavior {
     fun selectTarget(
         stall: Stall,
         stallCoord: AxialCoordinate,
-        enemiesByMode: Map<TargetMode, List<Enemy>>,
         enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
         newlyGrabbedEnemyIds: Set<String>
@@ -48,7 +47,6 @@ open class DefaultStallBehavior : StallBehavior {
     override fun selectTarget(
         stall: Stall,
         stallCoord: AxialCoordinate,
-        enemiesByMode: Map<TargetMode, List<Enemy>>,
         enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
         newlyGrabbedEnemyIds: Set<String>
@@ -73,10 +71,7 @@ open class DefaultStallBehavior : StallBehavior {
         // 3. Select best target from visible candidates based on target mode
         return when (stall.targetMode) {
             TargetMode.CLOSEST -> visibleEnemies.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
-            TargetMode.FIRST -> {
-                val visibleIds = visibleEnemies.mapTo(mutableSetOf()) { it.id }
-                enemiesByMode[TargetMode.FIRST]?.firstOrNull { it.id in visibleIds }
-            }
+            TargetMode.FIRST -> visibleEnemies.maxByOrNull { it.currentPathIndex }
             TargetMode.STRONGEST -> visibleEnemies.maxByOrNull { it.health }
             TargetMode.WEAKEST -> visibleEnemies.minByOrNull { it.health }
         }
