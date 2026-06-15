@@ -34,6 +34,16 @@ class MainViewModel @JvmOverloads constructor(
         EnemyType.TIGER_MOM
     )
 
+    private var stallBoosts = emptyMap<AxialCoordinate, BoostResult>()
+
+    private fun updateBoostCache(state: GameState) {
+        stallBoosts = state.hexes.entries
+            .filter { it.value.stall != null }
+            .associate { (coord, _) ->
+                coord to calculateStatBoost(coord, state.hexes, state.bktBuffType)
+            }
+    }
+
     private val earlyWaveConfigs = mapOf(
         1 to listOf(EnemyType.SALARYMAN to 5),
         2 to listOf(EnemyType.SALARYMAN to 6),
@@ -76,14 +86,18 @@ class MainViewModel @JvmOverloads constructor(
         val dimensions = getLevelDimensions(1)
         val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
 
-        _gameState.update { it.copy(
-            hexes = hexes,
-            startPosition = startPos,
-            endPosition = endPos,
-            gold = 500, // Start with some gold to place stalls
-            currentScreen = AppScreen.LOADING,
-            currentLevel = 1
-        ) }
+        _gameState.update {
+            val newState = it.copy(
+                hexes = hexes,
+                startPosition = startPos,
+                endPosition = endPos,
+                gold = 500, // Start with some gold to place stalls
+                currentScreen = AppScreen.LOADING,
+                currentLevel = 1
+            )
+            updateBoostCache(newState)
+            newState
+        }
     }
 
     fun navigateTo(screen: AppScreen) {
@@ -136,6 +150,7 @@ class MainViewModel @JvmOverloads constructor(
     fun resumeGame() {
         val savedState = gameStateRepository.loadGameState()
         if (savedState != null) {
+            updateBoostCache(savedState)
             _gameState.value = savedState
         }
     }
@@ -162,7 +177,7 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             _gameState.update {
-                GameState(
+                val newState = GameState(
                     currentScreen = AppScreen.GAME,
                     hexes = hexes,
                     startPosition = startPos,
@@ -175,6 +190,8 @@ class MainViewModel @JvmOverloads constructor(
                     kitchelinStars = 0,
                     currentWave = 0
                 )
+                updateBoostCache(newState)
+                newState
             }
         }
     }
@@ -198,13 +215,17 @@ class MainViewModel @JvmOverloads constructor(
             currentState.bktBuffType to null
         }
 
-        _gameState.update { it.copy(
-            goldEarnedThisWave = 0,
-            showBonusMessage = false,
-            lastSoldStall = null,
-            bktBuffType = buffType,
-            bktToastMessage = toast
-        ) }
+        _gameState.update {
+            val newState = it.copy(
+                goldEarnedThisWave = 0,
+                showBonusMessage = false,
+                lastSoldStall = null,
+                bktBuffType = buffType,
+                bktToastMessage = toast
+            )
+            updateBoostCache(newState)
+            newState
+        }
 
         if (toast != null) {
             viewModelScope.launch {
@@ -408,26 +429,11 @@ class MainViewModel @JvmOverloads constructor(
                 hexes = hexesAfterPipeline
             )
 
-            // 3. Prepare Engine Data (Spatial Index, Targeting Lists, Boosts)
+            // 3. Prepare Engine Data (Spatial Index)
             val enemySpatialIndex = SpatialIndex(newState.enemies) { it.position }
-            val enemiesByMode = mapOf(
-                TargetMode.FIRST to newState.enemies.sortedByDescending { it.currentPathIndex },
-                TargetMode.STRONGEST to newState.enemies.sortedByDescending { it.health },
-                TargetMode.WEAKEST to newState.enemies.sortedBy { it.health }
-            )
-
-            val firingStalls = newState.hexes.entries.filter { (_, tile) ->
-                val stall = tile.stall
-                if (stall == null || stall.fireRateMs <= 0 || stall.disabledWaves > 0 || stall.heldEnemyId != null) return@filter false
-                true
-            }
-
-            val preCalculatedBoosts = firingStalls.associate { (coord, _) ->
-                coord to calculateStatBoost(coord, newState.hexes, newState.bktBuffType)
-            }
 
             // 4. Stall Firing
-            newState = handleStallFiring(newState, currentTimeMs, enemySpatialIndex, enemiesByMode, preCalculatedBoosts)
+            newState = handleStallFiring(newState, currentTimeMs, enemySpatialIndex)
 
             // 5. Projectile Movement and Collision
             val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex)
@@ -510,6 +516,7 @@ class MainViewModel @JvmOverloads constructor(
                     visualEffects = newState.visualEffects + atmEffects,
                     showGraduationOverlay = isGraduating
                 )
+                updateBoostCache(newState)
                 gameStateRepository.saveGameState(newState)
             }
 
@@ -742,15 +749,13 @@ class MainViewModel @JvmOverloads constructor(
     private fun handleStallFiring(
         state: GameState,
         currentTimeMs: Long,
-        enemySpatialIndex: SpatialIndex<Enemy>,
-        enemiesByMode: Map<TargetMode, List<Enemy>>,
-        preCalculatedBoosts: Map<AxialCoordinate, BoostResult>
+        enemySpatialIndex: SpatialIndex<Enemy>
     ): GameState {
         val firingStalls = state.hexes.entries.filter { (coord, tile) ->
             val stall = tile.stall
             if (stall == null || stall.fireRateMs <= 0 || stall.disabledWaves > 0 || stall.heldEnemyId != null) return@filter false
 
-            val boostResult = preCalculatedBoosts[coord] ?: return@filter false
+            val boostResult = stallBoosts[coord] ?: return@filter false
             val effectiveFireRate = if (state.bktBuffType == BktBuffType.HERBAL) {
                 (stall.fireRateMs / boostResult.rateMultiplier).toLong()
             } else stall.fireRateMs
@@ -776,10 +781,10 @@ class MainViewModel @JvmOverloads constructor(
             val stallDef = StallRegistry.get(stall.stallType)
 
             val target = stallDef.behavior.selectTarget(
-                stall, coord, enemiesByMode, enemySpatialIndex, obstructions, newlyGrabbedEnemyIds
+                stall, coord, enemySpatialIndex, obstructions, newlyGrabbedEnemyIds
             ) ?: return@forEach
 
-            val boostResult = preCalculatedBoosts[coord]!!
+            val boostResult = stallBoosts[coord]!!
             val damageBoost = boostResult.damageMultiplier
             val durationBoost = boostResult.rateMultiplier
 
@@ -1169,12 +1174,14 @@ class MainViewModel @JvmOverloads constructor(
                     )
 
                     val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                    return@update state.copy(
+                    val newState = state.copy(
                         hexes = newHexes,
                         gold = state.gold - stallToPlace.cost,
                         enemies = updatedEnemies,
                         lastSoldStall = null
                     )
+                    updateBoostCache(newState)
+                    return@update newState
                 }
             }
             state
@@ -1216,13 +1223,15 @@ class MainViewModel @JvmOverloads constructor(
             }
             updatedEnemies = recalculateEnemyPaths(state.copy(enemies = updatedEnemies), blocked, newHexes)
 
-            state.copy(
+            val newState = state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
                 enemies = updatedEnemies,
                 selectedBoardStall = null,
                 lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
+            updateBoostCache(newState)
+            newState
         }
     }
 
@@ -1243,12 +1252,14 @@ class MainViewModel @JvmOverloads constructor(
             newHexes[coord] = tile.copy(stall = stall)
 
             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-            state.copy(
+            val newState = state.copy(
                 hexes = newHexes,
                 gold = state.gold - refund,
                 enemies = updatedEnemies,
                 lastSoldStall = null
             )
+            updateBoostCache(newState)
+            newState
         }
     }
 
@@ -1409,13 +1420,15 @@ class MainViewModel @JvmOverloads constructor(
 
                 success = true
 
-                state.copy(
+                val newState = state.copy(
                     kitchelinStars = state.kitchelinStars - 1,
                     hexes = newHexes,
                     enemies = updatedEnemies,
                     isRemovePillarModeActive = false,
                     lastShakeTimeMs = currentTime
                 )
+                updateBoostCache(newState)
+                newState
             } else state
         }
         if (success) {
@@ -1447,11 +1460,13 @@ class MainViewModel @JvmOverloads constructor(
                 val newHexes = state.hexes.toMutableMap()
                 newHexes[coord] = tile.copy(stall = updatedStall)
 
-                return@update state.copy(
+                val newState = state.copy(
                     hexes = newHexes,
                     gold = state.gold - finalUpgradeCost,
                     freeSpecificUpgrades = if (isSpecific && hasFreeUpgrade) state.freeSpecificUpgrades - 1 else state.freeSpecificUpgrades
                 )
+                updateBoostCache(newState)
+                return@update newState
             }
             state
         }
