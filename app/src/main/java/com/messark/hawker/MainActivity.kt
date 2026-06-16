@@ -840,7 +840,7 @@ fun GameScreen(
                 )
             }
 
-            val showBossWave = gameState.isBossWave && (System.currentTimeMillis() - gameState.bossWaveTriggerTimeMs < 2000)
+            val showBossWave = gameState.isBossWave && (gameState.simulationTimeMs - gameState.bossWaveTriggerTimeMs < 2000)
             BossWaveOverlay(show = showBossWave)
 
             gameState.activeTutorial?.let { tutorial ->
