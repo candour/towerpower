@@ -188,7 +188,9 @@ class MainViewModel @JvmOverloads constructor(
                     currentLevel = 1,
                     health = 10,
                     kitchelinStars = 0,
-                    currentWave = 0
+                    currentWave = 0,
+                    gameSpeed = 1.0f,
+                    simulationTimeMs = 0L
                 )
                 updateBoostCache(newState)
                 newState
@@ -198,6 +200,14 @@ class MainViewModel @JvmOverloads constructor(
 
     fun selectStall(stall: Stall) {
         _gameState.update { it.copy(selectedStallType = stall, lastSoldStall = null) }
+    }
+
+    fun increaseGameSpeed() {
+        _gameState.update { it.copy(gameSpeed = (it.gameSpeed + 0.5f).coerceAtMost(3.0f)) }
+    }
+
+    fun decreaseGameSpeed() {
+        _gameState.update { it.copy(gameSpeed = (it.gameSpeed - 0.5f).coerceAtLeast(0.5f)) }
     }
 
     fun startWave() {
@@ -267,9 +277,9 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun proceedWithWave(newWave: Int, enemyList: List<EnemyType>) {
         val isBossWave = newWave % 10 == 0
-        val currentTime = System.currentTimeMillis()
 
         _gameState.update {
+            val currentTime = it.simulationTimeMs
             it.copy(
                 waveActive = true,
                 currentWave = newWave,
@@ -387,9 +397,9 @@ class MainViewModel @JvmOverloads constructor(
     /**
      * Updates game state by advancing spawning, movement, and combat.
      *
-     * @param currentTimeMs Current game time in milliseconds.
+     * @param realTimeMs Current real time in milliseconds.
      */
-    internal fun updateGame(currentTimeMs: Long) {
+    internal fun updateGame(realTimeMs: Long) {
         var starAwardedOutside = false
         var bonusAwardedOutside = 0
         var hapticRequested = false
@@ -398,6 +408,8 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { state ->
             if (state.activeTutorial != null) return@update state
 
+            val delta = (32 * state.gameSpeed).toLong()
+            val currentTimeMs = state.simulationTimeMs + delta
             val batch = EngineUpdateBatch()
 
             // 0. Expired Transients
@@ -409,14 +421,14 @@ class MainViewModel @JvmOverloads constructor(
                 state.visualEffects.filter { currentTimeMs - it.startTimeMs < it.durationMs }
             } else state.visualEffects
 
-            var newState = state.copy(puddles = puddles, visualEffects = effects)
+            var newState = state.copy(puddles = puddles, visualEffects = effects, simulationTimeMs = currentTimeMs)
 
             // 1. Spawning
             newState = handleSpawning(newState, currentTimeMs)
 
             // 2. Enemy Pipeline (Consolidated Movement and Transients)
             val puddleSpatialIndex = SpatialIndex(newState.puddles) { it.position }
-            val updatedEnemies = handleEnemyPipeline(newState, currentTimeMs, puddleSpatialIndex, batch)
+            val updatedEnemies = handleEnemyPipeline(newState, currentTimeMs, puddleSpatialIndex, batch, delta)
 
             // Apply batch updates from pipeline
             val hexesAfterPipeline = if (batch.updatedHexes.isNotEmpty()) {
@@ -436,7 +448,7 @@ class MainViewModel @JvmOverloads constructor(
             newState = handleStallFiring(newState, currentTimeMs, enemySpatialIndex)
 
             // 5. Projectile Movement and Collision
-            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex)
+            val (projectilesState, hitHaptic) = handleProjectiles(newState, currentTimeMs, enemySpatialIndex, delta)
             newState = projectilesState
             if (hitHaptic) hapticRequested = true
 
@@ -552,13 +564,14 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun handleSpawning(state: GameState, currentTimeMs: Long): GameState {
-        if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs > 1000 && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
+        val spawnInterval = 1000L
+        if (state.waveActive && state.enemiesToSpawn > 0 && currentTimeMs - state.lastSpawnTimeMs >= spawnInterval && state.hexes.isNotEmpty() && state.enemiesToSpawnList.isNotEmpty()) {
             val type = state.enemiesToSpawnList.first()
 
             // One Tiger Mom on board limit
             if (type == EnemyType.TIGER_MOM && state.enemies.any { it.type == EnemyType.TIGER_MOM }) {
                 // Delay spawning by resetting lastSpawnTimeMs to try again next tick
-                return state.copy(lastSpawnTimeMs = currentTimeMs - 500)
+                return state.copy(lastSpawnTimeMs = currentTimeMs - (spawnInterval / 2))
             }
 
             val startPos = state.startPosition ?: return state
@@ -602,7 +615,8 @@ class MainViewModel @JvmOverloads constructor(
         state: GameState,
         currentTimeMs: Long,
         puddleSpatialIndex: SpatialIndex<StickyPuddle>,
-        batch: EngineUpdateBatch
+        batch: EngineUpdateBatch,
+        delta: Long
     ): List<Enemy> {
         val stallCoordMap = if (state.hexes.values.any { it.stall?.heldEnemyId != null }) {
             state.hexes.values.filter { it.stall?.heldEnemyId != null }
@@ -637,10 +651,10 @@ class MainViewModel @JvmOverloads constructor(
 
             // 2. Process Active Enemies
             val enemyDef = EnemyRegistry.get(currentEnemy.type)
-            var freezeDuration = maxOf(0, currentEnemy.freezeDurationMs - 32)
-            var speedBoostDuration = maxOf(0, currentEnemy.speedBoostDurationMs - 32)
+            var freezeDuration = maxOf(0, currentEnemy.freezeDurationMs - delta)
+            var speedBoostDuration = maxOf(0, currentEnemy.speedBoostDurationMs - delta)
 
-            val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(currentEnemy, currentTimeMs)
+            val behaviorUpdatedEnemy = enemyDef.updateSpecialBehavior(currentEnemy, currentTimeMs, delta)
             val isStopped = behaviorUpdatedEnemy.isStopped
             val stopDurationMs = behaviorUpdatedEnemy.stopDurationMs
             val lastStopMs = behaviorUpdatedEnemy.lastStopMs
@@ -694,19 +708,19 @@ class MainViewModel @JvmOverloads constructor(
                 targetPrecise.q + targetPrecise.r / 2f < currentEnemy.position.q + currentEnemy.position.r / 2f
             } else currentEnemy.isFacingLeft
 
-            var nextEnemy = if (dist < effectiveSpeed) {
+            var nextEnemy = if (dist < effectiveSpeed * state.gameSpeed) {
                 currentEnemy.copy(
                     position = targetPrecise, currentPathIndex = targetIndex, currentSpeed = effectiveSpeed,
                     isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs,
                     freezeDurationMs = freezeDuration, speedBoostDurationMs = speedBoostDuration,
-                    animationTimeMs = currentEnemy.animationTimeMs + 32, isFacingLeft = newIsFacingLeft
+                    animationTimeMs = currentEnemy.animationTimeMs + delta, isFacingLeft = newIsFacingLeft
                 )
             } else {
                 currentEnemy.copy(
-                    position = PreciseAxialCoordinate(currentEnemy.position.q + (dq / dist) * effectiveSpeed, currentEnemy.position.r + (dr / dist) * effectiveSpeed),
+                    position = PreciseAxialCoordinate(currentEnemy.position.q + (dq / dist) * effectiveSpeed * state.gameSpeed, currentEnemy.position.r + (dr / dist) * effectiveSpeed * state.gameSpeed),
                     currentSpeed = effectiveSpeed, isStopped = isStopped, stopDurationMs = stopDurationMs, lastStopMs = lastStopMs,
                     freezeDurationMs = freezeDuration, speedBoostDurationMs = speedBoostDuration,
-                    animationTimeMs = currentEnemy.animationTimeMs + 32, isFacingLeft = newIsFacingLeft
+                    animationTimeMs = currentEnemy.animationTimeMs + delta, isFacingLeft = newIsFacingLeft
                 )
             }
 
@@ -863,7 +877,8 @@ class MainViewModel @JvmOverloads constructor(
     private fun handleProjectiles(
         state: GameState,
         currentTimeMs: Long,
-        enemySpatialIndex: SpatialIndex<Enemy>
+        enemySpatialIndex: SpatialIndex<Enemy>,
+        delta: Long
     ): Pair<GameState, Boolean> {
         val finalProjectiles = mutableListOf<Projectile>()
         // mapOf(EnemyId to listOf(Pair(Projectile, DistanceFromImpact)))
@@ -882,8 +897,9 @@ class MainViewModel @JvmOverloads constructor(
             val dq = targetPos.q - proj.position.q
             val dr = targetPos.r - proj.position.r
             val dist = GridUtils.axialDistance(proj.position, targetPos)
+            val effectiveSpeed = proj.speed * state.gameSpeed
 
-            if (dist < proj.speed) {
+            if (dist < effectiveSpeed) {
                 // Visual Effect for AoE
                 if (proj.aoeRadius > 0 && proj.sourceStallType != null) {
                     val stallDef = StallRegistry.get(proj.sourceStallType)
@@ -917,8 +933,8 @@ class MainViewModel @JvmOverloads constructor(
                 finalProjectiles.add(proj.copy(
                     lastPosition = proj.position,
                     position = PreciseAxialCoordinate(
-                        proj.position.q + (dq / dist) * proj.speed,
-                        proj.position.r + (dr / dist) * proj.speed
+                        proj.position.q + (dq / dist) * effectiveSpeed,
+                        proj.position.r + (dr / dist) * effectiveSpeed
                     )
                 ))
             }
@@ -1063,7 +1079,9 @@ class MainViewModel @JvmOverloads constructor(
                 activeBudgetBonuses = 0,
                 showUpgradeOverlay = false,
                 showStarActionOverlay = false,
-                activeTutorial = null // Maybe keep or clear? user said "Fresh everything".
+                activeTutorial = null, // Maybe keep or clear? user said "Fresh everything".
+                gameSpeed = 1.0f,
+                simulationTimeMs = 0L
             )
             gameStateRepository.saveGameState(newState)
             newState

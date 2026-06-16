@@ -282,5 +282,7 @@ data class GameState(
     val bktBuffType: BktBuffType = BktBuffType.MEATY,
     val bktToastMessage: String? = null,
     val currentLevel: Int = 1,
-    val showGraduationOverlay: Boolean = false
+    val showGraduationOverlay: Boolean = false,
+    val gameSpeed: Float = 1.0f,
+    val simulationTimeMs: Long = 0L
 )

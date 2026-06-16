@@ -36,7 +36,7 @@ interface StallBehavior {
 
 interface EnemyBehavior {
     fun getPuddleSlowMultiplier(): Float
-    fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy
+    fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long, delta: Long): Enemy
 }
 
 open class DefaultStallBehavior : StallBehavior {
@@ -240,17 +240,17 @@ class TrayReturnUncleBehavior : DefaultStallBehavior() {
 
 open class DefaultEnemyBehavior : EnemyBehavior {
     override fun getPuddleSlowMultiplier(): Float = 0.6f
-    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy = enemy
+    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long, delta: Long): Enemy = enemy
 }
 
 class TouristEnemyBehavior : DefaultEnemyBehavior() {
-    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy {
+    override fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long, delta: Long): Enemy {
         var isStopped = enemy.isStopped
         var stopDurationMs = enemy.stopDurationMs
         var lastStopMs = if (enemy.lastStopMs == 0L) currentTimeMs else enemy.lastStopMs
 
         if (isStopped) {
-            stopDurationMs -= 32
+            stopDurationMs -= delta
             if (stopDurationMs <= 0) {
                 isStopped = false
                 lastStopMs = currentTimeMs
@@ -357,8 +357,8 @@ data class EnemyDefinition(
         return behavior.getPuddleSlowMultiplier()
     }
 
-    fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long): Enemy {
-        return behavior.updateSpecialBehavior(enemy, currentTimeMs)
+    fun updateSpecialBehavior(enemy: Enemy, currentTimeMs: Long, delta: Long): Enemy {
+        return behavior.updateSpecialBehavior(enemy, currentTimeMs, delta)
     }
 
     fun getHp(wave: Int): Float {
