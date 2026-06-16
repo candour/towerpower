@@ -19,9 +19,14 @@ import org.junit.Test
 class GameSpeedTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    @Before
+    `@Before`
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+    }
+
+    `@After`
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
