@@ -840,7 +840,7 @@ fun GameScreen(
                 )
             }
 
-            val showBossWave = gameState.isBossWave && (System.currentTimeMillis() - gameState.bossWaveTriggerTimeMs < 2000)
+            val showBossWave = gameState.isBossWave && (gameState.simulationTimeMs - gameState.bossWaveTriggerTimeMs < 2000)
             BossWaveOverlay(show = showBossWave)
 
             gameState.activeTutorial?.let { tutorial ->
@@ -904,24 +904,73 @@ fun GameScreen(
                 )
             }
 
-            // Close Button
-            IconButton(
-                onClick = { showExitDialog = true },
+            // Top Controls
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .size(48.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Speed Controls
                 Surface(
-                    shape = androidx.compose.foundation.shape.CircleShape,
+                    shape = RoundedCornerShape(24.dp),
                     color = Color.Black.copy(alpha = 0.5f)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Exit",
-                        tint = Color.White,
-                        modifier = Modifier.padding(8.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                viewModel.triggerHaptic()
+                                viewModel.decreaseGameSpeed()
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text(
+                                text = "–", // En dash for better look
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                viewModel.triggerHaptic()
+                                viewModel.increaseGameSpeed()
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text(
+                                text = "+",
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                // Close Button
+                IconButton(
+                    onClick = { showExitDialog = true },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color.Black.copy(alpha = 0.5f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Exit",
+                            tint = Color.White,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
             }
         }
