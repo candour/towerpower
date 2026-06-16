@@ -362,7 +362,7 @@ data class EnemyDefinition(
     }
 
     fun getHp(wave: Int): Float {
-        return (baseHp * Math.pow(1.1, (wave - 1).toDouble())).toFloat()
+        return (baseHp * Math.pow(1.05, (wave - 1).toDouble())).toFloat()
     }
 
     fun toEnemy(id: String = UUID.randomUUID().toString(), wave: Int, position: PreciseAxialCoordinate, path: List<AxialCoordinate>, isFacingLeft: Boolean): Enemy {
