@@ -101,6 +101,9 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun navigateTo(screen: AppScreen) {
+        if (screen == AppScreen.MAIN_MENU && _gameState.value.currentScreen == AppScreen.GAME) {
+            saveGame()
+        }
         _gameState.update { it.copy(currentScreen = screen) }
     }
 
@@ -193,6 +196,7 @@ class MainViewModel @JvmOverloads constructor(
                     simulationTimeMs = 0L
                 )
                 updateBoostCache(newState)
+                gameStateRepository.saveGameState(newState)
                 newState
             }
         }
@@ -200,6 +204,10 @@ class MainViewModel @JvmOverloads constructor(
 
     fun selectStall(stall: Stall) {
         _gameState.update { it.copy(selectedStallType = stall, lastSoldStall = null) }
+    }
+
+    fun saveGame() {
+        gameStateRepository.saveGameState(_gameState.value)
     }
 
     fun increaseGameSpeed() {
@@ -280,7 +288,7 @@ class MainViewModel @JvmOverloads constructor(
 
         _gameState.update {
             val currentTime = it.simulationTimeMs
-            it.copy(
+            val newState = it.copy(
                 waveActive = true,
                 currentWave = newWave,
                 enemiesToSpawn = enemyList.size,
@@ -289,6 +297,8 @@ class MainViewModel @JvmOverloads constructor(
                 bossWaveTriggerTimeMs = if (isBossWave) currentTime else 0L,
                 lastSpawnTimeMs = currentTime
             )
+            gameStateRepository.saveGameState(newState)
+            newState
         }
     }
 
@@ -1199,6 +1209,7 @@ class MainViewModel @JvmOverloads constructor(
                         lastSoldStall = null
                     )
                     updateBoostCache(newState)
+                    gameStateRepository.saveGameState(newState)
                     return@update newState
                 }
             }
@@ -1249,6 +1260,7 @@ class MainViewModel @JvmOverloads constructor(
                 lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
             updateBoostCache(newState)
+            gameStateRepository.saveGameState(newState)
             newState
         }
     }
@@ -1277,6 +1289,7 @@ class MainViewModel @JvmOverloads constructor(
                 lastSoldStall = null
             )
             updateBoostCache(newState)
+            gameStateRepository.saveGameState(newState)
             newState
         }
     }
@@ -1322,11 +1335,13 @@ class MainViewModel @JvmOverloads constructor(
     fun chooseBudgetBonus() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
-                it.copy(
+                val newState = it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     activeBudgetBonuses = it.activeBudgetBonuses + 1,
                     showStarActionOverlay = false
                 )
+                gameStateRepository.saveGameState(newState)
+                newState
             } else it
         }
     }
@@ -1334,11 +1349,13 @@ class MainViewModel @JvmOverloads constructor(
     fun restoreHealth() {
         _gameState.update {
             if (it.kitchelinStars > 0 && it.health < 10) {
-                it.copy(
+                val newState = it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     health = it.health + 1,
                     showStarActionOverlay = false
                 )
+                gameStateRepository.saveGameState(newState)
+                newState
             } else it
         }
     }
@@ -1346,11 +1363,13 @@ class MainViewModel @JvmOverloads constructor(
     fun chooseFreeUpgrade() {
         _gameState.update {
             if (it.kitchelinStars > 0) {
-                it.copy(
+                val newState = it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     freeSpecificUpgrades = it.freeSpecificUpgrades + 1,
                     showStarActionOverlay = false
                 )
+                gameStateRepository.saveGameState(newState)
+                newState
             } else it
         }
     }
@@ -1414,11 +1433,13 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             success = true
-            state.copy(
+            val newState = state.copy(
                 kitchelinStars = state.kitchelinStars - 2,
                 hexes = newHexes,
                 isOutdoorPuddleModeActive = false
             )
+            gameStateRepository.saveGameState(newState)
+            newState
         }
         if (success) {
             triggerHaptic()
@@ -1446,6 +1467,7 @@ class MainViewModel @JvmOverloads constructor(
                     lastShakeTimeMs = currentTime
                 )
                 updateBoostCache(newState)
+                gameStateRepository.saveGameState(newState)
                 newState
             } else state
         }
@@ -1484,6 +1506,7 @@ class MainViewModel @JvmOverloads constructor(
                     freeSpecificUpgrades = if (isSpecific && hasFreeUpgrade) state.freeSpecificUpgrades - 1 else state.freeSpecificUpgrades
                 )
                 updateBoostCache(newState)
+                gameStateRepository.saveGameState(newState)
                 return@update newState
             }
             state
@@ -1501,7 +1524,11 @@ class MainViewModel @JvmOverloads constructor(
 
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
-        _gameState.update { it.copy(hexes = newHexes, lastSoldStall = null) }
+        _gameState.update {
+            val newState = it.copy(hexes = newHexes, lastSoldStall = null)
+            gameStateRepository.saveGameState(newState)
+            newState
+        }
     }
 
     private fun recalculateEnemyPaths(

@@ -38,7 +38,21 @@ data class PersistentGameState(
     val score: Int,
     val kitchelinStars: Int = 0,
     val currentLevel: Int = 1,
-    val showGraduationOverlay: Boolean = false
+    val showGraduationOverlay: Boolean = false,
+    val simulationTimeMs: Long = 0L,
+    val enemies: List<Enemy> = emptyList(),
+    val projectiles: List<Projectile> = emptyList(),
+    val puddles: List<StickyPuddle> = emptyList(),
+    val visualEffects: List<VisualEffect> = emptyList(),
+    val waveActive: Boolean = false,
+    val enemiesToSpawn: Int = 0,
+    val enemiesToSpawnList: List<EnemyType> = emptyList(),
+    val isBossWave: Boolean = false,
+    val bossWaveTriggerTimeMs: Long = 0L,
+    val lastSpawnTimeMs: Long = 0L,
+    val goldEarnedThisWave: Int = 0,
+    val activeBudgetBonuses: Int = 0,
+    val freeSpecificUpgrades: Int = 0
 )
 
 class GameStateRepository(private val context: Context) {
@@ -59,7 +73,21 @@ class GameStateRepository(private val context: Context) {
             score = state.score,
             kitchelinStars = state.kitchelinStars,
             currentLevel = state.currentLevel,
-            showGraduationOverlay = state.showGraduationOverlay
+            showGraduationOverlay = state.showGraduationOverlay,
+            simulationTimeMs = state.simulationTimeMs,
+            enemies = state.enemies,
+            projectiles = state.projectiles,
+            puddles = state.puddles,
+            visualEffects = state.visualEffects,
+            waveActive = state.waveActive,
+            enemiesToSpawn = state.enemiesToSpawn,
+            enemiesToSpawnList = state.enemiesToSpawnList,
+            isBossWave = state.isBossWave,
+            bossWaveTriggerTimeMs = state.bossWaveTriggerTimeMs,
+            lastSpawnTimeMs = state.lastSpawnTimeMs,
+            goldEarnedThisWave = state.goldEarnedThisWave,
+            activeBudgetBonuses = state.activeBudgetBonuses,
+            freeSpecificUpgrades = state.freeSpecificUpgrades
         )
         file.writeText(gson.toJson(persistentState))
     }
@@ -80,7 +108,20 @@ class GameStateRepository(private val context: Context) {
                 kitchelinStars = persistentState.kitchelinStars,
                 currentLevel = persistentState.currentLevel,
                 showGraduationOverlay = persistentState.showGraduationOverlay,
-                waveActive = false
+                simulationTimeMs = persistentState.simulationTimeMs,
+                enemies = persistentState.enemies ?: emptyList(),
+                projectiles = persistentState.projectiles ?: emptyList(),
+                puddles = persistentState.puddles ?: emptyList(),
+                visualEffects = persistentState.visualEffects ?: emptyList(),
+                waveActive = persistentState.waveActive,
+                enemiesToSpawn = persistentState.enemiesToSpawn,
+                enemiesToSpawnList = persistentState.enemiesToSpawnList ?: emptyList(),
+                isBossWave = persistentState.isBossWave,
+                bossWaveTriggerTimeMs = persistentState.bossWaveTriggerTimeMs,
+                lastSpawnTimeMs = persistentState.lastSpawnTimeMs,
+                goldEarnedThisWave = persistentState.goldEarnedThisWave,
+                activeBudgetBonuses = persistentState.activeBudgetBonuses,
+                freeSpecificUpgrades = persistentState.freeSpecificUpgrades
             )
         } catch (e: Exception) {
             null
