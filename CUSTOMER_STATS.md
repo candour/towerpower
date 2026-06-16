@@ -16,9 +16,9 @@ This document provides a breakdown of the base statistics, scaling, and special 
 
 Customer Health (HP) increases exponentially with each wave to increase difficulty. The formula used is:
 
-**Current HP = Base HP × 1.1<sup>(Wave - 1)</sup>**
+**Current HP = Base HP × 1.07<sup>(Wave - 1)</sup>**
 
-*Example (Auntie at Wave 10): 150 × 1.1<sup>9</sup> ≈ 354 HP*
+*Example (Auntie at Wave 10): 150 × 1.07<sup>9</sup> ≈ 354 HP*
 
 ## Customer Behaviors
 
