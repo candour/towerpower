@@ -196,7 +196,7 @@ class MainViewModel @JvmOverloads constructor(
                     simulationTimeMs = 0L
                 )
                 updateBoostCache(newState)
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 newState
             }
         }
@@ -206,8 +206,10 @@ class MainViewModel @JvmOverloads constructor(
         _gameState.update { it.copy(selectedStallType = stall, lastSoldStall = null) }
     }
 
-    fun saveGame() {
-        gameStateRepository.saveGameState(_gameState.value)
+    fun saveGame(state: GameState = _gameState.value) {
+        viewModelScope.launch(Dispatchers.IO) {
+            gameStateRepository.saveGameState(state)
+        }
     }
 
     fun increaseGameSpeed() {
@@ -297,7 +299,7 @@ class MainViewModel @JvmOverloads constructor(
                 bossWaveTriggerTimeMs = if (isBossWave) currentTime else 0L,
                 lastSpawnTimeMs = currentTime
             )
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
             newState
         }
     }
@@ -539,7 +541,7 @@ class MainViewModel @JvmOverloads constructor(
                     showGraduationOverlay = isGraduating
                 )
                 updateBoostCache(newState)
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
             }
 
             // 6. Game over check
@@ -1093,7 +1095,7 @@ class MainViewModel @JvmOverloads constructor(
                 gameSpeed = 1.0f,
                 simulationTimeMs = 0L
             )
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
             newState
         }
     }
@@ -1209,7 +1211,7 @@ class MainViewModel @JvmOverloads constructor(
                         lastSoldStall = null
                     )
                     updateBoostCache(newState)
-                    gameStateRepository.saveGameState(newState)
+                    saveGame(newState)
                     return@update newState
                 }
             }
@@ -1260,7 +1262,8 @@ class MainViewModel @JvmOverloads constructor(
                 lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
             updateBoostCache(newState)
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
+            saveGame(newState)
             newState
         }
     }
@@ -1289,7 +1292,7 @@ class MainViewModel @JvmOverloads constructor(
                 lastSoldStall = null
             )
             updateBoostCache(newState)
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
             newState
         }
     }
@@ -1340,7 +1343,7 @@ class MainViewModel @JvmOverloads constructor(
                     activeBudgetBonuses = it.activeBudgetBonuses + 1,
                     showStarActionOverlay = false
                 )
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 newState
             } else it
         }
@@ -1354,7 +1357,7 @@ class MainViewModel @JvmOverloads constructor(
                     health = it.health + 1,
                     showStarActionOverlay = false
                 )
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 newState
             } else it
         }
@@ -1368,7 +1371,7 @@ class MainViewModel @JvmOverloads constructor(
                     freeSpecificUpgrades = it.freeSpecificUpgrades + 1,
                     showStarActionOverlay = false
                 )
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 newState
             } else it
         }
@@ -1438,7 +1441,7 @@ class MainViewModel @JvmOverloads constructor(
                 hexes = newHexes,
                 isOutdoorPuddleModeActive = false
             )
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
             newState
         }
         if (success) {
@@ -1467,7 +1470,7 @@ class MainViewModel @JvmOverloads constructor(
                     lastShakeTimeMs = currentTime
                 )
                 updateBoostCache(newState)
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 newState
             } else state
         }
@@ -1506,7 +1509,7 @@ class MainViewModel @JvmOverloads constructor(
                     freeSpecificUpgrades = if (isSpecific && hasFreeUpgrade) state.freeSpecificUpgrades - 1 else state.freeSpecificUpgrades
                 )
                 updateBoostCache(newState)
-                gameStateRepository.saveGameState(newState)
+                saveGame(newState)
                 return@update newState
             }
             state
@@ -1526,7 +1529,7 @@ class MainViewModel @JvmOverloads constructor(
         newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
         _gameState.update {
             val newState = it.copy(hexes = newHexes, lastSoldStall = null)
-            gameStateRepository.saveGameState(newState)
+            saveGame(newState)
             newState
         }
     }
