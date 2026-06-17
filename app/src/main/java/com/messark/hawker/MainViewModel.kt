@@ -144,7 +144,7 @@ class MainViewModel @JvmOverloads constructor(
             gold = base.gold + 5000,
             kitchelinStars = base.kitchelinStars + 1
         )
-        gameStateRepository.saveGameState(cheated)
+        saveGame(cheated)
         if (current.currentScreen == AppScreen.GAME) {
             _gameState.value = cheated
         }
@@ -1262,7 +1262,6 @@ class MainViewModel @JvmOverloads constructor(
                 lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
             updateBoostCache(newState)
-            saveGame(newState)
             saveGame(newState)
             newState
         }
