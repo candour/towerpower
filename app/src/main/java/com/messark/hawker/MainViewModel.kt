@@ -9,6 +9,7 @@ import com.messark.hawker.registry.*
 import com.messark.hawker.utils.*
 import com.messark.hawker.utils.SpatialIndex
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -77,9 +78,20 @@ class MainViewModel @JvmOverloads constructor(
     private val _hapticEvents = MutableSharedFlow<Unit>()
     val hapticEvents: SharedFlow<Unit> = _hapticEvents.asSharedFlow()
 
+    private val saveChannel = Channel<GameState>(Channel.CONFLATED)
+
     init {
         initializeGame()
         startGameLoop()
+        startSaveProcessor()
+    }
+
+    private fun startSaveProcessor() {
+        viewModelScope.launch(Dispatchers.IO) {
+            for (state in saveChannel) {
+                gameStateRepository.saveGameState(state)
+            }
+        }
     }
 
     private fun initializeGame() {
@@ -207,9 +219,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun saveGame(state: GameState = _gameState.value) {
-        viewModelScope.launch(Dispatchers.IO) {
-            gameStateRepository.saveGameState(state)
-        }
+        saveChannel.trySend(state)
     }
 
     fun increaseGameSpeed() {
