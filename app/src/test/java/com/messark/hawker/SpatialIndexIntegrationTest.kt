@@ -96,7 +96,8 @@ class SpatialIndexIntegrationTest {
             enemies = listOf(enemy1, enemy2),
             projectiles = listOf(projectile),
             hexes = initialHexes,
-            waveActive = true
+            waveActive = true,
+            currentScreen = AppScreen.GAME
         )
 
         // Run updateGame

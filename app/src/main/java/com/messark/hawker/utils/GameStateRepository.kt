@@ -36,9 +36,23 @@ data class PersistentGameState(
     val endPosition: AxialCoordinate?,
     val currentWave: Int,
     val score: Int,
-    val kitchelinStars: Int = 0,
-    val currentLevel: Int = 1,
-    val showGraduationOverlay: Boolean = false
+    val kitchelinStars: Int? = 0,
+    val currentLevel: Int? = 1,
+    val showGraduationOverlay: Boolean? = false,
+    val simulationTimeMs: Long? = 0L,
+    val enemies: List<Enemy>? = emptyList(),
+    val projectiles: List<Projectile>? = emptyList(),
+    val puddles: List<StickyPuddle>? = emptyList(),
+    val visualEffects: List<VisualEffect>? = emptyList(),
+    val waveActive: Boolean? = false,
+    val enemiesToSpawn: Int? = 0,
+    val enemiesToSpawnList: List<EnemyType>? = emptyList(),
+    val isBossWave: Boolean? = false,
+    val bossWaveTriggerTimeMs: Long? = 0L,
+    val lastSpawnTimeMs: Long? = 0L,
+    val goldEarnedThisWave: Int? = 0,
+    val activeBudgetBonuses: Int? = 0,
+    val freeSpecificUpgrades: Int? = 0
 )
 
 class GameStateRepository(private val context: Context) {
@@ -48,6 +62,7 @@ class GameStateRepository(private val context: Context) {
         .create()
     private val file = File(context.filesDir, "gamestate.json")
 
+    @Synchronized
     fun saveGameState(state: GameState) {
         val persistentState = PersistentGameState(
             health = state.health,
@@ -59,7 +74,21 @@ class GameStateRepository(private val context: Context) {
             score = state.score,
             kitchelinStars = state.kitchelinStars,
             currentLevel = state.currentLevel,
-            showGraduationOverlay = state.showGraduationOverlay
+            showGraduationOverlay = state.showGraduationOverlay,
+            simulationTimeMs = state.simulationTimeMs,
+            enemies = state.enemies,
+            projectiles = state.projectiles,
+            puddles = state.puddles,
+            visualEffects = state.visualEffects,
+            waveActive = state.waveActive,
+            enemiesToSpawn = state.enemiesToSpawn,
+            enemiesToSpawnList = state.enemiesToSpawnList,
+            isBossWave = state.isBossWave,
+            bossWaveTriggerTimeMs = state.bossWaveTriggerTimeMs,
+            lastSpawnTimeMs = state.lastSpawnTimeMs,
+            goldEarnedThisWave = state.goldEarnedThisWave,
+            activeBudgetBonuses = state.activeBudgetBonuses,
+            freeSpecificUpgrades = state.freeSpecificUpgrades
         )
         file.writeText(gson.toJson(persistentState))
     }
@@ -77,16 +106,30 @@ class GameStateRepository(private val context: Context) {
                 endPosition = persistentState.endPosition,
                 currentWave = persistentState.currentWave,
                 score = persistentState.score,
-                kitchelinStars = persistentState.kitchelinStars,
-                currentLevel = persistentState.currentLevel,
-                showGraduationOverlay = persistentState.showGraduationOverlay,
-                waveActive = false
+                kitchelinStars = persistentState.kitchelinStars ?: 0,
+                currentLevel = persistentState.currentLevel ?: 1,
+                showGraduationOverlay = persistentState.showGraduationOverlay ?: false,
+                simulationTimeMs = persistentState.simulationTimeMs ?: 0L,
+                enemies = persistentState.enemies ?: emptyList(),
+                projectiles = persistentState.projectiles ?: emptyList(),
+                puddles = persistentState.puddles ?: emptyList(),
+                visualEffects = persistentState.visualEffects ?: emptyList(),
+                waveActive = persistentState.waveActive ?: false,
+                enemiesToSpawn = persistentState.enemiesToSpawn ?: 0,
+                enemiesToSpawnList = persistentState.enemiesToSpawnList ?: emptyList(),
+                isBossWave = persistentState.isBossWave ?: false,
+                bossWaveTriggerTimeMs = persistentState.bossWaveTriggerTimeMs ?: 0L,
+                lastSpawnTimeMs = persistentState.lastSpawnTimeMs ?: 0L,
+                goldEarnedThisWave = persistentState.goldEarnedThisWave ?: 0,
+                activeBudgetBonuses = persistentState.activeBudgetBonuses ?: 0,
+                freeSpecificUpgrades = persistentState.freeSpecificUpgrades ?: 0
             )
         } catch (e: Exception) {
             null
         }
     }
 
+    @Synchronized
     fun deleteGameState() {
         if (file.exists()) {
             file.delete()
