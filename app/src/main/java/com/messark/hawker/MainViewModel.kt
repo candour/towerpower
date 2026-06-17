@@ -418,7 +418,7 @@ class MainViewModel @JvmOverloads constructor(
         var gameOverState: GameState? = null
 
         _gameState.update { state ->
-            if (state.activeTutorial != null) return@update state
+            if (state.currentScreen != AppScreen.GAME || state.activeTutorial != null) return@update state
 
             val delta = (32 * state.gameSpeed).toLong()
             val currentTimeMs = state.simulationTimeMs + delta
