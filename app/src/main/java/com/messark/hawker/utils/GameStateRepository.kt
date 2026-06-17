@@ -62,6 +62,7 @@ class GameStateRepository(private val context: Context) {
         .create()
     private val file = File(context.filesDir, "gamestate.json")
 
+    @Synchronized
     fun saveGameState(state: GameState) {
         val persistentState = PersistentGameState(
             health = state.health,
@@ -128,6 +129,7 @@ class GameStateRepository(private val context: Context) {
         }
     }
 
+    @Synchronized
     fun deleteGameState() {
         if (file.exists()) {
             file.delete()

@@ -89,17 +89,21 @@ class MainViewModel @JvmOverloads constructor(
     private fun startSaveProcessor() {
         viewModelScope.launch(Dispatchers.IO) {
             for (state in saveChannel) {
-                gameStateRepository.saveGameState(state)
+                saveGameInternal(state)
             }
         }
+    }
+
+    private fun saveGameInternal(state: GameState) {
+        gameStateRepository.saveGameState(state)
     }
 
     private fun initializeGame() {
         val dimensions = getLevelDimensions(1)
         val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
 
-        _gameState.update {
-            val newState = it.copy(
+        val updatedState = _gameState.updateAndGet {
+            it.copy(
                 hexes = hexes,
                 startPosition = startPos,
                 endPosition = endPos,
@@ -107,16 +111,16 @@ class MainViewModel @JvmOverloads constructor(
                 currentScreen = AppScreen.LOADING,
                 currentLevel = 1
             )
-            updateBoostCache(newState)
-            newState
         }
+        updateBoostCache(updatedState)
     }
 
     fun navigateTo(screen: AppScreen) {
-        if (screen == AppScreen.MAIN_MENU && _gameState.value.currentScreen == AppScreen.GAME) {
-            saveGame()
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { it.copy(currentScreen = screen) }
+        if (screen == AppScreen.MAIN_MENU && prevState.currentScreen == AppScreen.GAME) {
+            saveGame(updatedState)
         }
-        _gameState.update { it.copy(currentScreen = screen) }
     }
 
     fun hideLogo() {
@@ -147,18 +151,21 @@ class MainViewModel @JvmOverloads constructor(
 
     fun applyCheat() {
         val current = _gameState.value
-        val base = if (current.currentScreen == AppScreen.GAME) {
-            current
-        } else {
-            gameStateRepository.loadGameState() ?: return
-        }
-        val cheated = base.copy(
-            gold = base.gold + 5000,
-            kitchelinStars = base.kitchelinStars + 1
-        )
-        saveGame(cheated)
         if (current.currentScreen == AppScreen.GAME) {
-            _gameState.value = cheated
+            val updatedState = _gameState.updateAndGet { state ->
+                state.copy(
+                    gold = state.gold + 5000,
+                    kitchelinStars = state.kitchelinStars + 1
+                )
+            }
+            saveGame(updatedState)
+        } else {
+            val base = gameStateRepository.loadGameState() ?: return
+            val cheated = base.copy(
+                gold = base.gold + 5000,
+                kitchelinStars = base.kitchelinStars + 1
+            )
+            saveGame(cheated)
         }
     }
 
@@ -191,26 +198,24 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
 
-            _gameState.update {
-                val newState = GameState(
-                    currentScreen = AppScreen.GAME,
-                    hexes = hexes,
-                    startPosition = startPos,
-                    endPosition = endPos,
-                    gold = 500,
-                    score = 0,
-                    activeTutorial = tutorialToShow,
-                    currentLevel = 1,
-                    health = 10,
-                    kitchelinStars = 0,
-                    currentWave = 0,
-                    gameSpeed = 1.0f,
-                    simulationTimeMs = 0L
-                )
-                updateBoostCache(newState)
-                saveGame(newState)
-                newState
-            }
+            val newState = GameState(
+                currentScreen = AppScreen.GAME,
+                hexes = hexes,
+                startPosition = startPos,
+                endPosition = endPos,
+                gold = 500,
+                score = 0,
+                activeTutorial = tutorialToShow,
+                currentLevel = 1,
+                health = 10,
+                kitchelinStars = 0,
+                currentWave = 0,
+                gameSpeed = 1.0f,
+                simulationTimeMs = 0L
+            )
+            _gameState.value = newState
+            updateBoostCache(newState)
+            saveGame(newState)
         }
     }
 
@@ -245,17 +250,16 @@ class MainViewModel @JvmOverloads constructor(
             currentState.bktBuffType to null
         }
 
-        _gameState.update {
-            val newState = it.copy(
+        val updatedState = _gameState.updateAndGet {
+            it.copy(
                 goldEarnedThisWave = 0,
                 showBonusMessage = false,
                 lastSoldStall = null,
                 bktBuffType = buffType,
                 bktToastMessage = toast
             )
-            updateBoostCache(newState)
-            newState
         }
+        updateBoostCache(updatedState)
 
         if (toast != null) {
             viewModelScope.launch {
@@ -298,9 +302,9 @@ class MainViewModel @JvmOverloads constructor(
     private fun proceedWithWave(newWave: Int, enemyList: List<EnemyType>) {
         val isBossWave = newWave % 10 == 0
 
-        _gameState.update {
+        val updatedState = _gameState.updateAndGet {
             val currentTime = it.simulationTimeMs
-            val newState = it.copy(
+            it.copy(
                 waveActive = true,
                 currentWave = newWave,
                 enemiesToSpawn = enemyList.size,
@@ -309,9 +313,8 @@ class MainViewModel @JvmOverloads constructor(
                 bossWaveTriggerTimeMs = if (isBossWave) currentTime else 0L,
                 lastSpawnTimeMs = currentTime
             )
-            saveGame(newState)
-            newState
         }
+        saveGame(updatedState)
     }
 
     fun dismissTutorial() {
@@ -427,8 +430,9 @@ class MainViewModel @JvmOverloads constructor(
         var hapticRequested = false
         var gameOverState: GameState? = null
 
-        _gameState.update { state ->
-            if (state.currentScreen != AppScreen.GAME || state.activeTutorial != null) return@update state
+        var shouldSave = false
+        val finalUpdatedState = _gameState.updateAndGet { state ->
+            if (state.currentScreen != AppScreen.GAME || state.activeTutorial != null) return@updateAndGet state
 
             val delta = (32 * state.gameSpeed).toLong()
             val currentTimeMs = state.simulationTimeMs + delta
@@ -551,7 +555,7 @@ class MainViewModel @JvmOverloads constructor(
                     showGraduationOverlay = isGraduating
                 )
                 updateBoostCache(newState)
-                saveGame(newState)
+                shouldSave = true
             }
 
             // 6. Game over check
@@ -560,6 +564,10 @@ class MainViewModel @JvmOverloads constructor(
             }
 
             newState
+        }
+
+        if (shouldSave) {
+            saveGame(finalUpdatedState)
         }
 
         if (hapticRequested) {
@@ -1072,9 +1080,9 @@ class MainViewModel @JvmOverloads constructor(
         val dimensions = getLevelDimensions(_gameState.value.currentLevel + 1)
         val (hexes, startPos, endPos) = MapGenerator.generateRandomVerticalMap(width = dimensions.first, height = dimensions.second, random = random)
 
-        _gameState.update { state ->
+        val updatedState = _gameState.updateAndGet { state ->
             val nextLevel = state.currentLevel + 1
-            val newState = state.copy(
+            state.copy(
                 currentLevel = nextLevel,
                 currentWave = 0,
                 gold = 500 + (state.gold * 0.1f).toInt(),
@@ -1105,9 +1113,8 @@ class MainViewModel @JvmOverloads constructor(
                 gameSpeed = 1.0f,
                 simulationTimeMs = 0L
             )
-            saveGame(newState)
-            newState
         }
+        saveGame(updatedState)
     }
 
     /**
@@ -1199,9 +1206,10 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun handleBuildStall(coord: AxialCoordinate) {
-        _gameState.update { state ->
-            val tile = state.hexes[coord] ?: return@update state
-            val stallToPlace = state.selectedStallType ?: return@update state
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
+            val tile = state.hexes[coord] ?: return@updateAndGet state
+            val stallToPlace = state.selectedStallType ?: return@updateAndGet state
 
             if (state.gold >= stallToPlace.cost && (tile.type == TileType.FLOOR || tile.type == TileType.DRAIN)) {
                 val blocked = validateStallPlacement(coord, stallToPlace, state)
@@ -1214,18 +1222,18 @@ class MainViewModel @JvmOverloads constructor(
                     )
 
                     val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-                    val newState = state.copy(
+                    state.copy(
                         hexes = newHexes,
                         gold = state.gold - stallToPlace.cost,
                         enemies = updatedEnemies,
                         lastSoldStall = null
                     )
-                    updateBoostCache(newState)
-                    saveGame(newState)
-                    return@update newState
-                }
-            }
-            state
+                } else state
+            } else state
+        }
+        if (updatedState !== prevState) {
+            updateBoostCache(updatedState)
+            saveGame(updatedState)
         }
     }
 
@@ -1243,10 +1251,11 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun sellStall() {
-        _gameState.update { state ->
-            val coord = state.selectedBoardStall ?: return@update state
-            val tile = state.hexes[coord] ?: return@update state
-            val stall = tile.stall ?: return@update state
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
+            val coord = state.selectedBoardStall ?: return@updateAndGet state
+            val tile = state.hexes[coord] ?: return@updateAndGet state
+            val stall = tile.stall ?: return@updateAndGet state
 
             val refund = (stall.totalInvestment * 0.5f).toInt()
             val newHexes = state.hexes.toMutableMap()
@@ -1264,45 +1273,48 @@ class MainViewModel @JvmOverloads constructor(
             }
             updatedEnemies = recalculateEnemyPaths(state.copy(enemies = updatedEnemies), blocked, newHexes)
 
-            val newState = state.copy(
+            state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
                 enemies = updatedEnemies,
                 selectedBoardStall = null,
                 lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
             )
-            updateBoostCache(newState)
-            saveGame(newState)
-            newState
+        }
+        if (updatedState !== prevState) {
+            updateBoostCache(updatedState)
+            saveGame(updatedState)
         }
     }
 
     fun undoSell() {
-        _gameState.update { state ->
-            val (coord, stall) = state.lastSoldStall ?: return@update state
-            val tile = state.hexes[coord] ?: return@update state
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
+            val (coord, stall) = state.lastSoldStall ?: return@updateAndGet state
+            val tile = state.hexes[coord] ?: return@updateAndGet state
 
             if (tile.stall != null) {
-                return@update state.copy(lastSoldStall = null)
+                return@updateAndGet state.copy(lastSoldStall = null)
             }
 
             val refund = (stall.totalInvestment * 0.5f).toInt()
-            if (state.gold < refund) return@update state
+            if (state.gold < refund) return@updateAndGet state
 
-            val blocked = validateStallPlacement(coord, stall, state) ?: return@update state
+            val blocked = validateStallPlacement(coord, stall, state) ?: return@updateAndGet state
             val newHexes = state.hexes.toMutableMap()
             newHexes[coord] = tile.copy(stall = stall)
 
             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
-            val newState = state.copy(
+            state.copy(
                 hexes = newHexes,
                 gold = state.gold - refund,
                 enemies = updatedEnemies,
                 lastSoldStall = null
             )
-            updateBoostCache(newState)
-            saveGame(newState)
-            newState
+        }
+        if (updatedState !== prevState) {
+            updateBoostCache(updatedState)
+            saveGame(updatedState)
         }
     }
 
@@ -1345,44 +1357,50 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun chooseBudgetBonus() {
-        _gameState.update {
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet {
             if (it.kitchelinStars > 0) {
-                val newState = it.copy(
+                it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     activeBudgetBonuses = it.activeBudgetBonuses + 1,
                     showStarActionOverlay = false
                 )
-                saveGame(newState)
-                newState
             } else it
+        }
+        if (updatedState !== prevState) {
+            saveGame(updatedState)
         }
     }
 
     fun restoreHealth() {
-        _gameState.update {
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet {
             if (it.kitchelinStars > 0 && it.health < 10) {
-                val newState = it.copy(
+                it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     health = it.health + 1,
                     showStarActionOverlay = false
                 )
-                saveGame(newState)
-                newState
             } else it
+        }
+        if (updatedState !== prevState) {
+            saveGame(updatedState)
         }
     }
 
     fun chooseFreeUpgrade() {
-        _gameState.update {
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet {
             if (it.kitchelinStars > 0) {
-                val newState = it.copy(
+                it.copy(
                     kitchelinStars = it.kitchelinStars - 1,
                     freeSpecificUpgrades = it.freeSpecificUpgrades + 1,
                     showStarActionOverlay = false
                 )
-                saveGame(newState)
-                newState
             } else it
+        }
+        if (updatedState !== prevState) {
+            saveGame(updatedState)
         }
     }
 
@@ -1435,33 +1453,31 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun applyOutdoorPuddles(chain: List<AxialCoordinate>) {
-        var success = false
-        _gameState.update { state ->
-            if (state.kitchelinStars < 2) return@update state
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
+            if (state.kitchelinStars < 2) return@updateAndGet state
 
             val newHexes = state.hexes.toMutableMap()
             chain.forEach { coord ->
                 newHexes[coord] = newHexes[coord]!!.copy(isPermanentlyWet = true)
             }
 
-            success = true
-            val newState = state.copy(
+            state.copy(
                 kitchelinStars = state.kitchelinStars - 2,
                 hexes = newHexes,
                 isOutdoorPuddleModeActive = false
             )
-            saveGame(newState)
-            newState
         }
-        if (success) {
+        if (updatedState !== prevState) {
+            saveGame(updatedState)
             triggerHaptic()
         }
     }
 
     private fun removePillar(coord: AxialCoordinate) {
         val currentTime = System.currentTimeMillis()
-        var success = false
-        _gameState.update { state ->
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
             if (state.kitchelinStars > 0 && state.hexes[coord]?.type == TileType.PILLAR) {
                 val newHexes = state.hexes.toMutableMap()
                 newHexes[coord] = state.hexes[coord]!!.copy(type = TileType.FLOOR)
@@ -1469,39 +1485,37 @@ class MainViewModel @JvmOverloads constructor(
                 val blocked = getBlockedCoordinates(newHexes)
                 val updatedEnemies = recalculateEnemyPaths(state.copy(hexes = newHexes), blocked, newHexes)
 
-                success = true
-
-                val newState = state.copy(
+                state.copy(
                     kitchelinStars = state.kitchelinStars - 1,
                     hexes = newHexes,
                     enemies = updatedEnemies,
                     isRemovePillarModeActive = false,
                     lastShakeTimeMs = currentTime
                 )
-                updateBoostCache(newState)
-                saveGame(newState)
-                newState
             } else state
         }
-        if (success) {
+        if (updatedState !== prevState) {
+            updateBoostCache(updatedState)
+            saveGame(updatedState)
             triggerHaptic()
         }
     }
 
     private fun applyUpgrade(isSpecific: Boolean, specificStat: String? = null) {
-        _gameState.update { state ->
-            val coord = state.selectedBoardStall ?: return@update state
-            val tile = state.hexes[coord] ?: return@update state
-            val stall = tile.stall ?: return@update state
+        val prevState = _gameState.value
+        val updatedState = _gameState.updateAndGet { state ->
+            val coord = state.selectedBoardStall ?: return@updateAndGet state
+            val tile = state.hexes[coord] ?: return@updateAndGet state
+            val stall = tile.stall ?: return@updateAndGet state
 
             val hasFreeUpgrade = state.freeSpecificUpgrades > 0
             val finalUpgradeCost = StallUpgradeManager.calculateUpgradeCost(stall, isSpecific, hasFreeUpgrade)
 
             if (state.gold >= finalUpgradeCost) {
                 val availableStats = StallUpgradeManager.getAvailableUpgradeStats(stall)
-                if (availableStats.isEmpty()) return@update state
+                if (availableStats.isEmpty()) return@updateAndGet state
                 val statToUpgrade = if (isSpecific && specificStat != null) {
-                    if (!availableStats.contains(specificStat)) return@update state
+                    if (!availableStats.contains(specificStat)) return@updateAndGet state
                     specificStat
                 } else {
                     availableStats.random(this@MainViewModel.random)
@@ -1512,16 +1526,16 @@ class MainViewModel @JvmOverloads constructor(
                 val newHexes = state.hexes.toMutableMap()
                 newHexes[coord] = tile.copy(stall = updatedStall)
 
-                val newState = state.copy(
+                state.copy(
                     hexes = newHexes,
                     gold = state.gold - finalUpgradeCost,
                     freeSpecificUpgrades = if (isSpecific && hasFreeUpgrade) state.freeSpecificUpgrades - 1 else state.freeSpecificUpgrades
                 )
-                updateBoostCache(newState)
-                saveGame(newState)
-                return@update newState
-            }
-            state
+            } else state
+        }
+        if (updatedState !== prevState) {
+            updateBoostCache(updatedState)
+            saveGame(updatedState)
         }
     }
 
@@ -1536,11 +1550,10 @@ class MainViewModel @JvmOverloads constructor(
 
         val newHexes = currentState.hexes.toMutableMap()
         newHexes[coord] = tile.copy(stall = stall.copy(targetMode = nextMode))
-        _gameState.update {
-            val newState = it.copy(hexes = newHexes, lastSoldStall = null)
-            saveGame(newState)
-            newState
+        val updatedState = _gameState.updateAndGet {
+            it.copy(hexes = newHexes, lastSoldStall = null)
         }
+        saveGame(updatedState)
     }
 
     private fun recalculateEnemyPaths(
