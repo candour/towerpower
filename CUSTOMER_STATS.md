@@ -18,7 +18,7 @@ Customer Health (HP) increases exponentially with each wave to increase difficul
 
 **Current HP = Base HP × 1.07<sup>(Wave - 1)</sup>**
 
-*Example (Auntie at Wave 10): 150 × 1.07<sup>9</sup> ≈ 354 HP*
+*Example (Auntie at Wave 10): 135 × 1.07<sup>9</sup> ≈ 248 HP*
 
 ## Customer Behaviors
 

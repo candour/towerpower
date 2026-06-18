@@ -72,7 +72,7 @@ This document provides a comprehensive guide for AI agents working on the Hawker
 
 ### Customers & Difficulty
 - **Variants:** Salaryman (Fast), Tourist (Stops), Auntie (Tank), Delivery Rider (Boss).
-- **Spawning:** Uses a Difficulty Budget system. HP increases by 10% per wave (`BaseHP * 1.1^(W-1)`).
+- **Spawning:** Uses a Difficulty Budget system. HP increases by 7% per wave (`BaseHP * 1.07^(W-1)`).
 - **Boss Waves:** Occur every 10 levels. Trigger a 2-second 'BOSS WAVE' UI overlay.
 - **Tutorial System:** Tracks seen entities (customers, etc.) and key game milestones (e.g., earning the first Kitchelin Star) globally in `Settings.shownTutorials`. Triggers during `MainViewModel.startWave()` for new entities or `updateGame()` for milestones, pausing the game by setting `GameState.activeTutorial` and requiring dismissal via `MainViewModel.dismissTutorial()`.
 
