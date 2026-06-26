@@ -65,6 +65,7 @@ class StallStatsTest {
 
         // Set up initial state manually
         viewModel._gameState.value = GameState(
+            currentScreen = AppScreen.GAME,
             hexes = mapOf(stallCoord to HexTile(stallCoord, TileType.FLOOR, stall)),
             enemies = listOf(enemy),
             projectiles = listOf(
@@ -144,6 +145,7 @@ class StallStatsTest {
 
         // Projectile from OLD stall
         viewModel._gameState.value = GameState(
+            currentScreen = AppScreen.GAME,
             hexes = mapOf(stallCoord to HexTile(stallCoord, TileType.FLOOR, newStall)), // NEW stall already there
             enemies = listOf(enemy),
             projectiles = listOf(

@@ -55,6 +55,7 @@ class UndeadEnemyTest {
         val buffedEnemy = enemy.copy(buffs = listOf(Buff(BuffType.ARMOR, "source", 0.9f)))
 
         viewModel._gameState.value = GameState(
+            currentScreen = AppScreen.GAME,
             enemies = listOf(buffedEnemy),
             projectiles = listOf(
                 Projectile(
