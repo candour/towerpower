@@ -354,11 +354,12 @@ class MainViewModel @JvmOverloads constructor(
         var budget = 883.0 // Base budget for Wave 6: (4*80 + 2*161 + 1*241)
         for (i in 7..wave) {
             if (i % 10 == 0) {
-                budget *= 1.44 // Boss wave budget jump (1.2 * 1.2)
+                budget *= 1.14 // Boss wave budget jump (1.07 * 1.07)
             } else if ((i - 1) % 10 == 0) {
                 budget *= 1.0 // Plateau after boss wave
             } else {
-                budget *= 1.2
+                // Important to keep in sync so the level doesn't go on forever
+                budget *= 1.07 // 0.01 more than the customers increase by
             }
         }
 
@@ -368,8 +369,8 @@ class MainViewModel @JvmOverloads constructor(
         val maxTierIndex = minOf((wave - 1) / 2, enemyTiers.size - 1)
         var allowedTiers = enemyTiers.subList(0, maxTierIndex + 1)
 
-        // Only allow Delivery Riders in boss waves until level 30
-        if (wave <= 30 && wave % 10 != 0) {
+        // Only allow Delivery Riders in boss waves until level 20
+        if (wave <= 21 && wave % 10 != 0) {
             allowedTiers = allowedTiers.filter { it != EnemyType.DELIVERY_RIDER }
         }
 
