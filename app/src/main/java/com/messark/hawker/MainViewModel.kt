@@ -109,7 +109,8 @@ class MainViewModel @JvmOverloads constructor(
                 endPosition = endPos,
                 gold = 500, // Start with some gold to place stalls
                 currentScreen = AppScreen.LOADING,
-                currentLevel = 1
+                currentLevel = 1,
+                pathDistances = Pathfinding.calculateAllDistances(endPos, getBlockedCoordinates(hexes), hexes.keys)
             )
         }
         updateBoostCache(updatedState)
@@ -172,8 +173,12 @@ class MainViewModel @JvmOverloads constructor(
     fun resumeGame() {
         val savedState = gameStateRepository.loadGameState()
         if (savedState != null) {
-            updateBoostCache(savedState)
-            _gameState.value = savedState
+            val endPos = savedState.endPosition
+            val finalState = if (endPos != null) {
+                savedState.copy(pathDistances = Pathfinding.calculateAllDistances(endPos, getBlockedCoordinates(savedState.hexes), savedState.hexes.keys))
+            } else savedState
+            updateBoostCache(finalState)
+            _gameState.value = finalState
         }
     }
 
@@ -211,7 +216,8 @@ class MainViewModel @JvmOverloads constructor(
                 kitchelinStars = 0,
                 currentWave = 0,
                 gameSpeed = 1.0f,
-                simulationTimeMs = 0L
+                simulationTimeMs = 0L,
+                pathDistances = Pathfinding.calculateAllDistances(endPos, getBlockedCoordinates(hexes), hexes.keys)
             )
             _gameState.value = newState
             updateBoostCache(newState)
@@ -826,7 +832,7 @@ class MainViewModel @JvmOverloads constructor(
             val stallDef = StallRegistry.get(stall.stallType)
 
             val target = stallDef.behavior.selectTarget(
-                stall, coord, enemySpatialIndex, obstructions, newlyGrabbedEnemyIds
+                stall, coord, enemySpatialIndex, obstructions, newlyGrabbedEnemyIds, state.pathDistances
             ) ?: return@forEach
 
             val boostResult = stallBoosts[coord]!!
@@ -1112,7 +1118,8 @@ class MainViewModel @JvmOverloads constructor(
                 showStarActionOverlay = false,
                 activeTutorial = null, // Maybe keep or clear? user said "Fresh everything".
                 gameSpeed = 1.0f,
-                simulationTimeMs = 0L
+                simulationTimeMs = 0L,
+                pathDistances = Pathfinding.calculateAllDistances(endPos, getBlockedCoordinates(hexes), hexes.keys)
             )
         }
         saveGame(updatedState)
@@ -1223,11 +1230,13 @@ class MainViewModel @JvmOverloads constructor(
                     )
 
                     val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+                    val endPos = state.endPosition!!
                     state.copy(
                         hexes = newHexes,
                         gold = state.gold - stallToPlace.cost,
                         enemies = updatedEnemies,
-                        lastSoldStall = null
+                        lastSoldStall = null,
+                        pathDistances = Pathfinding.calculateAllDistances(endPos, blocked, newHexes.keys)
                     )
                 } else state
             } else state
@@ -1273,13 +1282,15 @@ class MainViewModel @JvmOverloads constructor(
                 }
             }
             updatedEnemies = recalculateEnemyPaths(state.copy(enemies = updatedEnemies), blocked, newHexes)
+            val endPos = state.endPosition!!
 
             state.copy(
                 hexes = newHexes,
                 gold = state.gold + refund,
                 enemies = updatedEnemies,
                 selectedBoardStall = null,
-                lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L)
+                lastSoldStall = coord to stall.copy(heldEnemyId = null, releaseTimeMs = 0L),
+                pathDistances = Pathfinding.calculateAllDistances(endPos, blocked, newHexes.keys)
             )
         }
         if (updatedState !== prevState) {
@@ -1306,11 +1317,13 @@ class MainViewModel @JvmOverloads constructor(
             newHexes[coord] = tile.copy(stall = stall)
 
             val updatedEnemies = recalculateEnemyPaths(state, blocked, newHexes)
+            val endPos = state.endPosition!!
             state.copy(
                 hexes = newHexes,
                 gold = state.gold - refund,
                 enemies = updatedEnemies,
-                lastSoldStall = null
+                lastSoldStall = null,
+                pathDistances = Pathfinding.calculateAllDistances(endPos, blocked, newHexes.keys)
             )
         }
         if (updatedState !== prevState) {
@@ -1485,13 +1498,15 @@ class MainViewModel @JvmOverloads constructor(
 
                 val blocked = getBlockedCoordinates(newHexes)
                 val updatedEnemies = recalculateEnemyPaths(state.copy(hexes = newHexes), blocked, newHexes)
+                val endPos = state.endPosition!!
 
                 state.copy(
                     kitchelinStars = state.kitchelinStars - 1,
                     hexes = newHexes,
                     enemies = updatedEnemies,
                     isRemovePillarModeActive = false,
-                    lastShakeTimeMs = currentTime
+                    lastShakeTimeMs = currentTime,
+                    pathDistances = Pathfinding.calculateAllDistances(endPos, blocked, newHexes.keys)
                 )
             } else state
         }

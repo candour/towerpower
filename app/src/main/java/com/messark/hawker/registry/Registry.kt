@@ -22,7 +22,8 @@ interface StallBehavior {
         stallCoord: AxialCoordinate,
         enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
-        newlyGrabbedEnemyIds: Set<String>
+        newlyGrabbedEnemyIds: Set<String>,
+        pathDistances: Map<AxialCoordinate, Int>
     ): Enemy?
     fun fire(
         stallDefinition: StallDefinition,
@@ -49,7 +50,8 @@ open class DefaultStallBehavior : StallBehavior {
         stallCoord: AxialCoordinate,
         enemySpatialIndex: com.messark.hawker.utils.SpatialIndex<Enemy>,
         obstructions: List<AxialCoordinate>,
-        newlyGrabbedEnemyIds: Set<String>
+        newlyGrabbedEnemyIds: Set<String>,
+        pathDistances: Map<AxialCoordinate, Int>
     ): Enemy? {
         val stallPos = PreciseAxialCoordinate(stallCoord.q.toFloat(), stallCoord.r.toFloat())
 
@@ -71,7 +73,18 @@ open class DefaultStallBehavior : StallBehavior {
         // 3. Select best target from visible candidates based on target mode
         return when (stall.targetMode) {
             TargetMode.CLOSEST -> visibleEnemies.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
-            TargetMode.FIRST -> visibleEnemies.maxByOrNull { it.currentPathIndex }
+            TargetMode.FIRST -> visibleEnemies.minByOrNull { enemy ->
+                if (enemy.path.isEmpty()) return@minByOrNull 9999f
+                val nextTargetIndex = enemy.currentPathIndex + 1
+                if (nextTargetIndex < enemy.path.size) {
+                    val nextTile = enemy.path[nextTargetIndex]
+                    val distFromNextTile = pathDistances[nextTile] ?: 999
+                    val distToNextTile = GridUtils.axialDistance(enemy.position, PreciseAxialCoordinate(nextTile.q.toFloat(), nextTile.r.toFloat()))
+                    distFromNextTile.toFloat() + distToNextTile
+                } else {
+                    GridUtils.axialDistance(enemy.position, PreciseAxialCoordinate(enemy.path.last().q.toFloat(), enemy.path.last().r.toFloat()))
+                }
+            }
             TargetMode.STRONGEST -> visibleEnemies.maxByOrNull { it.health }
             TargetMode.WEAKEST -> visibleEnemies.minByOrNull { it.health }
         }
