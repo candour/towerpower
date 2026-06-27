@@ -71,4 +71,58 @@ class TargetingTest {
 
         assertEquals("Enemy 1 should be targeted as it is closer to the end along the path", "enemy1", target?.id)
     }
+
+    @Test
+    fun testFirstTargetModeWithEmptyPathDoesNotCrash() {
+        val behavior = DefaultStallBehavior()
+        val stallCoord = AxialCoordinate(0, 0)
+        val stall = Stall(
+            id = "stall1",
+            name = "Chicken Rice",
+            cost = 100,
+            color = androidx.compose.ui.graphics.Color.Yellow,
+            range = 10f,
+            targetMode = TargetMode.FIRST
+        )
+
+        // Enemy 1: at (2,0), path is empty. Dist to end = 9999 (fallback)
+        val enemy1 = Enemy(
+            id = "enemy1",
+            health = 100f,
+            maxHealth = 100f,
+            position = PreciseAxialCoordinate(2f, 0f),
+            path = emptyList(),
+            currentPathIndex = 0
+        )
+
+        // Enemy 2: at (1,0), path is (1,0) -> (1,1) -> (5,0). Dist to end = 2
+        val enemy2 = Enemy(
+            id = "enemy2",
+            health = 100f,
+            maxHealth = 100f,
+            position = PreciseAxialCoordinate(1f, 0f),
+            path = listOf(AxialCoordinate(1, 0), AxialCoordinate(1, 1), AxialCoordinate(5, 0)),
+            currentPathIndex = 0
+        )
+
+        val pathDistances = mapOf(
+            AxialCoordinate(5, 0) to 0,
+            AxialCoordinate(1, 1) to 1,
+            AxialCoordinate(1, 0) to 2
+        )
+
+        val enemies = listOf(enemy1, enemy2)
+        val enemySpatialIndex = SpatialIndex(enemies) { it.position }
+
+        val target = behavior.selectTarget(
+            stall = stall,
+            stallCoord = stallCoord,
+            enemySpatialIndex = enemySpatialIndex,
+            obstructions = emptyList(),
+            newlyGrabbedEnemyIds = emptySet(),
+            pathDistances = pathDistances
+        )
+
+        assertEquals("Enemy 2 should be targeted as Enemy 1 has an empty path and is deprioritized", "enemy2", target?.id)
+    }
 }

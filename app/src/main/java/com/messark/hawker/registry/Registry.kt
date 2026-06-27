@@ -74,6 +74,7 @@ open class DefaultStallBehavior : StallBehavior {
         return when (stall.targetMode) {
             TargetMode.CLOSEST -> visibleEnemies.minByOrNull { GridUtils.axialDistance(it.position, stallPos) }
             TargetMode.FIRST -> visibleEnemies.minByOrNull { enemy ->
+                if (enemy.path.isEmpty()) return@minByOrNull 9999f
                 val nextTargetIndex = enemy.currentPathIndex + 1
                 if (nextTargetIndex < enemy.path.size) {
                     val nextTile = enemy.path[nextTargetIndex]
