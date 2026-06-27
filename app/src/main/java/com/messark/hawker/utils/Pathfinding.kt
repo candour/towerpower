@@ -72,5 +72,31 @@ object Pathfinding {
         return path.asReversed()
     }
 
+    fun calculateAllDistances(
+        end: AxialCoordinate,
+        blockedPositions: Set<AxialCoordinate>,
+        allCoordinates: Set<AxialCoordinate>
+    ): Map<AxialCoordinate, Int> {
+        val distances = mutableMapOf<AxialCoordinate, Int>()
+        val queue: Queue<Pair<AxialCoordinate, Int>> = LinkedList()
+
+        distances[end] = 0
+        queue.add(end to 0)
+
+        while (queue.isNotEmpty()) {
+            val (current, dist) = queue.poll()!!
+
+            for (neighbor in GridUtils.getNeighbors(current)) {
+                if (neighbor in allCoordinates &&
+                    neighbor !in distances &&
+                    (neighbor !in blockedPositions || neighbor == end)) {
+                    distances[neighbor] = dist + 1
+                    queue.add(neighbor to dist + 1)
+                }
+            }
+        }
+        return distances
+    }
+
     private class Node(val coordinate: AxialCoordinate, val fScore: Int)
 }

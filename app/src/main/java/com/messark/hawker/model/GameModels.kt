@@ -284,5 +284,6 @@ data class GameState(
     val currentLevel: Int = 1,
     val showGraduationOverlay: Boolean = false,
     val gameSpeed: Float = 1.0f,
-    val simulationTimeMs: Long = 0L
+    val simulationTimeMs: Long = 0L,
+    val pathDistances: Map<AxialCoordinate, Int> = emptyMap()
 )
