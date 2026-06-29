@@ -27,6 +27,9 @@ object MapGenerator {
         height: Int = 16,
         random: Random = Random.Default
     ): Triple<Map<AxialCoordinate, HexTile>, AxialCoordinate, AxialCoordinate> {
+        require(width > 0) { "Width must be positive" }
+        require(height > 1) { "Height must be at least 2 to have a start and end row" }
+
         val hexes = mutableMapOf<AxialCoordinate, HexTile>()
 
         // Define bounds in offset-space for consistency with requested dimensions
