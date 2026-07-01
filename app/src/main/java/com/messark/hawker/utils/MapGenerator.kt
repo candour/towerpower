@@ -91,7 +91,7 @@ object MapGenerator {
 
         // 2. Identify potential obstruction coordinates (not on path, not start/end)
         val obstructionCandidates = allCoords.filter {
-            it != startPos && it != endPos && it !in path
+            it != finalStartPos && it != finalEndPos && it !in path
         }.toMutableSet()
 
         // 3. Place clumped pillars (obstructions)
