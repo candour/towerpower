@@ -42,15 +42,52 @@ object MapGenerator {
         val startPos = offsetToAxial(startQOffset, startR)
         val endPos = offsetToAxial(endQOffset, endR)
 
-        val allCoords = mutableSetOf<AxialCoordinate>()
+        var allCoords = mutableSetOf<AxialCoordinate>()
+        val rowCounts = mutableMapOf<Int, Int>()
         for (r in 0 until height) {
             for (q_offset in 0 until width) {
                 allCoords.add(offsetToAxial(q_offset, r))
             }
+            rowCounts[r] = width
+        }
+
+        // 0. Remove random edge holes
+        val numHoles = height / 2
+        val edgeCandidates = mutableListOf<Pair<Int, Int>>() // Pair(qOffset, r)
+        for (r in 1 until height - 1) { // Exclude start and end rows
+            edgeCandidates.add(0 to r)
+            edgeCandidates.add((width - 1) to r)
+        }
+        edgeCandidates.shuffle(random)
+
+        val holes = mutableSetOf<AxialCoordinate>()
+        var holesPlaced = 0
+        for ((qOffset, r) in edgeCandidates) {
+            if (holesPlaced >= numHoles) break
+            if ((rowCounts[r] ?: 0) > 4) {
+                val coord = offsetToAxial(qOffset, r)
+                holes.add(coord)
+                rowCounts[r] = (rowCounts[r] ?: 0) - 1
+                holesPlaced++
+            }
+        }
+        allCoords = allCoords.filter { it !in holes }.toMutableSet()
+
+        // Re-calculate start/end in case the original random ones were holes (though they shouldn't be as we excluded rows)
+        // But let's make sure start/end are valid for the selected width/height
+        val finalStartPos = if (offsetToAxial(startQOffset, startR) in allCoords) {
+            offsetToAxial(startQOffset, startR)
+        } else {
+            allCoords.filter { it.r == startR }.random(random)
+        }
+        val finalEndPos = if (offsetToAxial(endQOffset, endR) in allCoords) {
+            offsetToAxial(endQOffset, endR)
+        } else {
+            allCoords.filter { it.r == endR }.random(random)
         }
 
         // 1. Generate a winding path using a biased random walk
-        val path = generateWindingPath(startPos, endPos, allCoords, random)
+        val path = generateWindingPath(finalStartPos, finalEndPos, allCoords, random)
 
         // 2. Identify potential obstruction coordinates (not on path, not start/end)
         val obstructionCandidates = allCoords.filter {
@@ -63,8 +100,8 @@ object MapGenerator {
         // 4. Construct the HexTile map
         allCoords.forEach { coord ->
             val type = when (coord) {
-                startPos -> TileType.START
-                endPos -> TileType.GOAL_TABLE
+                finalStartPos -> TileType.START
+                finalEndPos -> TileType.GOAL_TABLE
                 in pillars -> TileType.PILLAR
                 else -> TileType.FLOOR
             }
@@ -76,7 +113,7 @@ object MapGenerator {
         // 5. Place DRAIN tiles (horizontal strips)
         placeDrainStrips(hexes, width, height, random)
 
-        return Triple(hexes, startPos, endPos)
+        return Triple(hexes, finalStartPos, finalEndPos)
     }
 
     /**
@@ -130,8 +167,8 @@ object MapGenerator {
         val pillars = mutableSetOf<AxialCoordinate>()
         val remaining = candidates.toMutableSet()
 
-        // Seed pillar "cores"
-        val numCores = (candidates.size * 0.04f).toInt().coerceAtLeast(1)
+        // Seed pillar "cores" - Aim for 2-5 clusters depending on map size
+        val numCores = (candidates.size * 0.04f).toInt().coerceIn(2, 5)
         val cores = mutableListOf<AxialCoordinate>()
         repeat(numCores) {
             if (remaining.isNotEmpty()) {
@@ -142,22 +179,18 @@ object MapGenerator {
             }
         }
 
-        // "Grow" the clumps
+        // "Grow" the clumps linearly to create lines instead of blobs
         cores.forEach { core ->
-            GridUtils.getNeighbors(core).forEach { neighbor ->
-                if (neighbor in remaining && random.nextFloat() < 0.6f) {
-                    pillars.add(neighbor)
-                    remaining.remove(neighbor)
+            var current = core
+            val lineLength = random.nextInt(1, 3) // Grow by 1 or 2 additional pillars
+            val direction = GridUtils.NEIGHBOR_OFFSETS.random(random)
 
-                    // Small chance to grow a second level
-                    if (random.nextFloat() < 0.2f) {
-                        GridUtils.getNeighbors(neighbor).forEach { subNeighbor ->
-                            if (subNeighbor in remaining && random.nextFloat() < 0.4f) {
-                                pillars.add(subNeighbor)
-                                remaining.remove(subNeighbor)
-                            }
-                        }
-                    }
+            repeat(lineLength) {
+                val next = AxialCoordinate(current.q + direction.q, current.r + direction.r)
+                if (next in remaining) {
+                    pillars.add(next)
+                    remaining.remove(next)
+                    current = next
                 }
             }
         }
