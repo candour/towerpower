@@ -375,7 +375,7 @@ data class EnemyDefinition(
     }
 
     fun getHp(wave: Int): Float {
-        return (baseHp * Math.pow(1.06, (wave - 1).toDouble())).toFloat()
+        return (baseHp * Math.pow(1.07, (wave - 1).toDouble())).toFloat()
     }
 
     fun toEnemy(id: String = UUID.randomUUID().toString(), wave: Int, position: PreciseAxialCoordinate, path: List<AxialCoordinate>, isFacingLeft: Boolean): Enemy {
@@ -442,7 +442,7 @@ object StallRegistry {
             cost = 100,
             color = Color.Yellow,
             range = 4f,
-            damage = 20f,
+            damage = 10f,
             fireRateMs = 500L,
             description = "High single-target damage",
             tutorialTitle = "Ah Hock’s Chicken Rice Stand (Single-Target DPS)",
@@ -456,7 +456,7 @@ object StallRegistry {
             cost = 300,
             color = Color(0xFF4CAF50),
             range = 3f,
-            damage = 100f,
+            damage = 150f,
             fireRateMs = 2000L,
             description = "Massive damage, slow fire",
             tutorialTitle = "The King Durian Bunker (High Damage/Slight AoE)",
@@ -579,7 +579,7 @@ object EnemyRegistry {
             type = EnemyType.TIGER_MOM,
             name = "Tiger Mom",
             description = "She's not just here for the food; she's here to ensure success! The Tiger Mom is a formidable force who occasionally stops to give another customer an 'encouraging' lecture, providing them with a 90% armor buff until she's fully fed. Only one Tiger Mom can be on the board at a time.",
-            baseHp = 60f,
+            baseHp = 80f,
             baseSpeed = 0.05f,
             reward = 40,
             spriteRow = 4

@@ -6,11 +6,11 @@ This document provides a breakdown of the base statistics and upgrade scaling fo
 
 | Stall Type            | Base Damage / Boost | Fire Rate (ms) | Shots / Sec | Base DPS | Range (hexes) | Allowed Upgrades            | Base Cost |
 |:----------------------|:-------------------:|:--------------:|:-----------:|:--------:|:-------------:|:----------------------------|:---------:|
-| **Chicken Rice**      |         20          |      500       |    2.00     |  20.00   |      4.0      | Damage, Range, Rate         |   $100    |
+| **Chicken Rice**      |         10          |      500       |    2.00     |  20.00   |      4.0      | Damage, Range, Rate         |   $100    |
 | **Teh Tarik**         |          0          |      1000      |    1.00     |   0.00   |      3.0      | Range, Rate, Duration       |   $150    |
 | **Satay**             |         30          |      1500      |    0.67     |  20.00   |      2.5      | Damage, Range, Rate, Radius |   $200    |
 | **Ice Kachang**       |          0          |      1500      |    0.67     |   0.00   |      3.5      | Range, Rate, Effect         |   $250    |
-| **Durian**            |         100         |      2000      |    0.50     |  75.00   |      3.0      | Damage, Range, Rate, Radius |   $300    |
+| **Durian**            |         150         |      2000      |    0.50     |  75.00   |      3.0      | Damage, Range, Rate, Radius |   $300    |
 | **Tray Return Uncle** |          0          |     15000      |    0.07     |   0.00   |      1.1      | Rate, Duration              |   $250    |
 | **ATM**               |          0          |      N/A       |    0.00     |   0.00   |      0.0      | None                        |   $1000   |
 | **Bak Kut Teh**       |         10%         |      N/A       |    0.00     |   0.00   |      1.1      | Boost                       |   $300    |
