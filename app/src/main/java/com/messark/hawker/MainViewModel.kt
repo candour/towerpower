@@ -1691,6 +1691,7 @@ class MainViewModel @JvmOverloads constructor(
             var updatedBuffingTargetId = enemy.buffingTargetId
             var isStopped = enemy.isStopped
             var stopDurationMs = enemy.stopDurationMs
+            var updatedHasActivatedBuff = enemy.hasActivatedBuff
 
             if (updatedBuffingTargetId != null) {
                 val target = enemyLookup[updatedBuffingTargetId]
@@ -1700,14 +1701,16 @@ class MainViewModel @JvmOverloads constructor(
                     if (enemy.type == EnemyType.TIGER_MOM) {
                         isStopped = false
                         stopDurationMs = 0L
+                        updatedHasActivatedBuff = false
                     }
                 }
             }
 
-            if (validBuffs.size != enemy.buffs.size || updatedBuffingTargetId != enemy.buffingTargetId) {
+            if (validBuffs.size != enemy.buffs.size || updatedBuffingTargetId != enemy.buffingTargetId || updatedHasActivatedBuff != enemy.hasActivatedBuff) {
                 enemy.copy(
                     buffs = validBuffs,
                     buffingTargetId = updatedBuffingTargetId,
+                    hasActivatedBuff = updatedHasActivatedBuff,
                     isStopped = isStopped,
                     stopDurationMs = stopDurationMs
                 )

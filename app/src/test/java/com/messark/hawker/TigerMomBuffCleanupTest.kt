@@ -84,6 +84,7 @@ class TigerMomBuffCleanupTest {
         hexes[uncleCoord] = hexes[uncleCoord]!!.copy(stall = uncleStall)
 
         viewModel._gameState.value = viewModel.gameState.value.copy(
+            currentScreen = AppScreen.GAME,
             enemies = listOf(mom, target),
             hexes = hexes,
             waveActive = true
@@ -96,8 +97,50 @@ class TigerMomBuffCleanupTest {
         val updatedTarget = newState.enemies.find { it.id == targetId }
         assertNotNull("Target enemy should still exist", updatedTarget)
 
-        // This is expected to FAIL before the fix
         assertFalse("Buff should be removed when source is grabbed",
             updatedTarget!!.buffs.any { it.sourceId == momId && it.type == BuffType.ARMOR })
+    }
+
+    @Test
+    fun `Tiger Mom should reset hasActivatedBuff and resume movement when target dies`() {
+        val application = mockk<Application>(relaxed = true)
+        val settingsRepository = mockk<SettingsRepository>()
+        val gameStateRepository = mockk<GameStateRepository>(relaxed = true)
+        every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(Settings())
+
+        val viewModel = MainViewModel(application, settingsRepository, gameStateRepository, kotlin.random.Random(42))
+
+        val momId = "mom"
+        val targetId = "target"
+        val path = listOf(AxialCoordinate(0, 0), AxialCoordinate(1, 0), AxialCoordinate(2, 0), AxialCoordinate(3, 0))
+
+        val mom = Enemy(
+            id = momId,
+            type = EnemyType.TIGER_MOM,
+            health = 80f,
+            maxHealth = 80f,
+            position = PreciseAxialCoordinate(0f, 0f),
+            path = path,
+            currentPathIndex = 0,
+            buffingTargetId = targetId,
+            isStopped = true,
+            hasActivatedBuff = true
+        )
+
+        // Target enemy is dead or missing from state
+        viewModel._gameState.value = viewModel.gameState.value.copy(
+            currentScreen = AppScreen.GAME,
+            enemies = listOf(mom),
+            waveActive = true
+        )
+
+        viewModel.updateGame(1000L)
+
+        val newState = viewModel.gameState.value
+        val updatedMom = newState.enemies.find { it.id == momId }
+        assertNotNull("Tiger Mom should still exist", updatedMom)
+        assertFalse("hasActivatedBuff should be reset to false when target is gone", updatedMom!!.hasActivatedBuff)
+        org.junit.Assert.assertNull("buffingTargetId should be cleared", updatedMom.buffingTargetId)
+        assertFalse("Tiger Mom should no longer be stopped", updatedMom.isStopped)
     }
 }
