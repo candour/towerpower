@@ -8,7 +8,7 @@ import com.messark.hawker.model.*
 import java.io.File
 import java.lang.reflect.Type
 
-class ColorTypeAdapter : JsonSerializer<Color>, JsonDeserializer<Color> {
+private object ColorTypeAdapter : JsonSerializer<Color>, JsonDeserializer<Color> {
     override fun serialize(src: Color, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
         return JsonPrimitive(src.toArgb())
     }
@@ -18,7 +18,7 @@ class ColorTypeAdapter : JsonSerializer<Color>, JsonDeserializer<Color> {
     }
 }
 
-class TileTypeAdapter : JsonSerializer<TileType>, JsonDeserializer<TileType> {
+private object TileTypeAdapter : JsonSerializer<TileType>, JsonDeserializer<TileType> {
     override fun serialize(src: TileType, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
         return JsonPrimitive(src.name)
     }
@@ -53,80 +53,89 @@ data class PersistentGameState(
     val goldEarnedThisWave: Int? = 0,
     val activeBudgetBonuses: Int? = 0,
     val freeSpecificUpgrades: Int? = 0
+) {
+    fun toGameState(): GameState = GameState(
+        currentScreen = AppScreen.GAME,
+        health = health,
+        gold = gold,
+        hexes = hexes.associateBy { it.coordinate },
+        startPosition = startPosition,
+        endPosition = endPosition,
+        currentWave = currentWave,
+        score = score,
+        kitchelinStars = kitchelinStars ?: 0,
+        currentLevel = currentLevel ?: 1,
+        showGraduationOverlay = showGraduationOverlay ?: false,
+        simulationTimeMs = simulationTimeMs ?: 0L,
+        enemies = enemies ?: emptyList(),
+        projectiles = projectiles ?: emptyList(),
+        puddles = puddles ?: emptyList(),
+        visualEffects = visualEffects ?: emptyList(),
+        waveActive = waveActive ?: false,
+        enemiesToSpawn = enemiesToSpawn ?: 0,
+        enemiesToSpawnList = enemiesToSpawnList ?: emptyList(),
+        isBossWave = isBossWave ?: false,
+        bossWaveTriggerTimeMs = bossWaveTriggerTimeMs ?: 0L,
+        lastSpawnTimeMs = lastSpawnTimeMs ?: 0L,
+        goldEarnedThisWave = goldEarnedThisWave ?: 0,
+        activeBudgetBonuses = activeBudgetBonuses ?: 0,
+        freeSpecificUpgrades = freeSpecificUpgrades ?: 0
+    )
+}
+
+fun GameState.toPersistent(): PersistentGameState = PersistentGameState(
+    health = health,
+    gold = gold,
+    hexes = hexes.values.toList(),
+    startPosition = startPosition,
+    endPosition = endPosition,
+    currentWave = currentWave,
+    score = score,
+    kitchelinStars = kitchelinStars,
+    currentLevel = currentLevel,
+    showGraduationOverlay = showGraduationOverlay,
+    simulationTimeMs = simulationTimeMs,
+    enemies = enemies,
+    projectiles = projectiles,
+    puddles = puddles,
+    visualEffects = visualEffects,
+    waveActive = waveActive,
+    enemiesToSpawn = enemiesToSpawn,
+    enemiesToSpawnList = enemiesToSpawnList,
+    isBossWave = isBossWave,
+    bossWaveTriggerTimeMs = bossWaveTriggerTimeMs,
+    lastSpawnTimeMs = lastSpawnTimeMs,
+    goldEarnedThisWave = goldEarnedThisWave,
+    activeBudgetBonuses = activeBudgetBonuses,
+    freeSpecificUpgrades = freeSpecificUpgrades
 )
 
-class GameStateRepository(private val context: Context) {
+class GameStateRepository(context: Context) {
     private val gson = GsonBuilder()
-        .registerTypeAdapter(Color::class.java, ColorTypeAdapter())
-        .registerTypeAdapter(TileType::class.java, TileTypeAdapter())
+        .registerTypeAdapter(Color::class.java, ColorTypeAdapter)
+        .registerTypeAdapter(TileType::class.java, TileTypeAdapter)
         .create()
+
     private val file = File(context.filesDir, "gamestate.json")
 
     @Synchronized
     fun saveGameState(state: GameState) {
-        val persistentState = PersistentGameState(
-            health = state.health,
-            gold = state.gold,
-            hexes = state.hexes.values.toList(),
-            startPosition = state.startPosition,
-            endPosition = state.endPosition,
-            currentWave = state.currentWave,
-            score = state.score,
-            kitchelinStars = state.kitchelinStars,
-            currentLevel = state.currentLevel,
-            showGraduationOverlay = state.showGraduationOverlay,
-            simulationTimeMs = state.simulationTimeMs,
-            enemies = state.enemies,
-            projectiles = state.projectiles,
-            puddles = state.puddles,
-            visualEffects = state.visualEffects,
-            waveActive = state.waveActive,
-            enemiesToSpawn = state.enemiesToSpawn,
-            enemiesToSpawnList = state.enemiesToSpawnList,
-            isBossWave = state.isBossWave,
-            bossWaveTriggerTimeMs = state.bossWaveTriggerTimeMs,
-            lastSpawnTimeMs = state.lastSpawnTimeMs,
-            goldEarnedThisWave = state.goldEarnedThisWave,
-            activeBudgetBonuses = state.activeBudgetBonuses,
-            freeSpecificUpgrades = state.freeSpecificUpgrades
-        )
-        file.writeText(gson.toJson(persistentState))
+        val persistent = state.toPersistent()
+        runCatching {
+            file.bufferedWriter().use { writer ->
+                gson.toJson(persistent, writer)
+            }
+        }
     }
 
+    @Synchronized
     fun loadGameState(): GameState? {
         if (!file.exists()) return null
-        return try {
-            val persistentState = gson.fromJson(file.readText(), PersistentGameState::class.java)
-            GameState(
-                currentScreen = AppScreen.GAME,
-                health = persistentState.health,
-                gold = persistentState.gold,
-                hexes = persistentState.hexes.associateBy { it.coordinate },
-                startPosition = persistentState.startPosition,
-                endPosition = persistentState.endPosition,
-                currentWave = persistentState.currentWave,
-                score = persistentState.score,
-                kitchelinStars = persistentState.kitchelinStars ?: 0,
-                currentLevel = persistentState.currentLevel ?: 1,
-                showGraduationOverlay = persistentState.showGraduationOverlay ?: false,
-                simulationTimeMs = persistentState.simulationTimeMs ?: 0L,
-                enemies = persistentState.enemies ?: emptyList(),
-                projectiles = persistentState.projectiles ?: emptyList(),
-                puddles = persistentState.puddles ?: emptyList(),
-                visualEffects = persistentState.visualEffects ?: emptyList(),
-                waveActive = persistentState.waveActive ?: false,
-                enemiesToSpawn = persistentState.enemiesToSpawn ?: 0,
-                enemiesToSpawnList = persistentState.enemiesToSpawnList ?: emptyList(),
-                isBossWave = persistentState.isBossWave ?: false,
-                bossWaveTriggerTimeMs = persistentState.bossWaveTriggerTimeMs ?: 0L,
-                lastSpawnTimeMs = persistentState.lastSpawnTimeMs ?: 0L,
-                goldEarnedThisWave = persistentState.goldEarnedThisWave ?: 0,
-                activeBudgetBonuses = persistentState.activeBudgetBonuses ?: 0,
-                freeSpecificUpgrades = persistentState.freeSpecificUpgrades ?: 0
-            )
-        } catch (e: Exception) {
-            null
-        }
+        return runCatching {
+            file.bufferedReader().use { reader ->
+                gson.fromJson(reader, PersistentGameState::class.java)?.toGameState()
+            }
+        }.getOrNull()
     }
 
     @Synchronized
