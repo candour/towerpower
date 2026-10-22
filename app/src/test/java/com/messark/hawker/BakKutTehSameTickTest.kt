@@ -57,6 +57,7 @@ class BakKutTehSameTickTest {
         )
 
         val initialState = GameState(
+            currentScreen = AppScreen.GAME,
             hexes = hexes,
             gold = 500,
             waveActive = true,

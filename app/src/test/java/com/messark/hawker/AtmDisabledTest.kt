@@ -51,6 +51,7 @@ class AtmDisabledTest {
         )
 
         viewModel._gameState.value = GameState(
+            currentScreen = AppScreen.GAME,
             waveActive = true,
             currentWave = 1,
             hexes = hexes,
@@ -84,6 +85,7 @@ class AtmDisabledTest {
         )
 
         viewModel._gameState.value = GameState(
+            currentScreen = AppScreen.GAME,
             waveActive = true,
             currentWave = 1,
             hexes = hexes,

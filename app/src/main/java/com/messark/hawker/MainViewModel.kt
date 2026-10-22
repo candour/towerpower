@@ -37,7 +37,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private var stallBoosts = emptyMap<AxialCoordinate, BoostResult>()
 
-    private fun updateBoostCache(state: GameState) {
+    internal fun updateBoostCache(state: GameState) {
         stallBoosts = state.hexes.entries
             .filter { it.value.stall != null }
             .associate { (coord, _) ->

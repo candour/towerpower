@@ -60,14 +60,14 @@ class BossWaveLogicTest {
             val hasDeliveryRider = state.enemiesToSpawnList.contains(EnemyType.DELIVERY_RIDER)
             if (w < 7) {
                 assertFalse("Wave $w should not have Delivery Rider (unlocks at W7 or W10)", hasDeliveryRider)
-            } else if (w <= 30) {
+            } else if (w <= 20) {
                 if (w % 10 == 0) {
                     // Boss wave might have it (random)
                 } else {
-                    assertFalse("Wave $w should not have Delivery Rider (only boss waves until 30)", hasDeliveryRider)
+                    assertFalse("Wave $w should not have Delivery Rider (only boss waves until 20)", hasDeliveryRider)
                 }
             } else {
-                // After 30, it can appear anywhere
+                // After 20, it can appear anywhere
             }
         }
     }

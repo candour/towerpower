@@ -44,6 +44,7 @@ class KitchelinBonusTest {
     fun testBudgetBonusFromStarAction() {
         val coord = AxialCoordinate(0, 0)
         viewModel._gameState.update { it.copy(
+            currentScreen = AppScreen.GAME,
             gold = 500,
             kitchelinStars = 1,
             hexes = mapOf(coord to HexTile(coord)),
@@ -95,6 +96,7 @@ class KitchelinBonusTest {
     fun testPassiveBonusPerStar() {
         val coord = AxialCoordinate(0, 0)
         viewModel._gameState.update { it.copy(
+            currentScreen = AppScreen.GAME,
             gold = 0,
             kitchelinStars = 3,
             hexes = mapOf(coord to HexTile(coord)),
@@ -122,6 +124,7 @@ class KitchelinBonusTest {
     fun testCombinedCumulativeBonus() {
         val coord = AxialCoordinate(0, 0)
         viewModel._gameState.update { it.copy(
+            currentScreen = AppScreen.GAME,
             gold = 0,
             kitchelinStars = 5,
             hexes = mapOf(coord to HexTile(coord)),
