@@ -78,15 +78,19 @@ class UncleDoubleGrabTest {
             path = listOf(AxialCoordinate(0,1), AxialCoordinate(0,2), AxialCoordinate(0,3), AxialCoordinate(0,4))
         )
 
-        viewModel._gameState.update { it.copy(
+        val newState = viewModel.gameState.value.copy(
+            currentScreen = AppScreen.GAME,
             hexes = mapOf(
                 uncle1Coord to HexTile(uncle1Coord, stall = uncle1),
                 uncle2Coord to HexTile(uncle2Coord, stall = uncle2),
                 enemyCoord to HexTile(enemyCoord)
             ),
             enemies = listOf(enemy),
-            waveActive = true
-        ) }
+            waveActive = true,
+            simulationTimeMs = 1000L
+        )
+        viewModel._gameState.value = newState
+        viewModel.updateBoostCache(newState)
 
         // Tick to trigger firing
         viewModel.updateGame(1000L)

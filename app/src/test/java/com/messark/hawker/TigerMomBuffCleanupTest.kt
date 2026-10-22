@@ -86,7 +86,8 @@ class TigerMomBuffCleanupTest {
         viewModel._gameState.value = viewModel.gameState.value.copy(
             enemies = listOf(mom, target),
             hexes = hexes,
-            waveActive = true
+            waveActive = true,
+            currentScreen = AppScreen.GAME
         )
 
         // Run update. No projectiles are present.

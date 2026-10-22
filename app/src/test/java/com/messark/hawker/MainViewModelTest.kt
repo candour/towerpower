@@ -67,10 +67,12 @@ class MainViewModelTest {
         every { settingsRepository.settingsFlow } returns kotlinx.coroutines.flow.flowOf(com.messark.hawker.model.Settings())
 
         val viewModel = MainViewModel(application, settingsRepository, gameStateRepository)
+        viewModel.gameJob?.cancel()
         viewModel.resetGame()
 
-        // Wait for coroutine to complete
-        testDispatcher.scheduler.advanceUntilIdle()
+        // Execute pending coroutines (resetGame block) without spinning on the infinite game loop
+        testDispatcher.scheduler.runCurrent()
+        viewModel.gameJob?.cancel()
 
         val state = viewModel.gameState.value
         assertEquals(AppScreen.GAME, state.currentScreen)
