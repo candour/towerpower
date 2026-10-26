@@ -2,6 +2,9 @@ package com.messark.hawker.utils
 
 import kotlin.random.Random
 
+/**
+ * Utility object for retrieving legendary prefixes, suffixes, and constructing stall titles upon reaching upgrade milestones.
+ */
 object LegendaryNames {
     private val suffixes = mapOf(
         "Damage" to listOf(
@@ -148,28 +151,24 @@ object LegendaryNames {
         )
     )
 
-    fun getRandomSuffix(category: String): String? {
-        val list = suffixes[category] ?: return null
-        return list[Random.nextInt(list.size)]
+    fun getRandomSuffix(category: String, random: Random = Random): String? {
+        return suffixes[category]?.randomOrNull(random)
     }
 
-    fun getRandomPrefix(category: String): String? {
-        val list = prefixes[category] ?: return null
-        return list[Random.nextInt(list.size)]
+    fun getRandomPrefix(category: String, random: Random = Random): String? {
+        return prefixes[category]?.randomOrNull(random)
     }
 
-    fun constructName(baseName: String, prefix: String?, suffix: String?): String {
-        var name = baseName
+    fun constructName(baseName: String, prefix: String?, suffix: String?): String = buildString {
         if (prefix != null) {
-            name = if (prefix.endsWith("-")) {
-                "$prefix$name"
-            } else {
-                "$prefix $name"
+            append(prefix)
+            if (!prefix.endsWith('-')) {
+                append(' ')
             }
         }
+        append(baseName)
         if (suffix != null) {
-            name = "$name $suffix"
+            append(' ').append(suffix)
         }
-        return name
     }
 }
